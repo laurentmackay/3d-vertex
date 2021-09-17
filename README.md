@@ -30,7 +30,7 @@ python main.py
 This will populate the directory with .pickle files that contain the attributes of the network state and .npy files that save the nodes of the cells circumference oriented counter clockwise. These files can be analyzed using a Jupyter Notebook or visualized using the repository referenced above.
 
 ## Citation:
-If you find the code useful, please citing: 
+If you find the code useful, please cite: 
 
 * [Durney et. al. (2021)](https://iopscience.iop.org/article/10.1088/1478-3975/abfa69/meta)
 
