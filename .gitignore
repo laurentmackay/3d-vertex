@@ -1,0 +1,4 @@
+*.npy
+/*.pickle
+/__pycache__/*
+*.lprof

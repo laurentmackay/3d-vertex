@@ -20,13 +20,15 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import pdb
 import sys
+from numba import jit
+import math
 
 ###############
 def tissue_3d():
 
     def gen_nodes(ori,z):
         nodes = [[ori[0] + r*np.cos(n*np.pi/3), ori[1] + r*np.sin(n*np.pi/3),z] for n in range(0,6)]
-        return nodes
+        return np.array(nodes)
 
     def add_nodes(nodes, i):
         pos = nx.get_node_attributes(G,'pos')
@@ -38,7 +40,7 @@ def tissue_3d():
         for node in nodes:
             add_node = True
             for existing_node in pos:
-                if distance.euclidean(pos[existing_node],node) < 10**(-7):
+                if euclidean_distance(pos[existing_node],node) < 10**(-7):
                     add_node = False
                     AS_boundary.append(existing_node)
                     spokes.append((cen_index,existing_node))
@@ -71,7 +73,7 @@ def tissue_3d():
     # Center cell set up
     z = 0.0
     origin = [0.0,0.0,z]
-    G.add_node(i,pos=origin)
+    G.add_node(i,pos=np.array(origin))
     i += 1
 
     nodes = gen_nodes(origin,z)
@@ -81,7 +83,7 @@ def tissue_3d():
     for index in range(1,int((num_cells - 1)/2.)+1):
         # # Step Up
         origin = [0, np.sqrt(3)*r*index,0.0]
-        G.add_node(i,pos=origin)
+        G.add_node(i,pos=np.array(origin))
         i += 1
 
         nodes = gen_nodes(origin,z)
@@ -90,7 +92,7 @@ def tissue_3d():
 
         # # # Step down
         origin = [0, -np.sqrt(3)*r*index,0.0]
-        G.add_node(i,pos=origin)
+        G.add_node(i,pos=np.array(origin))
         i += 1
 
         nodes = gen_nodes(origin,z)
@@ -101,7 +103,7 @@ def tissue_3d():
         if (num_cells - index) % 2 == 0:
             for j in range(1,(num_cells-index),2):
                 origin = [(3/2.)*r*index,(np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -109,7 +111,7 @@ def tissue_3d():
                 add_spokes_edges(spokes, AS_boundary)
 
                 origin = [(3/2.)*r*index,(-np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -119,7 +121,7 @@ def tissue_3d():
             # Step Left
 
                 origin = [-(3/2.)*r*index,(np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -127,7 +129,7 @@ def tissue_3d():
                 add_spokes_edges(spokes, AS_boundary)
 
                 origin = [-(3/2.)*r*index,(-np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -137,7 +139,7 @@ def tissue_3d():
         else:
             for j in range(0,(num_cells-index),2):
                 origin = [3*(1/2.)*r*index, (np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -146,7 +148,7 @@ def tissue_3d():
                 
                 if j != 0:
                     origin = [3*(1/2.)*r*index, -(np.sqrt(3)/2.)*r*j,z]
-                    G.add_node(i,pos=origin)
+                    G.add_node(i,pos=np.array(origin))
                     i += 1
 
                     nodes = gen_nodes(origin,z)
@@ -155,7 +157,7 @@ def tissue_3d():
 
                 # Step Left
                 origin = [-3*(1/2.)*r*index, (np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -164,7 +166,7 @@ def tissue_3d():
                 
                 if j != 0:
                     origin = [-3*(1/2.)*r*index, -(np.sqrt(3)/2.)*r*j,z]
-                    G.add_node(i,pos=origin)
+                    G.add_node(i,pos=np.array(origin))
                     i += 1
 
                     nodes = gen_nodes(origin,z)
@@ -173,7 +175,7 @@ def tissue_3d():
    
     circum_sorted = []
     pos = nx.get_node_attributes(G,'pos') 
-    xy = [[pos[n][0],pos[n][1]] for n in range(0,i)]
+    xy = np.array([[pos[n][0],pos[n][1]] for n in range(0,i)])
     for center in centers:
         a, b = sort_corners(list(G.neighbors(center)),xy[center],xy)
         circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
@@ -224,7 +226,7 @@ def tissue_3d():
     z = -const.l_depth
     # Center cell set up
     origin = [0.0,0.0,z]
-    G.add_node(i,pos=origin)
+    G.add_node(i,pos=np.array(origin))
     i += 1
 
     nodes = gen_nodes(origin,z)
@@ -234,7 +236,7 @@ def tissue_3d():
     for index in range(1,int((num_cells - 1)/2.)+1):
         # # Step Up
         origin = [0, np.sqrt(3)*r*index,z]
-        G.add_node(i,pos=origin)
+        G.add_node(i,pos=np.array(origin))
         i += 1
 
         nodes = gen_nodes(origin,z)
@@ -243,7 +245,7 @@ def tissue_3d():
 
         # # # Step down
         origin = [0, -np.sqrt(3)*r*index,z]
-        G.add_node(i,pos=origin)
+        G.add_node(i,pos=np.array(origin))
         i += 1
 
         nodes = gen_nodes(origin,z)
@@ -254,7 +256,7 @@ def tissue_3d():
         if (num_cells - index) % 2 == 0:
             for j in range(1,(num_cells-index),2):
                 origin = [(3/2.)*r*index,(np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -262,7 +264,7 @@ def tissue_3d():
                 add_spokes_edges(spokes, AS_boundary)
 
                 origin = [(3/2.)*r*index,(-np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -272,7 +274,7 @@ def tissue_3d():
             # Step Left
 
                 origin = [-(3/2.)*r*index,(np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -280,7 +282,7 @@ def tissue_3d():
                 add_spokes_edges(spokes, AS_boundary)
 
                 origin = [-(3/2.)*r*index,(-np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -290,7 +292,7 @@ def tissue_3d():
         else:
             for j in range(0,(num_cells-index),2):
                 origin = [3*(1/2.)*r*index, (np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -299,7 +301,7 @@ def tissue_3d():
                 
                 if j != 0:
                     origin = [3*(1/2.)*r*index, -(np.sqrt(3)/2.)*r*j,z]
-                    G.add_node(i,pos=origin)
+                    G.add_node(i,pos=np.array(origin))
                     i += 1
 
                     nodes = gen_nodes(origin,z)
@@ -308,7 +310,7 @@ def tissue_3d():
 
                 # Step Left
                 origin = [-3*(1/2.)*r*index, (np.sqrt(3)/2.)*r*j,z]
-                G.add_node(i,pos=origin)
+                G.add_node(i,pos=np.array(origin))
                 i += 1
 
                 nodes = gen_nodes(origin,z)
@@ -317,7 +319,7 @@ def tissue_3d():
                 
                 if j != 0:
                     origin = [-3*(1/2.)*r*index, -(np.sqrt(3)/2.)*r*j,z]
-                    G.add_node(i,pos=origin)
+                    G.add_node(i,pos=np.array(origin))
                     i += 1
 
                     nodes = gen_nodes(origin,z)
@@ -338,40 +340,47 @@ def vector(A,B):
         
     return [(B[0]-A[0]), (B[1]-A[1]), (B[2]-A[2])] 
 
+@jit(nopython=True)
+def euclidean_distance(v1, v2):
+    dist = [(a - b)**2 for a, b in zip(v1, v2)]
+    dist = math.sqrt(sum(dist))
+    return dist
+
+@jit(nopython=True)
 def unit_vector(A,B):
     # Calculate the unit vector from A to B in 3D
 
-    dist = distance.euclidean(A,B)
+    dist = euclidean_distance(A,B)
 
     if dist < 10e-15:
         dist = 1.0
 
-    return [(B[0]-A[0])/dist,(B[1]-A[1])/dist, (B[2] - A[2])/dist]
+    return (B-A)/dist#[(B[0]-A[0])/dist,(B[1]-A[1])/dist, (B[2] - A[2])/dist]
 ###############
 
 def unit_vector_2D(A,B):
     # Calculate the unit vector from A to B in 3D
 
-    dist = distance.euclidean(A,B)
+    dist = euclidean_distance(A,B)
 
     if dist < 10e-15:
         dist = 1.0
 
-    return [(B[0]-A[0])/dist,(B[1]-A[1])/dist]
+    return (B-A)[0:2]/dist#[(B[0]-A[0])/dist,(B[1]-A[1])/dist]
 ###############
 
-def d_pos(position,force,dt):
-    # Calculate the new vertex position using forward euler
-    # input: Current position, force, and dt the time step
-    # output: Updated position of the node.  
+# def d_pos(position,force,dt):
+#     # Calculate the new vertex position using forward euler
+#     # input: Current position, force, and dt the time step
+#     # output: Updated position of the node.  
 
-    x_new = position[0] + (dt/const.eta)*force[0]
+#     x_new = position[0] + (dt/const.eta)*force[0]
 
-    y_new = position[1] + (dt/const.eta)*force[1]
+#     y_new = position[1] + (dt/const.eta)*force[1]
 
-    z_new = position[2] + (dt/const.eta)*force[2]
+#     z_new = position[2] + (dt/const.eta)*force[2]
     
-    return [x_new,y_new,z_new]
+#     return [x_new,y_new,z_new]
 ###############
 
 def elastic_force(l,l0,muu):
@@ -411,7 +420,7 @@ def signed_angle(v1,v2):
 
 def tetrahedron_volume(a, b, c, d):
     
-    return np.abs(np.einsum('ij,ij->i', a-d, np.cross(b-d, c-d))) / 6
+    return np.abs(np.einsum('ij,ij->i', a-d, crossMatMat(b-d, c-d))) / 6
 
 def convex_hull_volume(pts):
 
@@ -459,11 +468,35 @@ def get_points(G, q, pos):
 
     return pts 
 
+@jit(nopython=True)
+def cross33(a,b):
+    return np.array([a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]])
+
+@jit(nopython=True)
+def cross3Mat(a,b):
+    out = np.zeros((b.shape))
+    for i in range(0,b.shape[0]):
+        out[i,0]=a[1]*b[i,2]-a[2]*b[i,1]
+        out[i,1]=a[2]*b[i,0]-a[0]*b[i,2]
+        out[i,2]=a[0]*b[i,1]-a[1]*b[i,0]
+
+    return out
+
+@jit(nopython=True)
+def crossMatMat(a,b):
+    out = np.zeros((b.shape))
+    for i in range(0,b.shape[0]):
+        out[i,0]=a[i,1]*b[i,2]-a[i,2]*b[i,1]
+        out[i,1]=a[i,2]*b[i,0]-a[i,0]*b[i,2]
+        out[i,2]=a[i,0]*b[i,1]-a[i,1]*b[i,0]
+
+    return out    
+
 def area_triangle(u,v):
 # compute angle of triangle using cross-product
 # compute normal vector
                 
-    cross = np.cross(u,v)
+    cross = cross33(u,v)
     norm = np.linalg.norm(cross)
                             
     return norm/2, np.array([cross[0]/norm , cross[1]/norm, cross[2]/norm])
@@ -483,55 +516,130 @@ def sort_corners(corners,center_pos,pos_nodes):
     
     return corn2, corn_sort
 
+@jit(nopython=True)
 def area_side(pos_side):
     
-    A_alpha = np.array([0.,0.,0.])
-    
+    A_alpha = np.zeros((3,))
+    # inds=[2,0,1]
     for i in range(0,3):
-        A_alpha += (1/2)*np.cross(np.asarray(pos_side[i]),np.asarray(pos_side[i-1]))
+        A_alpha += (1/2)*cross33(pos_side[i],pos_side[i-1])
     
-    return [np.linalg.norm(A_alpha), A_alpha] 
+    return np.linalg.norm(A_alpha), A_alpha
 
-def be_area(cw_alpha, cw_beta, pos):
+
+# def be_area(cw_alpha, cw_beta, pos):
     
-    A_alpha = np.array([0.,0.,0.])
-    A_beta = np.array([0.,0.,0.])
+#     A_alpha = np.array([0.,0.,0.])
+#     A_beta = np.array([0.,0.,0.])
     
+#     for i in range(0,3):
+#         A_alpha += (1/2)*cross33(pos[cw_alpha[i]],pos[cw_alpha[i-1]])
+    
+#         A_beta += (1/2)*cross33(pos[cw_beta[i]],pos[cw_beta[i-1]])
+    
+#     return np.linalg.norm(A_alpha), A_alpha, np.linalg.norm(A_beta), A_beta
+
+@jit(nopython=True)
+def be_area_2( pos_alpha, pos_beta):
+    
+    A_alpha = np.zeros((3,))
+    A_beta = np.zeros((3,))
+    # inds=np.array([2,0,1])
     for i in range(0,3):
-        A_alpha += (1/2)*np.cross(np.asarray(pos[cw_alpha[i]]),np.asarray(pos[cw_alpha[i-1]]))
+        A_alpha += (1/2)*cross33(pos_alpha[i],pos_alpha[i-1])
     
-        A_beta += (1/2)*np.cross(np.asarray(pos[cw_beta[i]]),np.asarray(pos[cw_beta[i-1]]))
+        A_beta += (1/2)*cross33(pos_beta[i],pos_beta[i-1])
     
-    return [np.linalg.norm(A_alpha), A_alpha], [np.linalg.norm(A_beta), A_beta] 
+    # A_alpha = np.sum(crossMatMat(pos_alpha,pos_alpha[inds]),axis=0)
+    # A_beta = np.sum(crossMatMat(pos_beta,pos_beta[inds]),axis=0)
+    return np.linalg.norm(A_alpha), A_alpha, np.linalg.norm(A_beta), A_beta
 
-def bending_energy(nbhrs_alpha, nbhrs_beta, A_alpha, A_beta, pos):
+# def bending_energy(nbhrs_alpha, nbhrs_beta, A_alpha, A_beta, pos):
     
-    # principal unit vectors e_x, e_y, e_z
-    e = np.array([[1,0,0], [0,1,0], [0,0,1]])
+#     # principal unit vectors e_x, e_y, e_z
+#     e = np.array([[1,0,0], [0,1,0], [0,0,1]])
+    
+#     # initialize the sums to zero
+#     sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+
+#     for k in range(0,3):
+#         # sum (1) and (5) use the alpha cell
+#         if nbhrs_alpha != False:
+#             cross = cross33(pos[nbhrs_alpha[-1]]-pos[nbhrs_alpha[0]],e[k])
+#             sums[0] += A_beta[1][k]*(1/2)*cross
+#             sums[4] += A_alpha[1][k]*(1/2)*cross
+
+#         # sum (2) and (4) use the beta cell
+#         if nbhrs_beta != False:
+#             cross = cross33(pos[nbhrs_beta[-1]]-pos[nbhrs_beta[0]],e[k])
+#             sums[1] += A_alpha[1][k]*(1/2)*cross
+#             sums[3] += A_beta[1][k]*(1/2)*cross
+
+#         # sum (3)
+#         sums[2] += A_alpha[1][k]*A_beta[1][k]
+
+#     return np.array((1/(A_alpha[0]*A_beta[0]))*(sums[0]+sums[1]) \
+#             + (-sums[2]/(A_alpha[0]*A_beta[0])**2)*((A_alpha[0]/A_beta[0])*sums[3] \
+#             +(A_beta[0]/A_alpha[0])*sums[4]))
+
+e = np.array([[1,0,0], [0,1,0], [0,0,1]])
+
+#@profile
+@jit(nopython=True)
+def bending_energy_2(nbhrs_alpha, nbhrs_beta, alpha_vec, A_alpha, beta_vec, A_beta, pos_alpha_A, pos_alpha_B, pos_beta_A, pos_beta_B):
+    
+    
+    
     
     # initialize the sums to zero
-    sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+    # sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+    # sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+    # sums=[];
 
-    for k in range(0,3):
-        # sum (1) and (5) use the alpha cell
-        if nbhrs_alpha != False:
-            cross = np.cross(np.asarray(pos[nbhrs_alpha[-1]])-np.asarray(pos[nbhrs_alpha[0]]),e[k])
-            sums[0] += A_beta[1][k]*(1/2)*cross
-            sums[4] += A_alpha[1][k]*(1/2)*cross
+    if nbhrs_alpha != False:
+        sum0=np.sum(cross3Mat(pos_alpha_B-pos_alpha_A,e)*beta_vec,axis=0)/2
+        sum4=np.sum(cross3Mat(pos_alpha_B-pos_alpha_A,e)*alpha_vec,axis=0)/2
+    else:
+        sum0=np.zeros((3,))
+        sum4=np.zeros((3,))
 
-        # sum (2) and (4) use the beta cell
-        if nbhrs_beta != False:
-            cross = np.cross(np.asarray(pos[nbhrs_beta[-1]])-np.asarray(pos[nbhrs_beta[0]]),e[k])
-            sums[1] += A_alpha[1][k]*(1/2)*cross
-            sums[3] += A_beta[1][k]*(1/2)*cross
+    if nbhrs_beta != False:
+        sum1=np.sum(cross3Mat(pos_beta_B-pos_beta_A,e)*alpha_vec,axis=0)/2
+        sum3=np.sum(cross3Mat(pos_beta_B-pos_beta_A,e)*beta_vec,axis=0)/2
+    else:
+        sum1=np.zeros((3,))
+        sum3=np.zeros((3,))
 
-        # sum (3)
-        sums[2] += A_alpha[1][k]*A_beta[1][k]
+    sum2=np.repeat(alpha_vec[0]*beta_vec[0]+alpha_vec[1]*beta_vec[1]+alpha_vec[2]*beta_vec[2],3)
 
-    return np.array((1/(A_alpha[0]*A_beta[0]))*(sums[0]+sums[1]) \
-            + (-sums[2]/(A_alpha[0]*A_beta[0])**2)*((A_alpha[0]/A_beta[0])*sums[3] \
-            +(A_beta[0]/A_alpha[0])*sums[4]))
+    # sums2=np.vstack([np.sum(np.cross(pos[nbhrs_alpha[-1]]-pos[nbhrs_alpha[0]],e)*A_beta[1].reshape((-1,1)),axis=0)/2,
+    # np.sum(np.cross(pos[nbhrs_beta[-1]]-pos[nbhrs_beta[0]],e)*A_alpha[1].reshape((-1,1)),axis=0)/2,
+    # np.tile(np.sum(A_alpha[1]*A_beta[1]),reps=(3,)),
+    # np.sum(np.cross(pos[nbhrs_beta[-1]]-pos[nbhrs_beta[0]],e)*A_beta[1].reshape((-1,1)),axis=0)/2,
+    # np.sum(np.cross(pos[nbhrs_alpha[-1]]-pos[nbhrs_alpha[0]],e)*A_alpha[1].reshape((-1,1)),axis=0)/2])
 
+    # for k in range(0,3):
+    #     # sum (1) and (5) use the alpha cell
+    #     if nbhrs_alpha != False:
+    #         cross = np.cross(pos[nbhrs_alpha[-1]]-pos[nbhrs_alpha[0]],e[k])
+    #         sums[0] += A_beta[1][k]*(1/2)*cross
+    #         sums[4] += A_alpha[1][k]*(1/2)*cross
+
+    #     # sum (2) and (4) use the beta cell
+    #     if nbhrs_beta != False:
+    #         cross = np.cross(pos[nbhrs_beta[-1]]-pos[nbhrs_beta[0]],e[k])
+    #         sums[1] += A_alpha[1][k]*(1/2)*cross
+    #         sums[3] += A_beta[1][k]*(1/2)*cross
+
+    #     # sum (3)
+    #     sums[2] += A_alpha[1][k]*A_beta[1][k]
+
+    # if not np.all(np.array(sums2)==sums):
+    #     print('ru roh')
+
+    return (1/(A_alpha*A_beta))*(sum0+sum1) \
+            + (-sum2/(A_alpha*A_beta)**2)*((A_alpha/A_beta)*sum3 \
+            +(A_beta/A_alpha)*sum4)
 
 def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes):
     # obtain new network topology - i.e. triangles, and circum_sorted 
