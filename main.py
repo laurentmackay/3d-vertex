@@ -49,8 +49,8 @@ bending_energy_2(True, True,z3.reshape((-1,1)), 1.0 , z3.reshape((-1,1)), 1.0, z
 unit_vector(z3,z3)
 unit_vector_and_dist(z3,z3)
 euclidean_distance(z3,z3)
-be_area_2(np.tile(z3,reps=(1,3)),np.tile(z3,reps=(1,3)))
-area_side(np.tile(z3,reps=(1,3)))
+be_area_2(np.tile(z3,reps=(3,1)),np.tile(z3,reps=(3,1)))
+area_side(np.tile(z3,reps=(3,1)))
 
 pos = nx.get_node_attributes(G,'pos')
 pts = get_points(G,centers[0],pos)
@@ -175,7 +175,7 @@ def main_loop(G, K, centers, num_api_nodes, circum_sorted, belt, triangles ):
             for i in range(0,len(circum_sorted[index])):
                 for offset in [0, basal_offset]:
                     inds=np.array([center,pts[i],pts[i-1]])+offset
-                    pos_apical =np.array([pos[i] for i in inds])
+                    pos_apical =np.array([pos[j] for j in inds])
                     area, area_vec, _, _ = be_area_2(pos_apical,pos_apical) 
                     magnitude = PI_curr*area*(1/3)
                     
@@ -188,25 +188,24 @@ def main_loop(G, K, centers, num_api_nodes, circum_sorted, belt, triangles ):
         # loop through each cell
         for index in range(0,len(circum_sorted)):
             cell_nodes = circum_sorted[index]
-            # centroid = (pos[centers[index]]+pos[centers[index]+basal_offset])/2.0
-            # centroid = np.average(centroid, axis=0)
+
             PI_curr = PI[index]
             # loop through the 6 faces (or 5 or 7 after intercalation)
             for i in range(0, len(cell_nodes)):
                 pts_id = np.array([cell_nodes[i-1], cell_nodes[i], cell_nodes[i]+basal_offset, cell_nodes[i-1]+basal_offset])
-                pts_pos = np.array([pos[pts_id[ii]] for ii in range(0,4)])
+                pts_pos = np.array([pos[pts_id[j]] for j in range(0,4)])
                 # on each face, calculate the center
                 center = np.average(pts_pos,axis=0)
                 # loop through the 4 triangles that make the face
-                for ii in range(0,4):
-                    pos_side = np.array([center, pts_pos[ii-1], pts_pos[ii]] )
+                for k in range(0,4):
+                    pos_side = np.array([center, pts_pos[k-1], pts_pos[k]] )
                     area, area_vec = area_side(pos_side) 
                     magnitude = PI_curr*area*(1/2)
                     
                     direction = area_vec / area
                     force = magnitude * direction
-                    force_dict[pts_id[ii-1]] += force
-                    force_dict[pts_id[ii]] += force
+                    force_dict[pts_id[k-1]] += force
+                    force_dict[pts_id[k]] += force
         
         # Implement bending energy
         # Loop through all alpha, beta pairs of triangles
@@ -220,8 +219,7 @@ def main_loop(G, K, centers, num_api_nodes, circum_sorted, belt, triangles ):
                 A_alpha_vec=A_alpha_vec.reshape((-1,1))
                 A_beta_vec=A_beta_vec.reshape((-1,1))
                 
-                for node in alpha:
-                    inda = alpha.index(node) 
+                for node, inda in zip(alpha,range(len(alpha))):
                     nbhrs_alpha = (alpha[(inda+1)%3], alpha[(inda-1)%3]) 
                     if node in beta:
                         indb = beta.index(node) 
@@ -234,9 +232,8 @@ def main_loop(G, K, centers, num_api_nodes, circum_sorted, belt, triangles ):
                 
                     force_dict[node] += frce
 
-                for node in beta:
+                for node, indb in zip(beta,range(len(beta))):
                     # don't double count the shared nodes
-                    indb = beta.index(node) 
                     nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
                     if node not in alpha:
                         # frce = const.c_ab*bending_energy(False, nbhrs_beta, A_alpha, A_beta, pos)

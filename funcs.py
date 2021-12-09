@@ -510,14 +510,7 @@ def crossMatMat(a,b):
 
     return out    
 
-def area_triangle(u,v):
-# compute angle of triangle using cross-product
-# compute normal vector
-                
-    cross = cross33(u,v)
-    norm = np.linalg.norm(cross)
-                            
-    return norm/2, np.array([cross[0]/norm , cross[1]/norm, cross[2]/norm])
+
 
 def sort_corners(corners,center_pos,pos_nodes):
 
@@ -545,18 +538,6 @@ def area_side(pos_side):
     return np.linalg.norm(A_alpha), A_alpha
 
 
-# def be_area(cw_alpha, cw_beta, pos):
-    
-#     A_alpha = np.array([0.,0.,0.])
-#     A_beta = np.array([0.,0.,0.])
-    
-#     for i in range(0,3):
-#         A_alpha += (1/2)*cross33(pos[cw_alpha[i]],pos[cw_alpha[i-1]])
-    
-#         A_beta += (1/2)*cross33(pos[cw_beta[i]],pos[cw_beta[i-1]])
-    
-#     return np.linalg.norm(A_alpha), A_alpha, np.linalg.norm(A_beta), A_beta
-
 @jit(nopython=True)
 def be_area_2( pos_alpha, pos_beta):
     
@@ -572,33 +553,7 @@ def be_area_2( pos_alpha, pos_beta):
     # A_beta = np.sum(crossMatMat(pos_beta,pos_beta[inds]),axis=0)
     return np.linalg.norm(A_alpha), A_alpha, np.linalg.norm(A_beta), A_beta
 
-# def bending_energy(nbhrs_alpha, nbhrs_beta, A_alpha, A_beta, pos):
-    
-#     # principal unit vectors e_x, e_y, e_z
-#     e = np.array([[1,0,0], [0,1,0], [0,0,1]])
-    
-#     # initialize the sums to zero
-#     sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
 
-#     for k in range(0,3):
-#         # sum (1) and (5) use the alpha cell
-#         if nbhrs_alpha != False:
-#             cross = cross33(pos[nbhrs_alpha[-1]]-pos[nbhrs_alpha[0]],e[k])
-#             sums[0] += A_beta[1][k]*(1/2)*cross
-#             sums[4] += A_alpha[1][k]*(1/2)*cross
-
-#         # sum (2) and (4) use the beta cell
-#         if nbhrs_beta != False:
-#             cross = cross33(pos[nbhrs_beta[-1]]-pos[nbhrs_beta[0]],e[k])
-#             sums[1] += A_alpha[1][k]*(1/2)*cross
-#             sums[3] += A_beta[1][k]*(1/2)*cross
-
-#         # sum (3)
-#         sums[2] += A_alpha[1][k]*A_beta[1][k]
-
-#     return np.array((1/(A_alpha[0]*A_beta[0]))*(sums[0]+sums[1]) \
-#             + (-sums[2]/(A_alpha[0]*A_beta[0])**2)*((A_alpha[0]/A_beta[0])*sums[3] \
-#             +(A_beta[0]/A_alpha[0])*sums[4]))
 
 e = np.array([[1,0,0], [0,1,0], [0,0,1]])
 
