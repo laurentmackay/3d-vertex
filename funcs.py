@@ -59,7 +59,7 @@ def tissue_3d():
         boundary.append(boundary[0])
         G.add_edges_from(spokes, l_rest=const.l_apical, myosin=0)
         attr = {'l_rest' : const.l_apical, 'myosin':0, 'color':'#808080'}
-        if float(nx.__version__)>2.3:
+        if nx.__version__>"2.3":
             nx.classes.function.add_path(G,boundary, **attr)
         else:
             G.add_path(boundary, **attr)
@@ -67,7 +67,7 @@ def tissue_3d():
         return
 
     G = nx.Graph()
-    if float(nx.__version__)>2.3:
+    if nx.__version__>"2.3":
         G.node=G._node
 
     r = const.l_apical              # initial spoke length
