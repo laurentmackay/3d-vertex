@@ -22,6 +22,7 @@ import pdb
 import sys
 from numba import jit
 import math
+basal_offset = const.basal_offset
 
 ###############
 def tissue_3d():
@@ -335,7 +336,7 @@ def tissue_3d():
     print("Basal Nodes Added")
     for n in range(0,num_apical_nodes):
         if n not in centers:
-            G.add_edge(n,n+1000, l_rest = const.l_depth, myosin = 0, beta = 0)
+            G.add_edge(n,n+basal_offset, l_rest = const.l_depth, myosin = 0, beta = 0)
 
     print("Lateral Connections made")
     
@@ -361,7 +362,18 @@ def unit_vector(A,B):
     if dist < 10e-15:
         dist = 1.0
 
-    return (B-A)/dist#[(B[0]-A[0])/dist,(B[1]-A[1])/dist, (B[2] - A[2])/dist]
+    return (B-A)/dist
+###############
+# @jit(nopython=True)
+def unit_vector_and_dist(A,B):
+    # Calculate the unit vector from A to B in 3D
+
+    dist = euclidean_distance(A,B)
+
+    if dist < 10e-15:
+        dist = 1.0
+
+    return (B-A)/dist, dist
 ###############
 
 def unit_vector_2D(A,B):
@@ -372,7 +384,7 @@ def unit_vector_2D(A,B):
     if dist < 10e-15:
         dist = 1.0
 
-    return (B-A)[0:2]/dist#[(B[0]-A[0])/dist,(B[1]-A[1])/dist]
+    return (B-A)[0:2]/dist
 ###############
 
 # def d_pos(position,force,dt):
@@ -467,7 +479,7 @@ def get_points(G, q, pos):
     # returns:  pts: list of positions that are associated with that center 
 
     api_nodes = [q] + list(G.neighbors(q))
-    basal_nodes = [q+1000] + list(G.neighbors(q+1000)) 
+    basal_nodes = [q+basal_offset] + list(G.neighbors(q+basal_offset)) 
 #    basal_nodes = [api_nodes[n] + 1000 for n in range(1,7)]
     pts = api_nodes + basal_nodes
     pts = [pos[n] for n in pts]
