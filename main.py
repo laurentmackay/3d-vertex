@@ -1,7 +1,4 @@
 
-
-import globals as const
-
 from vertex_3d import *
 import SG
 from mlab_viz import edge_viewer
@@ -12,7 +9,7 @@ if __name__ == '__main__':
 
     # initialize the tissue
     G, K, centers, num_api_nodes, circum_sorted, belt, triangles = tissue_3d()
-    pit_centers = const.pit_centers 
+
 
     invagination = SG.invagination(G, belt)
     viewer = edge_viewer(G,attr='myosin')
