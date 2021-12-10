@@ -10,15 +10,24 @@ vtk.vtkObject.GlobalWarningDisplayOff()
 
 def edge_viewer(*args,**kwargs):
     a,b = mp.Pipe(duplex=True)
-    man = _view_edges(*args,**kwargs)
-    proc = mp.Process(target=run_dill, args=make_dill(man, b), daemon=True)
+    proc = mp.Process(target=run_dill, args=make_dill(_view_edges(*args,**kwargs), b), daemon=True)
     proc.start()
-    return a.send
+
+    plot=True
+    def safe_plot(G):
+        nonlocal plot
+        if plot:
+            try:
+                a.send(G)
+            except:
+                plot=False
+
+    return safe_plot
 
 def _view_edges(*a,**kw):    
     def inner(b):
         pts = edge_view(*a,**kw)
-        @mlab.animate(delay=16,ui=False)
+        @mlab.animate(delay=32,ui=False)
         def anim():
             while True:
                 if b.poll():
