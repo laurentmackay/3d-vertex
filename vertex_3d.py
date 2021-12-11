@@ -56,7 +56,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         np.save(file_name, circum_sorted) 
         t0 = time.time()
         while t <= t_final:
-            
+
+            pre_callback(t)
             # increment t by dt
             # initialize force_dict back to zeros
             t = round(t+dt,1)
@@ -65,8 +66,6 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             t0=t1
             pos = nx.get_node_attributes(G,'pos')
             force_dict = {new_list: np.zeros(3,dtype=float) for new_list in G.nodes()} 
-
-            pre_callback(t)
             
             # pre-calculate magnitude of pressure
             # index of list corresponds to index of centers list

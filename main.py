@@ -1,4 +1,3 @@
-
 from vertex_3d import *
 import SG
 from mlab_viz import edge_viewer
