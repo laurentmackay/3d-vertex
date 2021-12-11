@@ -79,23 +79,42 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 # calculate pressure
                 PI[n] = -press_alpha*(vol-const.v_0) 
 
-            for node in G.nodes(): 
-                # update force on each node  
-                force = np.zeros((3,))
+            l_rest = nx.get_edge_attributes(G,'l_rest')
+            myosin = nx.get_edge_attributes(G,'myosin')
+            dists = np.zeros((len(myosin),))
+            for i, e in enumerate(G.edges()):
+                
+                a, b = e[0], e[1]
+                pos_a = pos[a]
+                pos_b = pos[b]
+                direction, dist = unit_vector_and_dist(pos_a,pos_b)
+
+                
+                dists[i] = dist
+                magnitude = mu_apical*(dist - l_rest[e])
+                magnitude2 = myo_beta*myosin[e]
+                force = (magnitude + magnitude2)*direction
+
+                force_dict[a] += force
+                force_dict[b] -= force
+
+            # for node in G.nodes(): 
+            #     # update force on each node  
+            #     force = np.zeros((3,))
             
-                # Elastic forces due to the cytoskeleton 
-                a = pos[node]
-                for neighbor in G.neighbors(node):
-                    b = pos[neighbor]
+            #     # Elastic forces due to the cytoskeleton 
+            #     a = pos[node]
+            #     for neighbor in G.neighbors(node):
+            #         b = pos[neighbor]
                     
 
-                    direction, dist = unit_vector_and_dist(a,b)
-                    l0= G[node][neighbor]['l_rest']
-                    magnitude = mu_apical*(dist-l0)
-                    magnitude2 = myo_beta*G[node][neighbor]['myosin']
-                    force += (magnitude+magnitude2)*direction
+            #         direction, dist = unit_vector_and_dist(a,b)
+            #         l0= G[node][neighbor]['l_rest']
+            #         magnitude = mu_apical*(dist-l0)
+            #         magnitude2 = myo_beta*G[node][neighbor]['myosin']
+            #         force += (magnitude+magnitude2)*direction
 
-                force_dict[node] += force 
+            #     force_dict[node] += force 
             
             for center in centers:
                 index = centers.index(center)
@@ -180,6 +199,10 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             
             for node in force_dict:
                 G.node[node]['pos'] = G.node[node]['pos'] + (dt/const.eta)*force_dict[node]  #forward euler step for nodes
+
+            for i, e in enumerate(G.edges()):
+                G[e[0]][e[1]]['l_rest'] = l_rest[e] + (dists[i]-l_rest[e])/const.tau
+            
 
         ## Check for intercalation events
             pos = nx.get_node_attributes(G,'pos')
