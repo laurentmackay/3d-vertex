@@ -65,7 +65,9 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             print(dt, t,f'{t1-t0} seconds elapsed') 
             t0=t1
             pos = nx.get_node_attributes(G,'pos')
-            force_dict = {new_list: np.zeros(3,dtype=float) for new_list in G.nodes()} 
+            pos2 = np.fromiter(pos.values(),dtype=float)
+            force_dict = {new_list: np.zeros(3,dtype=float) for new_list in G.nodes()}
+            forces = np.zeros(pos2.shape)
             
             # pre-calculate magnitude of pressure
             # index of list corresponds to index of centers list
@@ -78,25 +80,28 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 vol = convex_hull_volume_bis(pts)  
                 # calculate pressure
                 PI[n] = -press_alpha*(vol-const.v_0) 
+            ind_dict = {n:i for i, n in enumerate(pos.keys())}
+            l_rest = np.fromiter(nx.get_edge_attributes(G,'l_rest').values(),dtype=float)
+            myosin = np.fromiter(nx.get_edge_attributes(G,'myosin').values(),dtype=float)
+            edges = np.array([np.array([ind_dict[e[0]], ind_dict[e[1]]]) for e in G.edges()])
 
-            l_rest = nx.get_edge_attributes(G,'l_rest')
-            myosin = nx.get_edge_attributes(G,'myosin')
-            dists = np.zeros((len(myosin),))
-            for i, e in enumerate(G.edges()):
+            dists = np.zeros((len(l_rest),))
+
+            for i, e in enumerate(edges):
                 
                 a, b = e[0], e[1]
-                pos_a = pos[a]
-                pos_b = pos[b]
+                pos_a = pos2[a]
+                pos_b = pos2[b]
                 direction, dist = unit_vector_and_dist(pos_a,pos_b)
 
                 
                 dists[i] = dist
-                magnitude = mu_apical*(dist - l_rest[e])
-                magnitude2 = myo_beta*myosin[e]
+                magnitude = mu_apical*(dist - l_rest[i])
+                magnitude2 = myo_beta*myosin[i]
                 force = (magnitude + magnitude2)*direction
 
-                force_dict[a] += force
-                force_dict[b] -= force
+                forces[a] += force
+                forces[b] -= force
 
             # for node in G.nodes(): 
             #     # update force on each node  
@@ -123,7 +128,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 PI_curr = PI[index]
                 # pressure for: 
                 # apical and basal nodes     
-                for i in range(0,len(circum_sorted[index])):
+                for i in range(len(circum_sorted[index])):
                     for offset in [0, basal_offset]:
                         inds=np.array([center,pts[i],pts[i-1]])+offset
                         pos_apical =np.array([pos[j] for j in inds])
