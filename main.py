@@ -198,7 +198,7 @@ def main_loop(G, K, centers, num_api_nodes, circum_sorted, belt, triangles ):
                 center = np.average(pts_pos,axis=0)
                 # loop through the 4 triangles that make the face
                 for k in range(0,4):
-                    pos_side = np.array([center, pts_pos[k-1], pts_pos[k]] )
+                    pos_side = np.array([center, pts_pos[k-1], pts_pos[k]])
                     area, area_vec = area_side(pos_side) 
                     magnitude = PI_curr*area*(1/2)
                     
@@ -254,7 +254,7 @@ def main_loop(G, K, centers, num_api_nodes, circum_sorted, belt, triangles ):
         for node in range(0,num_api_nodes):
             if node not in belt: 
                 for neighbor in G.neighbors(node):
-                    if (neighbor < 1000) and (neighbor not in belt) and (node not in centers) and (neighbor not in centers) and ([min(node, neighbor), max(node, neighbor)] not in blacklist): 
+                    if (neighbor < basal_offset) and (neighbor not in belt) and (node not in centers) and (neighbor not in centers) and ([min(node, neighbor), max(node, neighbor)] not in blacklist): 
                     
                         a = pos[node]
                         b = pos[neighbor]
