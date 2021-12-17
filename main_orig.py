@@ -77,7 +77,7 @@ nx.write_gpickle(G,file_name + '.pickle')
 np.save(file_name,circum_sorted) 
 
 viewer = edge_viewer(G,attr='myosin')
-t0=
+
 t_plot=5
 t_last=-t_plot
 while t <= const.t_final:
