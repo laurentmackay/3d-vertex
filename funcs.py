@@ -10,16 +10,12 @@
 ##########
 
 import networkx as nx
-from scipy.spatial import distance
+
 from scipy.spatial import ConvexHull
 from scipy.spatial import Delaunay
 import numpy as np
 import globals as const
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-import pdb
-import sys
+
 from numba import jit
 import math
 basal_offset = const.basal_offset
