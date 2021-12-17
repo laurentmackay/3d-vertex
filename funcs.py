@@ -36,6 +36,18 @@ def euclidean_distance(v1, v2):
     dist = math.sqrt(sum(dist))
     return dist
 
+# def unit_vector(A,B):
+#     # Calculate the unit vector from A to B in 3D
+
+#     dist = distance.euclidean(A,B)
+
+#     if dist < 10e-15:
+#         dist = 1.0
+
+#     return [(B[0]-A[0])/dist,(B[1]-A[1])/dist, (B[2] - A[2])/dist]
+# ###############
+
+
 @jit(nopython=True)
 def unit_vector(A,B):
     # Calculate the unit vector from A to B in 3D
@@ -208,6 +220,28 @@ def area_side(pos_side):
     
     return np.linalg.norm(A_alpha), A_alpha
 
+# def area_side(pos_side):
+    
+#     A_alpha = np.array([0.,0.,0.])
+    
+#     for i in range(0,3):
+#         A_alpha += (1/2)*np.cross(np.asarray(pos_side[i]),np.asarray(pos_side[i-1]))
+    
+#     return [np.linalg.norm(A_alpha), A_alpha] 
+
+def be_area(cw_alpha, cw_beta, pos):
+    
+    A_alpha = np.array([0.,0.,0.])
+    A_beta = np.array([0.,0.,0.])
+    
+    for i in range(0,3):
+        A_alpha += (1/2)*np.cross(np.asarray(pos[cw_alpha[i]]),np.asarray(pos[cw_alpha[i-1]]))
+    
+        A_beta += (1/2)*np.cross(np.asarray(pos[cw_beta[i]]),np.asarray(pos[cw_beta[i-1]]))
+    
+    return [np.linalg.norm(A_alpha), A_alpha], [np.linalg.norm(A_beta), A_beta] 
+
+
 
 @jit(nopython=True)
 def be_area_2( pos_alpha, pos_beta):
@@ -225,65 +259,63 @@ def be_area_2( pos_alpha, pos_beta):
     return np.linalg.norm(A_alpha), A_alpha, np.linalg.norm(A_beta), A_beta
 
 
-
+# principal unit vectors e_x, e_y, e_z
 e = np.array([[1,0,0], [0,1,0], [0,0,1]])
 
 #@profile
 @jit(nopython=True)
 def bending_energy_2(nbhrs_alpha, nbhrs_beta, alpha_vec, A_alpha, beta_vec, A_beta, pos_alpha_A, pos_alpha_B, pos_beta_A, pos_beta_B):
+
+    sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+    for k in range(0,3):
+        # sum (1) and (5) use the alpha cell
+        if nbhrs_alpha != False:
+            cross = np.cross(pos_alpha_B-pos_alpha_A,e[k])
+            sums[0] += beta_vec[k]*(1/2)*cross
+            sums[4] += alpha_vec[k]*(1/2)*cross
+
+        # sum (2) and (4) use the beta cell
+        if nbhrs_beta != False:
+            cross = np.cross(pos_beta_B-pos_beta_A,e[k])
+            sums[1] += alpha_vec[k]*(1/2)*cross
+            sums[3] += beta_vec[k]*(1/2)*cross
+
+        # sum (3)
+        sums[2] += alpha_vec[k]*beta_vec[k]
+
+
+    return (1.0/(A_alpha*A_beta))*(sums[0]+sums[1]) \
+            + (-sums[2]/(A_alpha*A_beta)**2)*((A_alpha/A_beta)*sums[3] \
+            +(A_beta/A_alpha)*sums[4])
+
+def bending_energy(nbhrs_alpha, nbhrs_beta, A_alpha, A_beta, pos):
     
-    
-    
+    # principal unit vectors e_x, e_y, e_z
+    e = np.array([[1,0,0], [0,1,0], [0,0,1]])
     
     # initialize the sums to zero
-    # sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
-    # sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
-    # sums=[];
+    sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
 
-    if nbhrs_alpha != False:
-        sum0=np.sum(cross3Mat(pos_alpha_B-pos_alpha_A,e)*beta_vec,axis=0)/2
-        sum4=np.sum(cross3Mat(pos_alpha_B-pos_alpha_A,e)*alpha_vec,axis=0)/2
-    else:
-        sum0=np.zeros((3,))
-        sum4=np.zeros((3,))
+    for k in range(0,3):
+        # sum (1) and (5) use the alpha cell
+        if nbhrs_alpha != False:
+            cross = np.cross(np.asarray(pos[nbhrs_alpha[-1]])-np.asarray(pos[nbhrs_alpha[0]]),e[k])
+            sums[0] += A_beta[1][k]*(1/2)*cross
+            sums[4] += A_alpha[1][k]*(1/2)*cross
 
-    if nbhrs_beta != False:
-        sum1=np.sum(cross3Mat(pos_beta_B-pos_beta_A,e)*alpha_vec,axis=0)/2
-        sum3=np.sum(cross3Mat(pos_beta_B-pos_beta_A,e)*beta_vec,axis=0)/2
-    else:
-        sum1=np.zeros((3,))
-        sum3=np.zeros((3,))
+        # sum (2) and (4) use the beta cell
+        if nbhrs_beta != False:
+            cross = np.cross(np.asarray(pos[nbhrs_beta[-1]])-np.asarray(pos[nbhrs_beta[0]]),e[k])
+            sums[1] += A_alpha[1][k]*(1/2)*cross
+            sums[3] += A_beta[1][k]*(1/2)*cross
 
-    sum2=np.repeat(alpha_vec[0]*beta_vec[0]+alpha_vec[1]*beta_vec[1]+alpha_vec[2]*beta_vec[2],3)
+        # sum (3)
+        sums[2] += A_alpha[1][k]*A_beta[1][k]
 
-    # sums2=np.vstack([np.sum(np.cross(pos[nbhrs_alpha[-1]]-pos[nbhrs_alpha[0]],e)*A_beta[1].reshape((-1,1)),axis=0)/2,
-    # np.sum(np.cross(pos[nbhrs_beta[-1]]-pos[nbhrs_beta[0]],e)*A_alpha[1].reshape((-1,1)),axis=0)/2,
-    # np.tile(np.sum(A_alpha[1]*A_beta[1]),reps=(3,)),
-    # np.sum(np.cross(pos[nbhrs_beta[-1]]-pos[nbhrs_beta[0]],e)*A_beta[1].reshape((-1,1)),axis=0)/2,
-    # np.sum(np.cross(pos[nbhrs_alpha[-1]]-pos[nbhrs_alpha[0]],e)*A_alpha[1].reshape((-1,1)),axis=0)/2])
+    return np.array((1/(A_alpha[0]*A_beta[0]))*(sums[0]+sums[1]) \
+            + (-sums[2]/(A_alpha[0]*A_beta[0])**2)*((A_alpha[0]/A_beta[0])*sums[3] \
+            +(A_beta[0]/A_alpha[0])*sums[4]))
 
-    # for k in range(0,3):
-    #     # sum (1) and (5) use the alpha cell
-    #     if nbhrs_alpha != False:
-    #         cross = np.cross(pos[nbhrs_alpha[-1]]-pos[nbhrs_alpha[0]],e[k])
-    #         sums[0] += A_beta[1][k]*(1/2)*cross
-    #         sums[4] += A_alpha[1][k]*(1/2)*cross
-
-    #     # sum (2) and (4) use the beta cell
-    #     if nbhrs_beta != False:
-    #         cross = np.cross(pos[nbhrs_beta[-1]]-pos[nbhrs_beta[0]],e[k])
-    #         sums[1] += A_alpha[1][k]*(1/2)*cross
-    #         sums[3] += A_beta[1][k]*(1/2)*cross
-
-    #     # sum (3)
-    #     sums[2] += A_alpha[1][k]*A_beta[1][k]
-
-    # if not np.all(np.array(sums2)==sums):
-    #     print('ru roh')
-
-    return (1/(A_alpha*A_beta))*(sum0+sum1) \
-            + (-sum2/(A_alpha*A_beta)**2)*((A_alpha/A_beta)*sum3 \
-            +(A_beta/A_alpha)*sum4)
 
 def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes):
     # obtain new network topology - i.e. triangles, and circum_sorted 
