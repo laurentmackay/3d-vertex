@@ -1,7 +1,7 @@
 from vertex_3d import *
 import SG
 from pyqt_viz import edge_viewer
-import subprocess
+
 
 if __name__ == '__main__':
 

@@ -110,12 +110,9 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 for i in range(len(pts)):
                     for inds in ((center,pts[i],pts[i-1]),(center+basal_offset,pts[i-1]+basal_offset,pts[i]+basal_offset)):
                         pos_face =np.array([pos[j] for j in inds])
-                        area, area_vec, _, _ = be_area_2(pos_face,pos_face) 
-                        # area, _ = be_area([center,pts[i],pts[i-1]],[center,pts[i],pts[i-1]],pos) 
-                        magnitude = pressure*area*(1/3)
-                        
-                        direction = area_vec/area
-                        force = magnitude*direction
+                        _, area_vec, _, _ = be_area_2(pos_face,pos_face)                       
+
+                        force = pressure*area_vec/3.0
                         force_dict[inds[0]] += force
                         force_dict[inds[1]] += force
                         force_dict[inds[2]] += force
@@ -134,11 +131,10 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                     # loop through the 4 triangles that make the face
                     for ii in range(0,4):
                         pos_side = np.array([center, pts_pos[ii-1], pts_pos[ii]])
-                        area, area_vec = area_side(pos_side) 
-                        magnitude = pressure*area*(1/2)
+                        _, area_vec = area_side(pos_side) 
                         
-                        direction = area_vec/area 
-                        force = magnitude*direction
+                        direction = area_vec 
+                        force = pressure*area_vec/2.0
                         force_dict[pts_id[ii-1]] += force
                         force_dict[pts_id[ii]] += force
             
@@ -164,10 +160,9 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
                             frce = const.c_ab * bending_energy_2(True, True,A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[-1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[-1]])
                         else:
-
                             frce = const.c_ab * bending_energy_2(True, False, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]], pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]])
                         
-                        force_dict[node] = force_dict[node] + frce
+                        force_dict[node] += frce
 
                     for indb, node in enumerate(beta):
                         # don't double count the shared nodes
@@ -176,7 +171,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             # frce = const.c_ab*bending_energy(False, nbhrs_beta, A_alpha, A_beta, pos)
                             frce = const.c_ab*bending_energy_2(False, True, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_beta[0]], pos[nbhrs_beta[1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[1]])
 
-                            force_dict[node] = np.add(force_dict[node],frce)
+                            force_dict[node] += frce
 
             # update location of node 
             pos = nx.get_node_attributes(G,'pos')
@@ -196,7 +191,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             c = pos[node+basal_offset]
                             d = pos[neighbor+basal_offset]
                             
-                            dist = distance.euclidean(a,b)
+                            dist = euclidean_distance(a,b)
                             
                             if (dist < const.l_intercalation): 
                                 if (np.random.rand(1)[0] < 1.):
@@ -323,7 +318,7 @@ def tissue_3d():
         for node in nodes:
             add_node = True
             for existing_node in pos:
-                if distance.euclidean(pos[existing_node],node) < 10**(-7):
+                if euclidean_distance(pos[existing_node],node) < 10**(-7):
                     add_node = False
                     AS_boundary.append(existing_node)
                     spokes.append((cen_index,existing_node))
