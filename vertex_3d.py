@@ -86,29 +86,25 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 # calculate pressure
                 PI[n] = -press_alpha*(vol-const.v_0) 
 
+            l_rest = nx.get_edge_attributes(G,'l_rest')
+            myosin = nx.get_edge_attributes(G,'myosin')
             
-            for node in G.nodes(): 
-                # update force on each node  
-                force = np.zeros((3,))
+            for i, e in enumerate(G.edges()):
+                
+                a, b = e[0], e[1]
+                pos_a = pos[a]
+                pos_b = pos[b]
+                direction, dist = unit_vector_and_dist(pos_a,pos_b)
 
-                a = pos[node]
-                # Elastic forces due to the cytoskeleton 
-                for neighbor in G.neighbors(node):
-                    
-                    b = pos[neighbor]
-                    
-                    # dist = distance.euclidean(a,b)
-                    direction, dist = unit_vector_and_dist(a,b)
-                    
-                    magnitude = elastic_force(dist, G[node][neighbor]['l_rest'], mu_apical) 
-                    # force = np.sum([force,magnitude*np.array(direction)],axis=0)
-                    
-                    # Force due to myosin
-                    magnitude2 = myo_beta*G[node][neighbor]['myosin']
-                    # force = np.sum([force, magnitude*np.array(direction)],axis=0)
-                    force += (magnitude+magnitude2)*direction
+                
+                # dists[i] = dist
+                # drx[i] = direction
+                magnitude = mu_apical*(dist - l_rest[e])
+                magnitude2 = myo_beta*myosin[e]
+                force = (magnitude + magnitude2)*direction
 
-                force_dict[node] += force 
+                force_dict[a] += force
+                force_dict[b] -= force
             
             for center, pts, pressure in zip(centers, circum_sorted, PI):  
                 for i in range(len(pts)):
@@ -193,7 +189,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             for node in range(0,num_api_nodes):
                 if node not in belt: 
                     for neighbor in G.neighbors(node):
-                        if (neighbor < 1000) and (neighbor not in belt) and (node not in centers) and (neighbor not in centers) and ([min(node, neighbor), max(node, neighbor)] not in blacklist): 
+                        if (neighbor < basal_offset) and (neighbor not in belt) and (node not in centers) and (neighbor not in centers) and ([min(node, neighbor), max(node, neighbor)] not in blacklist): 
                         
                             a = pos[node]
                             b = pos[neighbor]
