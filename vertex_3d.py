@@ -32,17 +32,23 @@ basal_offset=const.basal_offset
 
 z3=np.zeros((3,))
 cross33(z3,z3)
-bending_energy_2(True, True,z3.reshape((-1,1)), 1.0 , z3.reshape((-1,1)), 1.0, z3, z3, z3, z3)
+
 unit_vector(z3,z3)
 unit_vector_and_dist(z3,z3)
 euclidean_distance(z3,z3)
+bending_energy_2(True, True,z3, 1.0 , z3, 1.0, z3, z3, z3, z3)
 be_area_2(np.tile(z3,reps=(3,1)),np.tile(z3,reps=(3,1)))
 area_side(np.tile(z3,reps=(3,1)))
+
+
+# calculate volume
+vol = convex_hull_volume_bis(np.random.random((6,3)))  
 
 def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=None):
     if pre_callback is None or not callable(pre_callback):
         pre_callback = lambda t : None
 
+    #@profile
     def integrate(dt,t_final, t=0):
         nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback
         
@@ -72,7 +78,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             # index of list corresponds to index of centers list
             PI = np.zeros(len(centers),dtype=float) 
             # eventually move to classes?
-            for n in range(0,len(centers)):
+            for n in range(len(centers)):
                 # get nodes for volume
                 pts = get_points(G,centers[n],pos) 
                 # calculate volume
@@ -102,23 +108,15 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                     # force = np.sum([force, magnitude*np.array(direction)],axis=0)
                     force += (magnitude+magnitude2)*direction
 
-                force_dict[node] = np.add(force_dict[node], force) 
+                force_dict[node] += force 
             
-            for center in centers:
-                index = centers.index(center)
-                pts = circum_sorted[index]
-                # centroid = np.array([pos[center], pos[center+1000]])
-                # centroid = np.average(centroid,axis=0)
-                
-                # pressure for: 
-                # apical nodes     
-                for i in range(len(circum_sorted[index])):
-
+            for center, pts, pressure in zip(centers, circum_sorted, PI):  
+                for i in range(len(pts)):
                     for inds in ((center,pts[i],pts[i-1]),(center+basal_offset,pts[i-1]+basal_offset,pts[i]+basal_offset)):
                         pos_face =np.array([pos[j] for j in inds])
                         area, area_vec, _, _ = be_area_2(pos_face,pos_face) 
                         # area, _ = be_area([center,pts[i],pts[i-1]],[center,pts[i],pts[i-1]],pos) 
-                        magnitude = PI[index]*area*(1/3)
+                        magnitude = pressure*area*(1/3)
                         
                         direction = area_vec/area
                         force = magnitude*direction
@@ -130,21 +128,18 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
             # pressure for side panels
             # loop through each cell
-            for index in range(0,len(circum_sorted)):
-                cell_nodes = circum_sorted[index]
-                # centroid = np.array([pos[centers[index]], pos[centers[index]+1000]])
-                # centroid = np.average(centroid, axis=0)
-                # loop through the 6 faces (or 5 or 7 after intercalation)
+            for cell_nodes, pressure in zip(circum_sorted, PI):
+                # loop through the faces
                 for i in range(len(cell_nodes)):
-                    pts_id = np.array([cell_nodes[i-1], cell_nodes[i], cell_nodes[i]+1000, cell_nodes[i-1]+1000])
-                    pts_pos = np.array([pos[pts_id[ii]] for ii in range(0,4)])
+                    pts_id = (cell_nodes[i-1], cell_nodes[i], cell_nodes[i]+basal_offset, cell_nodes[i-1]+basal_offset)
+                    pts_pos = np.array([pos[pts_id[ii]] for ii in range(4)])
                     # on each face, calculate the center
                     center = np.average(pts_pos,axis=0)
                     # loop through the 4 triangles that make the face
                     for ii in range(0,4):
                         pos_side = np.array([center, pts_pos[ii-1], pts_pos[ii]])
                         area, area_vec = area_side(pos_side) 
-                        magnitude = PI[index]*area*(1/2)
+                        magnitude = pressure*area*(1/2)
                         
                         direction = area_vec/area 
                         force = magnitude*direction
@@ -168,7 +163,6 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                         # inda = alpha.index(node) 
                         nbhrs_alpha = (alpha[(inda+1)%3], alpha[(inda-1)%3]) 
                         if node in beta:
-                            # indb = np.where(beta == node)[0][0]
                             indb = beta.index(node)
                             nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
 
@@ -177,12 +171,10 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
                             frce = const.c_ab * bending_energy_2(True, False, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]], pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]])
                         
-                    
                         force_dict[node] = force_dict[node] + frce
 
                     for indb, node in enumerate(beta):
                         # don't double count the shared nodes
-                        # indb = beta.index(node) 
                         nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
                         if node not in alpha:
                             # frce = const.c_ab*bending_energy(False, nbhrs_beta, A_alpha, A_beta, pos)

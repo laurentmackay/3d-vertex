@@ -9,7 +9,7 @@ import numpy as np
 
 
 
-def validate(n,attr='pos'):
+def validate(n,attr='pos'): 
     try:
         G=nx.read_gpickle(f't{n}.pickle')
         G1=nx.read_gpickle(f't_fast{n}.pickle')
