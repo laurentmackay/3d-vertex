@@ -193,11 +193,15 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
             # update location of node 
             # pos = nx.get_node_attributes(G,'pos')
+            for i, e in enumerate(G.edges()):
+                drx[i]=unit_vector(G.node[e[0]]['pos'],G.node[e[1]]['pos'])
+
             keq=300
             for node in force_dict:
                 G.node[node]['pos'] = G.node[node]['pos'] + (force_dict[node]-force_dict_prev[node])/keq  #forward euler step for nodes
 
             r=dt/const.tau
+
             for i, e in enumerate(G.edges()):
                 strain = (dists[i]/l_rest[e])-1.0
                 if np.abs(strain)>0.1:
