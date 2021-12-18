@@ -180,11 +180,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 G.node[node]['pos'] = G.node[node]['pos'] + (dt/const.eta)*force_dict[node]  #forward euler step for nodes
 
             for i, e in enumerate(G.edges()):
-<<<<<<< HEAD
                 G[e[0]][e[1]]['l_rest'] = l_rest[e] + const.dt*(dists[i]-l_rest[e])/const.tau
-=======
-                G[e[0]][e[1]]['l_rest'] = l_rest[e] + (dists[i]-l_rest[e])/const.tau
->>>>>>> 4579874 (maxwell elements!)
+
             
 
         ## Check for intercalation events
