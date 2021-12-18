@@ -192,17 +192,28 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             force_dict[node] += frce
 
             # update location of node 
-            pos = nx.get_node_attributes(G,'pos')
-            
+            # pos = nx.get_node_attributes(G,'pos')
+            keq=300
             for node in force_dict:
-                G.node[node]['pos'] = G.node[node]['pos'] + (force_dict[node]-force_dict_prev[node])/400  #forward euler step for nodes
+                G.node[node]['pos'] = G.node[node]['pos'] + (force_dict[node]-force_dict_prev[node])/keq  #forward euler step for nodes
 
+            r=dt/const.tau
             for i, e in enumerate(G.edges()):
-                delta = const.dt*(dists[i]-l_rest[e])/const.tau
-                G[e[0]][e[1]]['l_rest'] = l_rest[e] + delta
-                G.node[e[0]]['pos'] = G.node[e[0]]['pos'] - delta*drx[i]/2.0
-                G.node[e[1]]['pos'] = G.node[e[1]]['pos'] + delta*drx[i]/2.0
+                strain = (dists[i]/l_rest[e])-1.0
+                if np.abs(strain)>0.1:
+                    G[e[0]][e[1]]['l_rest'] = (l_rest[e]+dist*r)/(1.0+r)
+                    delta =(dists[i]-l_rest[e])*r/(1.0+r)
+                    # G[e[0]][e[1]]['l_rest'] = l_rest[e] + delta
+                    G.node[e[0]]['pos'] = G.node[e[0]]['pos'] - delta*drx[i]/2.0
+                    G.node[e[1]]['pos'] = G.node[e[1]]['pos'] + delta*drx[i]/2.0
+
             
+            # for i, e in enumerate(G.edges()):
+            #     # a=G.node[e[0]]['pos']
+            #     # b=G.node[e[1]]['pos']
+            #     # dist=euclidean_distance(a,b)
+
+
             force_dict_prev=force_dict
 
         ## Check for intercalation events
@@ -290,8 +301,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                                 
                                 circum_sorted, triangles, K = new_topology(K,[node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
                                 
-                                if min(node,neighbor) == 301:
-                                    contract[0] = False
+                                # if min(node,neighbor) == 301:
+                                #     contract[0] = False
 
         #    #set dt for next loop 
         #    if var_dt == True:
