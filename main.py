@@ -1,4 +1,5 @@
-from vertex_3d import *
+from tissue_3d import tissue_3d
+from vertex_3d import vertex_integrator
 import SG
 from pyqt_viz import edge_viewer
 
@@ -10,9 +11,9 @@ if __name__ == '__main__':
 
     #initialize some things for the callback
     invagination = SG.invagination(G, belt)
-    # viewer = edge_viewer(G,attr='myosin')
-    t_last = 0 
-    t_plot = 5
+    viewer = edge_viewer(G,exec=True, attr='myosin')
+    
+    t_plot=5
 
     def mkcallback():
         t_last=0.0;
