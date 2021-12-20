@@ -1,11 +1,10 @@
-import sys
-IS_WINDOWS = sys.platform.startswith('win')
 
-if IS_WINDOWS:
-    from util import run_dill, make_dill
+
+from util import mkprocess
 
 import networkx as nx
 import numpy as np
+
 import multiprocessing as mp
 
 from pyqtgraph.Qt import  QtGui, QtCore
@@ -14,11 +13,30 @@ import pyqtgraph.opengl as gl
 from GLNetworkItem import GLNetworkItem
 
 def edge_viewer(*args, refresh_rate=60,**kwargs):
+
+    def outer(*a,**kw):    
+        def inner(b):
+            gi = edge_view(*a,**kw)
+            def listen():
+                if b.poll():
+                    while b.poll():
+                        G=b.recv()
+                    edge_view(G, gi=gi,**kw)
+
+
+            tmr = QtCore.QTimer()
+            tmr.timeout.connect(listen)
+            
+            tmr.setInterval(500/refresh_rate)
+            tmr.start()
+
+            pg.exec()
+
+        return inner
+
+
     a,b = mp.Pipe(duplex=True)
-    if IS_WINDOWS:
-        proc = mp.Process(target=run_dill, args=make_dill(_view_edges(*args, refresh_rate=refresh_rate,**kwargs), b), daemon=True)
-    else:
-        proc = mp.Process(target=_view_edges(*args,refresh_rate=refresh_rate,**kwargs), args=(b,), daemon=True)
+    proc = mkprocess(outer(*args,**kwargs), args=(b,))
     proc.start()
 
     plot=True
@@ -32,26 +50,6 @@ def edge_viewer(*args, refresh_rate=60,**kwargs):
 
     return safe_plot
 
-def _view_edges(*a,refresh_rate=60,**kw):    
-    def inner(b):
-        gi = edge_view(*a,**kw)
-        def listen():
-            if b.poll():
-                while b.poll():
-                    G=b.recv()
-                edge_view(G, gi=gi,**kw)
-            # print('looper')
-
-        tmr = QtCore.QTimer()
-        tmr.timeout.connect(listen)
-        
-        tmr.setInterval(500/refresh_rate)
-        tmr.start()
-
-        
-        pg.exec()
-
-    return inner
 
 
 
