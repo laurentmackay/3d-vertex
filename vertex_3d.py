@@ -306,7 +306,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                                 blacklist.append([min(node, neighbor), max(node, neighbor)])
                                 
                                 circum_sorted, triangles, K = new_topology(K,[node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
-                                    
+                                G.graph['circum_sorted']=circum_sorted
 
 
     return integrate
@@ -476,6 +476,8 @@ def tissue_3d():
         a, b = sort_corners(list(G.neighbors(center)),xy[center],xy)
         circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
     circum_sorted = np.array(circum_sorted)
+
+    G.graph['circum_sorted']=circum_sorted
 
     belt = []
     for node in G.nodes():

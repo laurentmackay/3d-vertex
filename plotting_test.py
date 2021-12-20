@@ -1,6 +1,7 @@
 from vertex_3d import *
 import SG
-from pyqt_viz import edge_viewer
+from pyqt_viz import edge_view
+
 
 
 if __name__ == '__main__':
@@ -9,20 +10,5 @@ if __name__ == '__main__':
     G, K, centers, num_api_nodes, circum_sorted, belt, triangles = tissue_3d()
 
     #initialize some things for the callback
-    invagination = SG.invagination(G, belt)
-    viewer = edge_viewer(G,attr='myosin')
-    t_last = 0 
-    t_plot = 5
+    edge_view(G,attr='myosin', exec=True, cell_edges=True)
 
-    def mkcallback():
-        t_last=0.0;
-        def callback(t):
-            invagination(t)
-            if t-t_last>=t_plot:
-                viewer(G)
-        return callback
-
-    #create integrator
-    integrate = vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=mkcallback())
-    #integrate
-    integrate(0.5,2000)
