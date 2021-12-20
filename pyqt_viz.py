@@ -60,9 +60,7 @@ def _view_edges(*a,refresh_rate=60,**kw):
 def edge_view(G, gi=None, exec=False, attr=None, colormap='CET-D4',edgeWidth=1.25, edgeWidthMultiplier=3):
     pos = np.array([*nx.get_node_attributes(G,'pos').values()])
     if gi is None:
-        glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE)
         app = pg.mkQApp("Edge View")
-        # glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE)
         
         w = gl.GLViewWidget()
         w.setBackgroundColor(1.0)
