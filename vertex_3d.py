@@ -179,6 +179,10 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             for node in force_dict:
                 G.node[node]['pos'] = G.node[node]['pos'] + (dt/const.eta)*force_dict[node]  #forward euler step for nodes
 
+            for i, e in enumerate(G.edges()):
+                G[e[0]][e[1]]['l_rest'] = l_rest[e] + (dists[i]-l_rest[e])/const.tau
+            
+
         ## Check for intercalation events
             pos = nx.get_node_attributes(G,'pos')
             for node in range(0,num_api_nodes):
