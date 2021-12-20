@@ -1,8 +1,13 @@
+import sys
+IS_WINDOWS = sys.platform.startswith('win')
+if IS_WINDOWS:
+    from util import run_dill, make_dill
+
 import networkx as nx
 import numpy as np
 import multiprocessing as mp
 from mayavi import mlab
-from util import run_dill, make_dill
+
 import time
 import vtk
 
@@ -10,7 +15,10 @@ vtk.vtkObject.GlobalWarningDisplayOff()
 
 def edge_viewer(*args,**kwargs):
     a,b = mp.Pipe(duplex=True)
-    proc = mp.Process(target=run_dill, args=make_dill(_view_edges(*args,**kwargs), b), daemon=True)
+    if IS_WINDOWS:
+        proc = mp.Process(target=run_dill, args=make_dill(_view_edges(*args,**kwargs), b), daemon=True)
+    else:
+        proc = mp.Process(target=_view_edges(*args,**kwargs), args=(b,), daemon=True)
     proc.start()
 
     plot=True
