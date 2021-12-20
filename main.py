@@ -17,9 +17,11 @@ if __name__ == '__main__':
     def mkcallback():
         t_last=0.0;
         def callback(t):
+            nonlocal t_last
             invagination(t)
             if t-t_last>=t_plot:
                 viewer(G)
+                t_last=t
         return callback
 
     #create integrator
