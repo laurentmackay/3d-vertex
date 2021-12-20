@@ -81,7 +81,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
         while t <= t_final:
 
-            pre_callback(t)
+            
             # increment t by dt
             # initialize force_dict back to zeros
             t = round(t+dt,1)
@@ -89,114 +89,15 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             print(dt, t,f'{t1-t0} seconds elapsed') 
             t0=t1
 
-            pos = nx.get_node_attributes(G,'pos')
-            force_dict = {new_list: np.zeros(3,dtype=float) for new_list in G.nodes()} 
-            
-            # pre-calculate magnitude of pressure
-            # index of list corresponds to index of centers list
-            PI = np.zeros(len(centers),dtype=float) 
-            # eventually move to classes?
-            for n in range(len(centers)):
-                # get nodes for volume
-                pts = get_points(G,centers[n],pos) 
-                # calculate volume
-                vol = convex_hull_volume_bis(pts)  
-                # calculate pressure
-                PI[n] = -press_alpha*(vol-const.v_0) 
+            pre_callback(t)
 
-            l_rest = nx.get_edge_attributes(G,'l_rest')
-            myosin = nx.get_edge_attributes(G,'myosin')
-            
-            for i, e in enumerate(G.edges()):
-                
-                a, b = e[0], e[1]
-                pos_a = pos[a]
-                pos_b = pos[b]
-                direction, dist = unit_vector_and_dist(pos_a,pos_b)
+            compute_forces()
 
-                
-                # dists[i] = dist
-                # drx[i] = direction
-                magnitude = mu_apical*(dist - l_rest[e])
-                magnitude2 = myo_beta*myosin[e]
-                force = (magnitude + magnitude2)*direction
-
-                force_dict[a] += force
-                force_dict[b] -= force
-            
-            for center, pts, pressure in zip(centers, circum_sorted, PI):  
-                for i in range(len(pts)):
-                    for inds in ((center,pts[i],pts[i-1]),(center+basal_offset,pts[i-1]+basal_offset,pts[i]+basal_offset)):
-                        pos_face =np.array([pos[j] for j in inds])
-                        _, area_vec, _, _ = be_area_2(pos_face,pos_face)                       
-
-                        force = pressure*area_vec/3.0
-                        force_dict[inds[0]] += force
-                        force_dict[inds[1]] += force
-                        force_dict[inds[2]] += force
-        
-
-
-            # pressure for side panels
-            # loop through each cell
-            for cell_nodes, pressure in zip(circum_sorted, PI):
-                # loop through the faces
-                for i in range(len(cell_nodes)):
-                    pts_id = (cell_nodes[i-1], cell_nodes[i], cell_nodes[i]+basal_offset, cell_nodes[i-1]+basal_offset)
-                    pts_pos = np.array([pos[pts_id[ii]] for ii in range(4)])
-                    # on each face, calculate the center
-                    center = np.average(pts_pos,axis=0)
-                    # loop through the 4 triangles that make the face
-                    for ii in range(0,4):
-                        pos_side = np.array([center, pts_pos[ii-1], pts_pos[ii]])
-                        _, area_vec = area_side(pos_side) 
-                        
-                        direction = area_vec 
-                        force = pressure*area_vec/2.0
-                        force_dict[pts_id[ii-1]] += force
-                        force_dict[pts_id[ii]] += force
-            
-            # Implement bending energy
-            # Loop through all alpha, beta pairs of triangles
-            offset=0
-            for pair in triangles:
-                for offset in (0, basal_offset):
-                    alpha = [i+offset for i in pair[0]]
-                    beta = [i+offset for i in pair[1]]
-                    
-                    # Apical faces, calculate areas and cross-products z
-                    pos_alpha = np.array([pos[i] for i in alpha])
-                    pos_beta = np.array([pos[i] for i in beta])
-                    A_alpha, A_alpha_vec, A_beta, A_beta_vec = be_area_2(pos_alpha, pos_beta)
-
-                    for inda, node in enumerate(alpha):
-                        # inda = alpha.index(node) 
-                        nbhrs_alpha = (alpha[(inda+1)%3], alpha[(inda-1)%3]) 
-                        if node in beta:
-                            indb = beta.index(node)
-                            nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
-
-                            frce = const.c_ab * bending_energy_2(True, True,A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[-1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[-1]])
-                        else:
-                            frce = const.c_ab * bending_energy_2(True, False, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]], pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]])
-                        
-                        force_dict[node] += frce
-
-                    for indb, node in enumerate(beta):
-                        # don't double count the shared nodes
-                        nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
-                        if node not in alpha:
-                            # frce = const.c_ab*bending_energy(False, nbhrs_beta, A_alpha, A_beta, pos)
-                            frce = const.c_ab*bending_energy_2(False, True, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_beta[0]], pos[nbhrs_beta[1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[1]])
-
-                            force_dict[node] += frce
-
-            # update location of node 
-            # pos = nx.get_node_attributes(G,'pos')
+            #### UPDATE STATES ####
             for i, e in enumerate(G.edges()):
                 drx[i]=unit_vector(G.node[e[0]]['pos'],G.node[e[1]]['pos'])
 
-            keq=300
+            keq=320
             for node in force_dict:
                 G.node[node]['pos'] = G.node[node]['pos'] + (force_dict[node]-force_dict_prev[node])/keq  #forward euler step for nodes
 
@@ -205,17 +106,14 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             for i, e in enumerate(G.edges()):
                 strain = (dists[i]/l_rest[e])-1.0
                 if np.abs(strain)>0.1:
-                    G[e[0]][e[1]]['l_rest'] = (l_rest[e]+dist*r)/(1.0+r)
-                    delta =(dists[i]-l_rest[e])*r/(1.0+r)
-                    # G[e[0]][e[1]]['l_rest'] = l_rest[e] + delta
-                    G.node[e[0]]['pos'] = G.node[e[0]]['pos'] - delta*drx[i]/2.0
-                    G.node[e[1]]['pos'] = G.node[e[1]]['pos'] + delta*drx[i]/2.0
+                    delta = (dists[i]-l_rest[e])*r
+                    G[e[0]][e[1]]['l_rest'] = l_rest[e] + delta
+                    
+                        # G[e[0]][e[1]]['l_rest'] = l_rest[e] + delta
+                    G.node[e[0]]['pos'] = G.node[e[0]]['pos'] + delta*drx[i]
+                    G.node[e[1]]['pos'] = G.node[e[1]]['pos'] - delta*drx[i]
 
-            
-            # for i, e in enumerate(G.edges()):
-            #     # a=G.node[e[0]]['pos']
-            #     # b=G.node[e[1]]['pos']
-            #     # dist=euclidean_distance(a,b)
+
 
 
             force_dict_prev=force_dict
@@ -346,7 +244,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         # index of list corresponds to index of centers list
         PI = np.zeros(len(centers),dtype=float) 
         # eventually move to classes?
-        for n in range(0,len(centers)):
+        for n in range(len(centers)):
             # get nodes for volume
             pts = get_points(G,centers[n],pos) 
             # calculate volume
@@ -373,100 +271,74 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
             force_dict[a] += force
             force_dict[b] -= force
-
-        # for node in G.nodes(): 
-        #     # update force on each node  
-        #     force = np.zeros((3,))
         
-        #     # Elastic forces due to the cytoskeleton 
-        #     a = pos[node]
-        #     for neighbor in G.neighbors(node):
-        #         b = pos[neighbor]
-                
+        for center, pts, pressure in zip(centers, circum_sorted, PI):  
+            for i in range(len(pts)):
+                for inds in ((center,pts[i],pts[i-1]),(center+basal_offset,pts[i-1]+basal_offset,pts[i]+basal_offset)):
+                    pos_face =np.array([pos[j] for j in inds])
+                    _, area_vec, _, _ = be_area_2(pos_face,pos_face)                       
 
-        #         direction, dist = unit_vector_and_dist(a,b)
-        #         l0= G[node][neighbor]['l_rest']
-        #         magnitude = mu_apical*(dist-l0)
-        #         magnitude2 = myo_beta*G[node][neighbor]['myosin']
-        #         force += (magnitude+magnitude2)*direction
+                    force = pressure*area_vec/3.0
+                    force_dict[inds[0]] += force
+                    force_dict[inds[1]] += force
+                    force_dict[inds[2]] += force
+    
 
-        #     force_dict[node] += force 
-        
-        for center in centers:
-            index = centers.index(center)
-            pts = circum_sorted[index]
-
-            PI_curr = PI[index]
-            # pressure for: 
-            # apical and basal nodes     
-            for i in range(0,len(circum_sorted[index])):
-                for offset in [0, basal_offset]:
-                    inds=np.array([center,pts[i],pts[i-1]])+offset
-                    pos_apical =np.array([pos[j] for j in inds])
-                    area, area_vec, _, _ = be_area_2(pos_apical,pos_apical) 
-                    magnitude = PI_curr*area*(1/3)
-                    
-                    direction = area_vec/area
-                    force = magnitude*direction
-                    for j in inds: #update forces
-                        force_dict[j] += force
 
         # pressure for side panels
         # loop through each cell
-        for index in range(0,len(circum_sorted)):
-            cell_nodes = circum_sorted[index]
-
-            PI_curr = PI[index]
-            # loop through the 6 faces (or 5 or 7 after intercalation)
-            for i in range(0, len(cell_nodes)):
-                pts_id = np.array([cell_nodes[i-1], cell_nodes[i], cell_nodes[i]+basal_offset, cell_nodes[i-1]+basal_offset])
-                pts_pos = np.array([pos[pts_id[j]] for j in range(0,4)])
+        for cell_nodes, pressure in zip(circum_sorted, PI):
+            # loop through the faces
+            for i in range(len(cell_nodes)):
+                pts_id = (cell_nodes[i-1], cell_nodes[i], cell_nodes[i]+basal_offset, cell_nodes[i-1]+basal_offset)
+                pts_pos = np.array([pos[pts_id[ii]] for ii in range(4)])
                 # on each face, calculate the center
                 center = np.average(pts_pos,axis=0)
                 # loop through the 4 triangles that make the face
-                for k in range(0,4):
-                    pos_side = np.array([center, pts_pos[k-1], pts_pos[k]] )
-                    area, area_vec = area_side(pos_side) 
-                    magnitude = PI_curr*area*(1/2)
+                for ii in range(0,4):
+                    pos_side = np.array([center, pts_pos[ii-1], pts_pos[ii]])
+                    _, area_vec = area_side(pos_side) 
                     
-                    direction = area_vec / area
-                    force = magnitude * direction
-                    force_dict[pts_id[k-1]] += force
-                    force_dict[pts_id[k]] += force
+                    direction = area_vec 
+                    force = pressure*area_vec/2.0
+                    force_dict[pts_id[ii-1]] += force
+                    force_dict[pts_id[ii]] += force
         
         # Implement bending energy
         # Loop through all alpha, beta pairs of triangles
+        offset=0
         for pair in triangles:
-            for offset in [0, basal_offset]:
-                alpha, beta = pair[0], pair[1]
-                pos_alpha = np.array([pos[i+offset] for i in alpha])
-                pos_beta = np.array([pos[i+offset] for i in beta])
-                # Apical faces, calculate areas and cross-products 
-                A_alpha, A_alpha_vec, A_beta, A_beta_vec = be_area_2(pos_alpha, pos_beta)
-                A_alpha_vec=A_alpha_vec.reshape((-1,1))
-                A_beta_vec=A_beta_vec.reshape((-1,1))
+            for offset in (0, basal_offset):
+                alpha = [i+offset for i in pair[0]]
+                beta = [i+offset for i in pair[1]]
                 
-                for node, inda in zip(alpha,range(len(alpha))):
+                # Apical faces, calculate areas and cross-products z
+                pos_alpha = np.array([pos[i] for i in alpha])
+                pos_beta = np.array([pos[i] for i in beta])
+                A_alpha, A_alpha_vec, A_beta, A_beta_vec = be_area_2(pos_alpha, pos_beta)
+
+                for inda, node in enumerate(alpha):
+                    # inda = alpha.index(node) 
                     nbhrs_alpha = (alpha[(inda+1)%3], alpha[(inda-1)%3]) 
                     if node in beta:
-                        indb = beta.index(node) 
+                        indb = beta.index(node)
                         nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
-                        # frce = const.c_ab*bending_energy(nbhrs_alpha, nbhrs_beta, A_alpha, A_beta, pos)
-                        frce = const.c_ab * bending_energy_2(True, True,A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[1]])
+
+                        frce = const.c_ab * bending_energy_2(True, True,A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[-1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[-1]])
                     else:
-                        # frce = const.c_ab*bending_energy(nbhrs_alpha, False, A_alpha, A_beta, pos)
                         frce = const.c_ab * bending_energy_2(True, False, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]], pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]])
-                
+                    
                     force_dict[node] += frce
 
-                for node, indb in zip(beta,range(len(beta))):
+                for indb, node in enumerate(beta):
                     # don't double count the shared nodes
                     nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
                     if node not in alpha:
                         # frce = const.c_ab*bending_energy(False, nbhrs_beta, A_alpha, A_beta, pos)
                         frce = const.c_ab*bending_energy_2(False, True, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_beta[0]], pos[nbhrs_beta[1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[1]])
+
                         force_dict[node] += frce
-                
+
     return integrate
 
 
