@@ -1,6 +1,6 @@
 import sys
-import os
 from platform import uname
+
 from setuptools import setup, find_packages
 
 IS_LINUX = sys.platform.startswith('linux')
@@ -10,13 +10,13 @@ def in_wsl() -> bool:
     return 'microsoft-standard' in uname().release
 
 
-install_requires=['networkx','numpy>1.10','scipy','numba>=0.54', 'vtk==9.0.3','matplotlib']
+install_requires=['networkx','numpy>1.10','scipy','numba>=0.54','pyqtgraph','pyopengl']
 dependency_links =[]
 
 
-if not in_wsl():
-      install_requires.append('mayavi')
-      dependency_links.append('git+https://github.com/enthought/mayavi.git@master')
+# if not in_wsl():
+#       install_requires.append('mayavi')
+#       dependency_links.append('git+https://github.com/enthought/mayavi.git@master')
 
 if IS_WINDOWS:
       install_requires.append('dill')
