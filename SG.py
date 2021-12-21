@@ -10,11 +10,11 @@ def invagination(G, belt):
                 G[inner_arc[i-1]][inner_arc[i]]['myosin'] = belt_strength     
             print("Inner arc established")
 
-        # update myosin on outer arc 
-        if t == t_2:
-            for i in range(0,len(outer_arc)):
-                G[outer_arc[i-1]][outer_arc[i]]['myosin'] = belt_strength     
-            print("Outer arc established")
+        # # update myosin on outer arc 
+        # if t == t_2:
+        #     for i in range(0,len(outer_arc)):
+        #         G[outer_arc[i-1]][outer_arc[i]]['myosin'] = belt_strength     
+        #     print("Outer arc established")
 
         # update myosin on belt
         if t == t_belt:

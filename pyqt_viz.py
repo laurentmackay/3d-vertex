@@ -80,7 +80,9 @@ def edge_view(G, gi=None, cell_edges_only=False, apical_only=False, exec=False, 
             edges = np.vstack((apical,basal,ab))
 
     else:
-        edges=filter(lambda e: e[0]<basal_offset and e[1]<basal_offset, G.edges())
+        edges = G.edges()
+        if apical_only:
+            edges=filter(lambda e: e[0]<basal_offset and e[1]<basal_offset, edges)
 
     
 

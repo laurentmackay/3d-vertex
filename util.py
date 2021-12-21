@@ -15,7 +15,7 @@ if IS_WINDOWS:
 
 def mkprocess(target, args=None,daemon=True):
     if IS_WINDOWS:
-        proc = mp.Process(target=run_dill, args=make_dill(target, args), daemon=daemon)
+        proc = mp.Process(target=run_dill, args=make_dill(target, *args), daemon=daemon)
     else:
         proc = mp.Process(target=target, args=args, daemon=daemon)
     return proc
