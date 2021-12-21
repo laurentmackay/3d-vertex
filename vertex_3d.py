@@ -65,7 +65,10 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         nx.write_gpickle(G, file_name + '.pickle')
         np.save(file_name, circum_sorted) 
         t0 = time.time()
-        
+        N_edges = len(G.edges())
+        drx=np.zeros((N_edges,3))
+        dists=np.zeros((N_edges,))
+
         while t <= t_final:
 
             
@@ -88,13 +91,11 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
             r=dt/const.tau
             for i, e in enumerate(G.edges()):
-                strain = (dists[i]/l_rest[e])-1.0
+                dist=dists[i]
+                strain = (dist/l_rest[e])-1.0
                 if np.abs(strain)>0.1:
                     G[e[0]][e[1]]['l_rest'] = (l_rest[e]+dist*r)/(1.0+r)
-                    delta =(dists[i]-l_rest[e])*r/(1.0+r)
-                    # G[e[0]][e[1]]['l_rest'] = l_rest[e] + delta
-                    G.node[e[0]]['pos'] = G.node[e[0]]['pos'] - delta*drx[i]/2.0
-                    G.node[e[1]]['pos'] = G.node[e[1]]['pos'] + delta*drx[i]/2.0
+
             
 
             check_for_intercalations()
