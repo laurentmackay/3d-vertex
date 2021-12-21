@@ -1,11 +1,12 @@
+from numpy.core.numeric import Infinity
 from globals import inner_arc, outer_arc, belt_strength, t_1, t_2, t_belt, t_intercalate, inter_edges
 
 
 def invagination(G, belt):
 
-    def f(t):
+    def f(t, t_prev=-Infinity):
         # update myosin on inner arc 
-        if t == t_1:
+        if t >= t_1 and t_prev<t_1:
             for i in range(0,len(inner_arc)):
                 G[inner_arc[i-1]][inner_arc[i]]['myosin'] = belt_strength     
             print("Inner arc established")
@@ -17,12 +18,12 @@ def invagination(G, belt):
         #     print("Outer arc established")
 
         # update myosin on belt
-        if t == t_belt:
+        if t >= t_belt and t_prev<t_belt:
             for i in range(0,len(belt)):
                 G[belt[i-1]][belt[i]]['myosin'] = belt_strength     
             print("Belt established") 
 
-        if t == t_intercalate:
+        if t >= t_intercalate and t_prev<t_intercalate:
             for e in inter_edges:
                 G[e[0]][e[1]]['myosin'] =  3*belt_strength
 
