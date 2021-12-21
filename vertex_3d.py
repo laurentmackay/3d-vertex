@@ -49,10 +49,14 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         pre_callback = lambda t : None
 
     force_dict = {}
+    l_rest={}
+    N_edges = len(G.edges())
+    drx=np.zeros((N_edges,3))
+    dists=np.zeros((N_edges,))
     blacklist = [] 
     #@profile
     def integrate(dt,t_final, t=0):
-        nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict
+        nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict, l_rest, dists
         
         num_inter = 0 
         
@@ -65,9 +69,11 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         nx.write_gpickle(G, file_name + '.pickle')
         np.save(file_name, circum_sorted) 
         t0 = time.time()
-        N_edges = len(G.edges())
-        drx=np.zeros((N_edges,3))
-        dists=np.zeros((N_edges,))
+
+
+
+
+
 
         while t <= t_final:
 
@@ -93,12 +99,12 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             for i, e in enumerate(G.edges()):
                 dist=dists[i]
                 strain = (dist/l_rest[e])-1.0
-                if np.abs(strain)>0.1:
+                if np.abs(strain)>0.01:
                     G[e[0]][e[1]]['l_rest'] = (l_rest[e]+dist*r)/(1.0+r)
 
             
 
-            check_for_intercalations()
+            check_for_intercalations(t)
                             
 
         #    #set dt for next loop 
@@ -130,7 +136,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 np.save(file_name,circum_sorted)
 
     def compute_forces():
-        nonlocal force_dict, circum_sorted, triangles
+        nonlocal force_dict, circum_sorted, triangles, l_rest, dists
 
         pos = nx.get_node_attributes(G,'pos')
         force_dict = {new_list: np.zeros(3,dtype=float) for new_list in G.nodes()} 
@@ -158,8 +164,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             direction, dist = unit_vector_and_dist(pos_a,pos_b)
 
             
-            # dists[i] = dist
-            # drx[i] = direction
+            dists[i] = dist
+            drx[i] = direction
             magnitude = mu_apical*(dist - l_rest[e])
             magnitude2 = myo_beta*myosin[e]
             force = (magnitude + magnitude2)*direction
@@ -234,7 +240,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
                         force_dict[node] += frce
 
-    def check_for_intercalations():
+    def check_for_intercalations(t):
         nonlocal circum_sorted, triangles, K, blacklist
 
         pos = nx.get_node_attributes(G,'pos')

@@ -57,7 +57,7 @@ def _init_window(title=''):
         return w
 
 
-def edge_view(G, gi=None, cell_edges_only=False, exec=False, attr=None, colormap='CET-D4',edgeWidth=1.25, edgeWidthMultiplier=3, edgeColor=0.0):
+def edge_view(G, gi=None, cell_edges_only=False, apical_only=False, exec=False, attr=None, colormap='CET-D4',edgeWidth=1.25, edgeWidthMultiplier=3, edgeColor=0.0):
     pos = np.array([*nx.get_node_attributes(G,'pos').values()])
 
     if gi is None:
@@ -69,14 +69,18 @@ def edge_view(G, gi=None, cell_edges_only=False, exec=False, attr=None, colormap
 
     ind_dict={n:i for i,n in enumerate(G._node)}
 
-    if cell_edges:
+    if cell_edges_only:
         circum_sorted = G.graph['circum_sorted']
         apical = np.vstack([np.array([[c[i-1],c[i]] if c[i-1]<c[i] else [c[i],c[i-1]]  for i, _ in enumerate(c)]) for c in  circum_sorted])
-        basal = apical+basal_offset
-        ab = np.vstack([[n, n+basal_offset] for n in np.unique(apical)])
-        edges = np.vstack((apical,basal,ab))
+        if apical_only:
+            edges = apical
+        else:
+            basal = apical+basal_offset
+            ab = np.vstack([[n, n+basal_offset] for n in np.unique(apical)])
+            edges = np.vstack((apical,basal,ab))
+
     else:
-        edges=G.edges()
+        edges=filter(lambda e: e[0]<basal_offset and e[1]<basal_offset, G.edges())
 
     
 
@@ -86,7 +90,7 @@ def edge_view(G, gi=None, cell_edges_only=False, exec=False, attr=None, colormap
 
     if attr:
         attrs=nx.get_edge_attributes(G,attr)
-        if cell_edges:
+        if cell_edges_only:
             vals=np.array([attrs[(e[0],e[1])] for e in edges])
         else:
             vals = np.fromiter(attrs.values(),dtype=float)

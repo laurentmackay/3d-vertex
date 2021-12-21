@@ -27,4 +27,4 @@ if __name__ == '__main__':
     #create integrator
     integrate = vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=mkcallback())
     #integrate
-    integrate(0.5,2000)
+    integrate(0.5,20000)

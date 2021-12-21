@@ -11,8 +11,6 @@
 import numpy as np
 
 # time
-t_final = 2000              # entire time of simulation
-dt = 0.5                    # time step
 t_pit = 0                   # time for myosin build-up (myo accumulates for t<t_pit) 
 t_intercalate = 0           # time for myosin to begin accumulating on intercalating edges
 t_1 = 0                    # time for inner arc to begin 
