@@ -57,11 +57,11 @@ def _init_window(title=''):
         return w
 
 
-def edge_view(G, gi=None, cell_edges=False, exec=False, attr=None, colormap='CET-D4',edgeWidth=1.25, edgeWidthMultiplier=3, edgeColor=0.0):
+def edge_view(G, gi=None, cell_edges_only=False, exec=False, attr=None, colormap='CET-D4',edgeWidth=1.25, edgeWidthMultiplier=3, edgeColor=0.0):
     pos = np.array([*nx.get_node_attributes(G,'pos').values()])
 
     if gi is None:
-        pg.mkQApp('Edge View')
+        pg.mkQApp("Edge View")
         w = gl.GLViewWidget()
         w.setBackgroundColor(1.0)
         w.show()
