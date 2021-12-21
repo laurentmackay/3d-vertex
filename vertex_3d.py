@@ -87,24 +87,25 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             
 =======
             for i, e in enumerate(G.edges()):
-                G[e[0]][e[1]]['l_rest'] = l_rest[e] + (dists[i]-l_rest[e])/const.tau
+                G[e[0]][e[1]]['l_rest'] = l_rest[e] + const.dt*(dists[i]-l_rest[e])/const.tau
             
 
         ## Check for intercalation events
             pos = nx.get_node_attributes(G,'pos')
             for node in range(0,num_api_nodes):
                 if node not in belt: 
-                    for neighbor in G.neighbors(node):
+                    nhbrs = list(G.neighbors(node))
+                    for neighbor in nhbrs:
                         if (neighbor < basal_offset) and (neighbor not in belt) and (node not in centers) and (neighbor not in centers) and ([min(node, neighbor), max(node, neighbor)] not in blacklist): 
                         
                             a = pos[node]
                             b = pos[neighbor]
-                            c = pos[node+basal_offset]
-                            d = pos[neighbor+basal_offset]
+
                             
                             dist = euclidean_distance(a,b)
                             
                             if (dist < const.l_intercalation): 
+<<<<<<< HEAD
                                 if (np.random.rand(1)[0] < 1.):
                                     print("Intercalation event between nodes", node, "and", neighbor, "at t = ", t) 
                                     # collapse nodes to same position 
@@ -180,6 +181,80 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                                     if min(node,neighbor) == 301:
                                         contract[0] = False
 >>>>>>> 859897c... maxwell elements!
+=======
+                                c = pos[node+basal_offset]
+                                d = pos[neighbor+basal_offset]
+
+                                print("Intercalation event between nodes", node, "and", neighbor, "at t = ", t) 
+                                # collapse nodes to same position 
+                                # apical  
+                                avg_loc = (a + b) / 2.0 
+                                a = avg_loc 
+                                b = avg_loc 
+                                # basal 
+                                avg_loc = (c + d) / 2.0 
+                                c = avg_loc 
+                                d = avg_loc 
+                                # move nodes toward new center 
+                                # apical 
+                                cents = list(set(G.neighbors(node)) & set(G.neighbors(neighbor)))
+                                mvmt = unit_vector(a,pos[cents[1]])
+                                G.node[node]['pos'] = a + l_mvmt*mvmt
+                                mvmt = unit_vector(b,pos[cents[0]])
+                                G.node[neighbor]['pos'] = b + l_mvmt*mvmt
+                                # basal 
+                                #cents = list(set(G.neighbors(node+basal_offset)) & set(G.neighbors(neighbor+basal_offset)))
+                                mvmt = unit_vector(c,pos[cents[1]+basal_offset])
+                                G.node[node+basal_offset]['pos'] = c + l_mvmt*mvmt
+                                mvmt = unit_vector(d,pos[cents[0]+basal_offset])
+                                G.node[neighbor+basal_offset]['pos'] = d + l_mvmt*mvmt
+
+                                ii = list((set(list(G.neighbors(node))) & set(list(centers))) - (set(list(G.neighbors(node))) & set(list(G.neighbors(neighbor)))))[0]
+                                jj = list((set(list(G.neighbors(neighbor))) & set(list(centers))) - (set(list(G.neighbors(node))) & set(list(G.neighbors(neighbor)))))[0]
+                                temp1 = list(set(G.neighbors(node)) & set(G.neighbors(cents[0])))
+                                temp1.remove(neighbor)
+                                temp2 = list(set(G.neighbors(neighbor)) & set(G.neighbors(cents[1])))
+                                temp2.remove(node)
+
+                                # sever connections
+                                # apical   
+                                G.remove_edge(node,cents[0])
+                                G.remove_edge(node,temp1[0])
+                                G.remove_edge(neighbor,cents[1])
+                                G.remove_edge(neighbor,temp2[0])
+                                # basal 
+                                G.remove_edge(node+basal_offset,cents[0]+basal_offset)
+                                G.remove_edge(node+basal_offset,temp1[0]+basal_offset)
+                                G.remove_edge(neighbor+basal_offset,cents[1]+basal_offset)
+                                G.remove_edge(neighbor+basal_offset,temp2[0]+basal_offset)
+
+                                # add new connections
+                                # apical 
+                                # new edges 
+                                G.add_edge(node,temp2[0],l_rest = const.l_apical, myosin=0,color='#808080')
+                                G.add_edge(neighbor,temp1[0],l_rest = const.l_apical, myosin=0,color='#808080')
+                                # new spokes 
+                                G.add_edge(neighbor,ii,l_rest = const.l_apical, myosin=0)
+                                G.add_edge(node,jj,l_rest = const.l_apical, myosin=0)
+                                # basal 
+                                # new edges 
+                                G.add_edge(node+basal_offset,temp2[0]+basal_offset,l_rest = const.l_apical, myosin=0,color='#808080')
+                                G.add_edge(neighbor+basal_offset,temp1[0]+basal_offset,l_rest = const.l_apical, myosin=0,color='#808080')
+                                # new spokes 
+                                G.add_edge(neighbor+basal_offset,ii+basal_offset,l_rest = const.l_apical, myosin=0)
+                                G.add_edge(node+basal_offset,jj+basal_offset,l_rest = const.l_apical, myosin=0)
+                                
+                                # reset myosin on contracted edge
+                                G[node][neighbor]['myosin'] = 0
+                                G[node+basal_offset][neighbor+basal_offset]['myosin'] = 0
+                                
+                                blacklist.append([min(node, neighbor), max(node, neighbor)])
+                                
+                                circum_sorted, triangles, K = new_topology(K,[node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
+                                
+                                if min(node,neighbor) == 301:
+                                    contract[0] = False
+>>>>>>> 5ed7d4a... fixed some typing and runtime errors during intercalation
 
         #    #set dt for next loop 
         #    if var_dt == True:
@@ -613,6 +688,9 @@ def tissue_3d():
     print("Number of apical nodes are", i)
     
     G2D = G.copy()
+    if nx.__version__>"2.3":
+        G2D.node = G2D._node
+
     num_apical_nodes = i
     
     # Basal Nodes

@@ -335,14 +335,14 @@ def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_n
     b = pos[neighbor]
     
     # collapse nodes to same position 
-    K.node[node]['pos'] = [(a[0]+b[0])/2.0, (a[1]+b[1])/2.0, (a[2]+b[2])/2.0]
-    K.node[neighbor]['pos'] = [(a[0]+b[0])/2.0, (a[1]+b[1])/2.0, (a[2]+b[2])/2.0]
+    K.node[node]['pos'] = (a+b)/2.0
+    K.node[neighbor]['pos'] = (a+b)/2.0
 
     # move nodes toward new center 
     mvmt = unit_vector(a,pos[cents[1]])
-    K.node[node]['pos'] = [a[0]+l_mvmt*mvmt[0], a[1]+l_mvmt*mvmt[1], a[2]+l_mvmt*mvmt[2]]
+    K.node[node]['pos'] = + a+l_mvmt*mvmt
     mvmt = unit_vector(b,pos[cents[0]])
-    K.node[neighbor]['pos'] = [b[0]+l_mvmt*mvmt[0], b[1]+l_mvmt*mvmt[1], b[2]+l_mvmt*mvmt[2]]
+    K.node[neighbor]['pos'] = b+l_mvmt*mvmt
 
     # sever connections
     K.remove_edge(node,cents[0])
@@ -362,13 +362,13 @@ def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_n
     # update pos list 
     circum_sorted = [] 
     pos = nx.get_node_attributes(K,'pos')
-    xy = [[pos[n][0],pos[n][1]] for n in range(0,num_api_nodes)]
+    xy = [pos[n][:2] for n in range(0,num_api_nodes)]
     
     # be safe, just sort them all over again 
     for center in centers:
         a, b = sort_corners(list(K.neighbors(center)),xy[center],xy)
         circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
-    circum_sorted = np.array(circum_sorted)
+    circum_sorted = np.array(circum_sorted, dtype=object)
 
     triangles = []
     for node in K.nodes():
