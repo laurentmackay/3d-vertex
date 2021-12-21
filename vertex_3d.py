@@ -44,9 +44,11 @@ area_side(np.tile(z3,reps=(3,1)))
 # calculate volume
 vol = convex_hull_volume_bis(np.random.random((6,3)))  
 
-def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=None):
+def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=None, intercalation_callback=None):
     if pre_callback is None or not callable(pre_callback):
         pre_callback = lambda t : None
+    if intercalation_callback is None or not callable(intercalation_callback):
+        intercalation_callback = lambda node, neighbor : None
 
     force_dict = {}
     l_rest={}
@@ -244,91 +246,108 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         nonlocal circum_sorted, triangles, K, blacklist
 
         pos = nx.get_node_attributes(G,'pos')
-        for node in range(0,num_api_nodes):
-            if node not in belt: 
-                for neighbor in G.neighbors(node):
+        node=0
+        while node<num_api_nodes:
+        # for node in range(0,num_api_nodes):
+            if node not in belt:
+                nhbrs=list(G.neighbors(node))
+                j=0
+                while j<len(nhbrs):
+                    neighbor=nhbrs[j]
                     if (neighbor < basal_offset) and (neighbor not in belt) and (node not in centers) and (neighbor not in centers) and ([min(node, neighbor), max(node, neighbor)] not in blacklist): 
-                    
+                        
                         a = pos[node]
                         b = pos[neighbor]
-                        c = pos[node+basal_offset]
-                        d = pos[neighbor+basal_offset]
-                        
+
                         dist = euclidean_distance(a,b)
                         
                         if (dist < const.l_intercalation): 
-                            if (np.random.rand(1)[0] < 1.):
-                                print("Intercalation event between nodes", node, "and", neighbor, "at t = ", t) 
-                                # collapse nodes to same position 
-                                # apical  
-                                avg_loc = (np.array(a) + np.array(b)) / 2.0 
-                                a = avg_loc 
-                                b = avg_loc 
-                                # basal 
-                                avg_loc = (np.array(c) + np.array(d)) / 2.0 
-                                c = avg_loc 
-                                d = avg_loc 
-                                # move nodes toward new center 
-                                # apical 
-                                cents = list(set(G.neighbors(node)) & set(G.neighbors(neighbor)))
-                                mvmt = unit_vector(a,pos[cents[1]])
-                                a = [a[0]+l_mvmt*mvmt[0], a[1]+l_mvmt*mvmt[1], a[2]+l_mvmt*mvmt[2]]
-                                G.node[node]['pos'] = a 
-                                mvmt = unit_vector(b,pos[cents[0]])
-                                b = [b[0]+l_mvmt*mvmt[0], b[1]+l_mvmt*mvmt[1], b[2]+l_mvmt*mvmt[2]]
-                                G.node[neighbor]['pos'] = b 
-                                # basal 
-                                #cents = list(set(G.neighbors(node+basal_offset)) & set(G.neighbors(neighbor+basal_offset)))
-                                mvmt = unit_vector(c,pos[cents[1]+basal_offset])
-                                c = [c[0]+l_mvmt*mvmt[0], c[1]+l_mvmt*mvmt[1], c[2]+l_mvmt*mvmt[2]]
-                                G.node[node+basal_offset]['pos'] = c 
-                                mvmt = unit_vector(d,pos[cents[0]+basal_offset])
-                                d = [d[0]+l_mvmt*mvmt[0], d[1]+l_mvmt*mvmt[1], d[2]+l_mvmt*mvmt[2]]
-                                G.node[neighbor+basal_offset]['pos'] = d 
-                                
-                                ii = list((set(list(G.neighbors(node))) & set(list(centers))) - (set(list(G.neighbors(node))) & set(list(G.neighbors(neighbor)))))[0]
-                                jj = list((set(list(G.neighbors(neighbor))) & set(list(centers))) - (set(list(G.neighbors(node))) & set(list(G.neighbors(neighbor)))))[0]
-                                temp1 = list(set(G.neighbors(node)) & set(G.neighbors(cents[0])))
-                                temp1.remove(neighbor)
-                                temp2 = list(set(G.neighbors(neighbor)) & set(G.neighbors(cents[1])))
-                                temp2.remove(node)
 
-                                # sever connections
-                                # apical   
-                                G.remove_edge(node,cents[0])
-                                G.remove_edge(node,temp1[0])
-                                G.remove_edge(neighbor,cents[1])
-                                G.remove_edge(neighbor,temp2[0])
-                                # basal 
-                                G.remove_edge(node+basal_offset,cents[0]+basal_offset)
-                                G.remove_edge(node+basal_offset,temp1[0]+basal_offset)
-                                G.remove_edge(neighbor+basal_offset,cents[1]+basal_offset)
-                                G.remove_edge(neighbor+basal_offset,temp2[0]+basal_offset)
+                            c = pos[node+basal_offset]
+                            d = pos[neighbor+basal_offset]
+                        
+                            print("Intercalation event between nodes", node, "and", neighbor, "at t = ", t) 
+                            # collapse nodes to same position 
+                            # apical  
+                            a0=a
+                            b0=b
+                            avg_loc = (a + b) / 2.0 
+                            a = avg_loc 
+                            b = avg_loc 
+                            # basal 
+                            avg_loc = (c + d) / 2.0 
+                            c0=c
+                            d0=d
+                            c = avg_loc 
+                            d = avg_loc 
+                            # move nodes toward new center 
+                            # apical 
+                            cents = list(set(G.neighbors(node)) & set(G.neighbors(neighbor)))
+                            mvmt = unit_vector(a,pos[cents[1]])
+                            a = a + l_mvmt*mvmt
+                            G.node[node]['pos'] = a 
+                            mvmt = unit_vector(b,pos[cents[0]])
+                            b = b + l_mvmt*mvmt
+                            G.node[neighbor]['pos'] = b 
+                            # basal 
+                            #cents = list(set(G.neighbors(node+basal_offset)) & set(G.neighbors(neighbor+basal_offset)))
+                            mvmt = unit_vector(c,pos[cents[1]+basal_offset])
+                            c = c + l_mvmt*mvmt
+                            G.node[node+basal_offset]['pos'] = c 
+                            mvmt = unit_vector(d,pos[cents[0]+basal_offset])
+                            d = d + l_mvmt*mvmt
+                            G.node[neighbor+basal_offset]['pos'] = d 
+                            
+                            ii = list((set(list(G.neighbors(node))) & set(list(centers))) - (set(list(G.neighbors(node))) & set(list(G.neighbors(neighbor)))))[0]
+                            jj = list((set(list(G.neighbors(neighbor))) & set(list(centers))) - (set(list(G.neighbors(node))) & set(list(G.neighbors(neighbor)))))[0]
+                            temp1 = list(set(G.neighbors(node)) & set(G.neighbors(cents[0])))
+                            temp1.remove(neighbor)
+                            temp2 = list(set(G.neighbors(neighbor)) & set(G.neighbors(cents[1])))
+                            temp2.remove(node)
 
-                                # add new connections
-                                # apical 
-                                # new edges 
-                                G.add_edge(node,temp2[0],l_rest = const.l_apical, myosin=0,color='#808080')
-                                G.add_edge(neighbor,temp1[0],l_rest = const.l_apical, myosin=0,color='#808080')
-                                # new spokes 
-                                G.add_edge(neighbor,ii,l_rest = const.l_apical, myosin=0)
-                                G.add_edge(node,jj,l_rest = const.l_apical, myosin=0)
-                                # basal 
-                                # new edges 
-                                G.add_edge(node+basal_offset,temp2[0]+basal_offset,l_rest = const.l_apical, myosin=0,color='#808080')
-                                G.add_edge(neighbor+basal_offset,temp1[0]+basal_offset,l_rest = const.l_apical, myosin=0,color='#808080')
-                                # new spokes 
-                                G.add_edge(neighbor+basal_offset,ii+basal_offset,l_rest = const.l_apical, myosin=0)
-                                G.add_edge(node+basal_offset,jj+basal_offset,l_rest = const.l_apical, myosin=0)
-                                
-                                # reset myosin on contracted edge
-                                G[node][neighbor]['myosin'] = 0
-                                G[node+basal_offset][neighbor+basal_offset]['myosin'] = 0
-                                
-                                blacklist.append([min(node, neighbor), max(node, neighbor)])
-                                
-                                circum_sorted, triangles, K = new_topology(K,[node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
-                                G.graph['circum_sorted']=circum_sorted
+                            # sever connections
+                            # apical   
+                            G.remove_edge(node,cents[0])
+                            G.remove_edge(node,temp1[0])
+                            G.remove_edge(neighbor,cents[1])
+                            G.remove_edge(neighbor,temp2[0])
+                            # basal 
+                            G.remove_edge(node+basal_offset,cents[0]+basal_offset)
+                            G.remove_edge(node+basal_offset,temp1[0]+basal_offset)
+                            G.remove_edge(neighbor+basal_offset,cents[1]+basal_offset)
+                            G.remove_edge(neighbor+basal_offset,temp2[0]+basal_offset)
+
+                            # add new connections
+                            # apical 
+                            # new edges 
+                            G.add_edge(node,temp2[0],l_rest = const.l_apical, myosin=0,color='#808080')
+                            G.add_edge(neighbor,temp1[0],l_rest = const.l_apical, myosin=0,color='#808080')
+                            # new spokes 
+                            G.add_edge(neighbor,ii,l_rest = const.l_apical, myosin=0)
+                            G.add_edge(node,jj,l_rest = const.l_apical, myosin=0)
+                            # basal 
+                            # new edges 
+                            G.add_edge(node+basal_offset,temp2[0]+basal_offset,l_rest = const.l_apical, myosin=0,color='#808080')
+                            G.add_edge(neighbor+basal_offset,temp1[0]+basal_offset,l_rest = const.l_apical, myosin=0,color='#808080')
+                            # new spokes 
+                            G.add_edge(neighbor+basal_offset,ii+basal_offset,l_rest = const.l_apical, myosin=0)
+                            G.add_edge(node+basal_offset,jj+basal_offset,l_rest = const.l_apical, myosin=0)
+                            
+                            # reset myosin on contracted edge
+                            G[node][neighbor]['myosin'] = 0
+                            G[node+basal_offset][neighbor+basal_offset]['myosin'] = 0
+                            
+                            blacklist.append([min(node, neighbor), max(node, neighbor)])
+                            
+                            circum_sorted, triangles, K = new_topology(K,[node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
+                            G.graph['circum_sorted']=circum_sorted
+
+                            intercalation_callback(node,neighbor)
+                            node-=1
+                            break
+                    j += 1
+            node += 1
+
 
 
     return integrate
