@@ -44,7 +44,7 @@ area_side(np.tile(z3,reps=(3,1)))
 # calculate volume
 vol = convex_hull_volume_bis(np.random.random((6,3)))  
 
-def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=None, intercalation_callback=None):
+def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=None, intercalation_callback=None, length_prec=0.05):
     if pre_callback is None or not callable(pre_callback):
         pre_callback = lambda t : None
     if intercalation_callback is None or not callable(intercalation_callback):
@@ -58,7 +58,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     blacklist = [] 
     #@profile
     def integrate(dt,t_final, t=0):
-        nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict, l_rest, dists
+        nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict, l_rest, dists, drx
         
         num_inter = 0 
         
@@ -73,7 +73,10 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         t0 = time.time()
 
 
-
+        compute_forces()
+        delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
+        dtmax=-length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
+        dt_curr=np.minimum(np.min(dtmax[np.argwhere(dtmax>0)]),dt)
 
 
 
@@ -81,23 +84,31 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
             
             # increment t by dt
-            t = round(t+dt,1)
-            t1=time.time()
-            print(dt, t,f'{t1-t0} seconds elapsed') 
-            t0=t1
+            # t = round(t+dt_curr,1)
 
-            pre_callback(t)
-            compute_forces()
+
+            pre_callback(t+dt_curr, t_prev=t)
             
+            t += dt_curr
+            t1=time.time()
+            print(dt_curr, t,f'{t1-t0} seconds elapsed') 
+            t0=t1
+            compute_forces()
+
+            delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
+            dtmax=-length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
+            dt_curr=np.minimum(np.min(dtmax[np.argwhere(dtmax>0)]),dt)
+            # print(dt_curr)
+
             for node in force_dict:
-                G.node[node]['pos'] = G.node[node]['pos'] + (dt/const.eta)*force_dict[node]  #forward euler step for nodes
+                G.node[node]['pos'] = G.node[node]['pos'] + (dt_curr/const.eta)*force_dict[node]  #forward euler step for nodes
 
 
             
         
             
 
-            r=dt/const.tau
+            r=dt_curr/const.tau
             for i, e in enumerate(G.edges()):
                 dist=dists[i]
                 strain = (dist/l_rest[e])-1.0
@@ -138,7 +149,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 np.save(file_name,circum_sorted)
 
     def compute_forces():
-        nonlocal force_dict, circum_sorted, triangles, l_rest, dists
+        nonlocal force_dict, circum_sorted, triangles, l_rest, dists, drx
 
         pos = nx.get_node_attributes(G,'pos')
         force_dict = {new_list: np.zeros(3,dtype=float) for new_list in G.nodes()} 
