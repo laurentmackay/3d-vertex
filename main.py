@@ -30,6 +30,6 @@ if __name__ == '__main__':
                                   triangles, 
                                   pre_callback=mkcallback(),
                                   intercalation_callback=lambda a, b: viewer(G),
-                                  length_prec=.1)
+                                  length_prec=.05)
     #integrate
     integrate(5,20000)
