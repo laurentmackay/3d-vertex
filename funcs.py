@@ -395,3 +395,56 @@ def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_n
 
 
 
+
+def new_topology2(G, belt, centers):
+    # obtain new network topology - i.e. triangles, and circum_sorted 
+    # inputs:   K: networkx graph
+    #           inter: a python list of the nodes that have been intercalated  
+    #           cents:
+    #           temp1
+    #           temp2
+    #           belt
+    #           centers, 
+    #
+    # returns:  circum_sorted - the peripheal nodes of the centers sorted. (update to previous)
+    #           triangles - a numpy.array of the triangle pairs (update to previous)
+    #           K - the new networkx Graph preserving the topology
+
+    
+    # new network made. Now get circum_sorted
+    # update pos list 
+    circum_sorted = [] 
+    pos = nx.get_node_attributes(G,'pos')
+    xy = [pos[n][:2] for n in pos if n<basal_offset]
+    
+    # be safe, just sort them all over again 
+    for center in centers:
+        neighbors = [n for n in G.neighbors(center) if n<basal_offset]
+        a, b = sort_corners(neighbors,xy[center],xy)
+        circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
+    circum_sorted = np.array(circum_sorted, dtype=object)
+
+    triangles = []
+    for node in G.nodes():
+        if node not in belt and node<basal_offset:
+            
+                neighbors = [n for n in G.neighbors(node) if n<basal_offset]
+                out1, out2 = sort_corners(neighbors,pos[node],pos)
+                neighbors = [out2[k][0] for k in range(0,len(out2))]
+
+                if node in centers:
+                    alpha_beta = [[[node,neighbors[k-1],neighbors[k-2]],[node, neighbors[k],neighbors[k-1]]] for k in range(0,len(neighbors))]
+
+                    for entry in alpha_beta:
+                        triangles.append(entry)
+                else:
+                    for k,_ in enumerate(neighbors):
+                        alpha = [node,neighbors[k-1],neighbors[k-2]]
+                        beta = [node,neighbors[k],neighbors[k-1]]
+                        
+                        if set(alpha) & set(centers) != set(beta) & set(centers):
+                            triangles.append([alpha,beta])
+
+
+        
+    return circum_sorted, triangles

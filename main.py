@@ -32,4 +32,4 @@ if __name__ == '__main__':
                                   intercalation_callback=lambda a, b: viewer(G),
                                   length_prec=.05)
     #integrate
-    integrate(5,20000)
+    integrate(1,20000)

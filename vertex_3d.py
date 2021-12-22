@@ -56,7 +56,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     drx=np.zeros((N_edges,3))
     dists=np.zeros((N_edges,))
     dists_old=np.zeros((N_edges,))
-    blacklist = [] 
+    
     #@profile
     def integrate(dt,t_final, t=0):
         nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict, l_rest, dists, drx
@@ -113,7 +113,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
             delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
             dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
-            h1=np.min(dtmax[np.argwhere(dtmax>0)])
+            h1=np.min(np.abs(dtmax))
             h=np.minimum(h1,dt)
             # dt_curr=dt
             # print(dt_curr)
@@ -135,7 +135,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
             delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
             dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
-            h2=np.min(dtmax[np.argwhere(dtmax>0)])
+            h2=np.min(np.abs(dtmax))
             h=np.min((h1,h2,dt))
             if h2<h1 and h2<dt:
                 pos2 = pos.copy()
@@ -170,8 +170,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 dist_old = dists_old[i]
                 dist=dists[i]
                 strain = (dist/l_rest[e])-1.0
-                # if np.abs(strain)>0.01:
-                G[e[0]][e[1]]['l_rest'] = (l_rest[e]*(1.0-r) + r*(dist_old +dist))/(1+r)
+                if np.abs(strain)>0.1 and (l_rest[e]<l_apical or (dist<l_apical and dist_old<l_apical)):
+                    G[e[0]][e[1]]['l_rest'] = (l_rest[e]*(1.0-r) + r*(dist_old +dist))/(1+r)
                 # G[e[0]][e[1]]['l_rest'] = (l_rest[e]+r*dist)/(1.0+r)
 
             
@@ -307,8 +307,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                         force_dict[node] += frce
 
     def check_for_intercalations(t):
-        nonlocal circum_sorted, triangles, K, blacklist
-
+        nonlocal circum_sorted, triangles, K
+        blacklist = [] 
         pos = nx.get_node_attributes(G,'pos')
         node=0
         while node<num_api_nodes:
@@ -320,8 +320,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                     neighbor=nhbrs[j]
                     if (neighbor < basal_offset) and (neighbor not in belt) and (node not in centers) and (neighbor not in centers) and ([min(node, neighbor), max(node, neighbor)] not in blacklist): 
                         
-                        a = pos[node]
-                        b = pos[neighbor]
+                        a = G.node[node]['pos']
+                        b = G.node[neighbor]['pos']
 
                         dist = euclidean_distance(a,b)
                         
@@ -347,6 +347,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             # move nodes toward new center 
                             # apical 
                             cents = list(set(G.neighbors(node)) & set(G.neighbors(neighbor)))
+                            mvmt = unit_vector(pos[cents[1]],pos[cents[0]])
                             mvmt = unit_vector(a,pos[cents[1]])
                             a = a + l_mvmt*mvmt
                             G.node[node]['pos'] = a 
@@ -370,11 +371,12 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             temp2.remove(node)
 
                             # sever connections
-                            # apical   
-                            G.remove_edge(node,cents[0])
-                            G.remove_edge(node,temp1[0])
-                            G.remove_edge(neighbor,cents[1])
-                            G.remove_edge(neighbor,temp2[0])
+                            # apical
+                            remove = ((node,cents[0]),(node,temp1[0]),(neighbor,cents[1]),(neighbor,temp2[0])) 
+                            old_edges = []
+                            for e in remove:
+                                old_edges.append(G[e[0]][e[1]])
+                                G.remove_edge(*e)
                             # basal 
                             G.remove_edge(node+basal_offset,cents[0]+basal_offset)
                             G.remove_edge(node+basal_offset,temp1[0]+basal_offset)
@@ -384,11 +386,11 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             # add new connections
                             # apical 
                             # new edges 
-                            G.add_edge(node,temp2[0],l_rest = const.l_apical, myosin=0,color='#808080')
-                            G.add_edge(neighbor,temp1[0],l_rest = const.l_apical, myosin=0,color='#808080')
-                            # new spokes 
-                            G.add_edge(neighbor,ii,l_rest = const.l_apical, myosin=0)
-                            G.add_edge(node,jj,l_rest = const.l_apical, myosin=0)
+                            G.add_edge(node,temp2[0],**old_edges[3])
+                            G.add_edge(neighbor,temp1[0],**old_edges[1])
+                            # new spokes to new neighbors
+                            G.add_edge(neighbor,ii,**G[node][ii])
+                            G.add_edge(node,jj,**G[neighbor][jj])
                             # basal 
                             # new edges 
                             G.add_edge(node+basal_offset,temp2[0]+basal_offset,l_rest = const.l_apical, myosin=0,color='#808080')
@@ -401,9 +403,9 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             G[node][neighbor]['myosin'] = 0
                             G[node+basal_offset][neighbor+basal_offset]['myosin'] = 0
                             
-                            blacklist.append([min(node, neighbor), max(node, neighbor)])
+                            # blacklist.append([min(node, neighbor), max(node, neighbor)])
                             
-                            circum_sorted, triangles, K = new_topology(K,[node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
+                            circum_sorted, triangles = new_topology2(G, belt, centers)
                             G.graph['circum_sorted']=circum_sorted
 
                             intercalation_callback(node,neighbor)

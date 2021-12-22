@@ -31,7 +31,7 @@ l_apical = 3.4
 l_depth = 13.6 
 v_0 = ((3/2)*np.sqrt(3)*l_apical**2)*l_depth
 l_intercalation = 0.1 
-l_mvmt = 0.2 
+l_mvmt = l_intercalation
 
 # mechanical parameters
 # strength of force on edges. Given in terms of myosin motors (Force=beta*myosin) 
