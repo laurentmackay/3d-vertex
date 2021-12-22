@@ -55,6 +55,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     N_edges = len(G.edges())
     drx=np.zeros((N_edges,3))
     dists=np.zeros((N_edges,))
+    dists_old=np.zeros((N_edges,))
     blacklist = [] 
     #@profile
     def integrate(dt,t_final, t=0):
@@ -72,12 +73,14 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         np.save(file_name, circum_sorted) 
         t0 = time.time()
 
-
+        compute_edge_distance_and_direction()
         compute_forces()
-        delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
-        dtmax=-length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
-        dt_curr=np.minimum(np.min(dtmax[np.argwhere(dtmax>0)]),dt)
+        force_dict_prev = force_dict
 
+        delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
+        dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
+        dt_curr=np.minimum(np.min(dtmax[np.argwhere(dtmax>0)]),dt)
+        # dt_curr = dt
 
 
         while t <= t_final:
@@ -93,53 +96,40 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             t1=time.time()
             print(dt_curr, t,f'{t1-t0} seconds elapsed') 
             t0=t1
+            force_dict_prev_prev = force_dict_prev
+            force_dict_prev = force_dict
             compute_forces()
 
             delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
-            dtmax=-length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
+            dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
             dt_curr=np.minimum(np.min(dtmax[np.argwhere(dtmax>0)]),dt)
+            # dt_curr=dt
             # print(dt_curr)
 
             for node in force_dict:
-                G.node[node]['pos'] = G.node[node]['pos'] + (dt_curr/const.eta)*force_dict[node]  #forward euler step for nodes
+                # G.node[node]['pos'] = G.node[node]['pos'] + (dt_curr/const.eta)*((3/2)*force_dict[node]-(1/2)*force_dict_prev[node])  #forward euler step for nodes
+
+                G.node[node]['pos'] = G.node[node]['pos'] + (dt_curr/const.eta)*(force_dict[node])  #forward euler step for nodes
 
 
             
-        
-            
+            dists_old[:]=dists[:]
+            compute_edge_distance_and_direction()
 
-            r=dt_curr/const.tau
+            # r=dt_curr/(2.0*const.tau)
+            r=dt_curr/(const.tau)
             for i, e in enumerate(G.edges()):
+                dist_old = dists_old[i]
                 dist=dists[i]
                 strain = (dist/l_rest[e])-1.0
-                if np.abs(strain)>0.01:
-                    G[e[0]][e[1]]['l_rest'] = (l_rest[e]+dist*r)/(1.0+r)
+                # if np.abs(strain)>0.01:
+                    # G[e[0]][e[1]]['l_rest'] = (l_rest[e]*(1.0-r) + r*(dist_old +dist))/(1+r)
+                G[e[0]][e[1]]['l_rest'] = (l_rest[e]+r*dist)/(1.0+r)
 
             
 
             check_for_intercalations(t)
                             
-
-        #    #set dt for next loop 
-        #    if var_dt == True:
-        #        if any(contract) == True:
-        #            # if any edges are still contracting, check for threshold length 
-        #            for i in range(0,num_inter):
-        #            # calculate lengths of those that are still True 
-        #                if contract[i] == True:
-        #                    a = inter_edges[i][0]
-        #                    b = inter_edges[i][1]
-        #                    if euclidean_distance(pos[a],pos[b]) < 0.2:
-        #                        dt = 0.1
-        #                        break 
-        #        else: 
-        #            if isclose(t % 1, 0) == False:       
-        #                dt = 0.1 
-        #            else:
-        #                dt = const.dt
-        #                var_dt = False 
-        #    else:
-        #        dt  = const.dt
 
         # Save nx Graph in pickled form for plotting later
             
@@ -147,6 +137,17 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 file_name = 't_fast' + str(round(t)) 
                 nx.write_gpickle(G,file_name + '.pickle')
                 np.save(file_name,circum_sorted)
+
+    def compute_edge_distance_and_direction():
+        nonlocal dists, drx
+        pos = nx.get_node_attributes(G,'pos')
+        for i, e in enumerate(G.edges()):
+            a, b = e[0], e[1]
+            pos_a = pos[a]
+            pos_b = pos[b]
+            direction, dist = unit_vector_and_dist(pos_a,pos_b)
+            dists[i]=dist
+            drx[i]=direction
 
     def compute_forces():
         nonlocal force_dict, circum_sorted, triangles, l_rest, dists, drx
@@ -172,13 +173,13 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         for i, e in enumerate(G.edges()):
             
             a, b = e[0], e[1]
-            pos_a = pos[a]
-            pos_b = pos[b]
-            direction, dist = unit_vector_and_dist(pos_a,pos_b)
+            # pos_a = pos[a]
+            # pos_b = pos[b]
+            # direction, dist = unit_vector_and_dist(pos_a,pos_b)
 
             
-            dists[i] = dist
-            drx[i] = direction
+            dist = dists[i]
+            direction = drx[i]
             magnitude = mu_apical*(dist - l_rest[e])
             magnitude2 = myo_beta*myosin[e]
             force = (magnitude + magnitude2)*direction

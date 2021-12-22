@@ -13,7 +13,7 @@ if __name__ == '__main__':
     invagination = SG.invagination(G, belt, )
     viewer = edge_viewer(G,attr='myosin', cell_edges_only=True, apical_only=True)
     t_last = 0 
-    t_plot = 1
+    t_plot = 0
 
     def mkcallback():
         t_last=0.0
@@ -26,6 +26,10 @@ if __name__ == '__main__':
         return callback
 
     #create integrator
-    integrate = vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=mkcallback(), intercalation_callback=lambda a,b: viewer(G))
+    integrate = vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt,
+                                  triangles, 
+                                  pre_callback=mkcallback(),
+                                  intercalation_callback=lambda a, b: viewer(G),
+                                  length_prec=.1)
     #integrate
     integrate(5,20000)
