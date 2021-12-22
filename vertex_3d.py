@@ -65,70 +65,123 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         
         contract = [True for counter in range(0,num_inter)]
 
-        print(t) 
-        pre_callback(t)
 
         file_name = 't_fast' + str(int(t)) 
         nx.write_gpickle(G, file_name + '.pickle')
         np.save(file_name, circum_sorted) 
         t0 = time.time()
 
+        pos = nx.get_node_attributes(G,'pos')
+
+        print(t) 
+        pre_callback(t)
         compute_edge_distance_and_direction()
-        compute_forces()
-        force_dict_prev = force_dict
+        compute_forces(pos)
+        # force_dict_prev = force_dict
 
         delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
         dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
-        dt_curr=np.minimum(np.min(dtmax[np.argwhere(dtmax>0)]),dt)
+        h=np.min((np.min(dtmax[np.argwhere(dtmax>0)]),dt))
+
+        pre_callback(t+h)
+        compute_edge_distance_and_direction()
+        compute_forces(pos)
+        # force_dict_prev = force_dict
+
+        delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
+        dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
+        h=np.minimum(np.min(dtmax[np.argwhere(dtmax>0)]),dt)
+
+
         # dt_curr = dt
 
+        two_thirds=2/3
+        three_quarters=3/4
 
+        
         while t <= t_final:
 
-            
-            # increment t by dt
-            # t = round(t+dt_curr,1)
+            pos = nx.get_node_attributes(G,'pos')
 
-
-            pre_callback(t+dt_curr, t_prev=t)
             
-            t += dt_curr
-            t1=time.time()
-            print(dt_curr, t,f'{t1-t0} seconds elapsed') 
-            t0=t1
-            force_dict_prev_prev = force_dict_prev
-            force_dict_prev = force_dict
-            compute_forces()
+            pre_callback(t+h, t_prev=t)
+            
+     
+            # force_dict_prev_prev = force_dict_prev
+            # force_dict_prev = force_dict
+            compute_forces(pos)
 
             delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
             dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
-            dt_curr=np.minimum(np.min(dtmax[np.argwhere(dtmax>0)]),dt)
+            h1=np.min(dtmax[np.argwhere(dtmax>0)])
+            h=np.minimum(h1,dt)
             # dt_curr=dt
             # print(dt_curr)
 
-            for node in force_dict:
+            dists_old[:]=dists[:]
+            h2=0
+
+            k1=np.array([*force_dict.values()])/const.eta
+            # while h2<h1 and h2<dt and h2<k:
+        
+            
+            pos2 = pos.copy()
+            for i,node in enumerate(force_dict):
+                # G.node[node]['pos'] = G.node[node]['pos'] + (dt_curr/const.eta)*((3/2)*force_dict[node]-(1/2)*force_dict_prev[node])  #forward euler step for nodes
+                pos2[node] += h*two_thirds*k1[i]  #forward euler step for nodes
+
+            compute_edge_distance_and_direction()
+            compute_forces(pos2)
+
+            delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
+            dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
+            h2=np.min(dtmax[np.argwhere(dtmax>0)])
+            h=np.min((h1,h2,dt))
+            if h2<h1 and h2<dt:
+                pos2 = pos.copy()
+                for i,node in enumerate(force_dict):
+                    # G.node[node]['pos'] = G.node[node]['pos'] + (dt_curr/const.eta)*((3/2)*force_dict[node]-(1/2)*force_dict_prev[node])  #forward euler step for nodes
+                    pos2[node] += h*two_thirds*k1[i]  #forward euler step for nodes
+
+                compute_edge_distance_and_direction()
+                compute_forces(pos2)
+
+                # delta_F = np.array([ force_dict[e[0]]-force_dict[e[1]] for e in G.edges])
+                # dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1)
+                # h2=np.min(dtmax[np.argwhere(dtmax>0)])
+                # h=np.min((h1,h2,dt))
+       
+
+            k2=np.array([*force_dict.values()])/const.eta
+            delta=h*(k1/4+three_quarters*k2)
+            for i,node in enumerate(force_dict):
                 # G.node[node]['pos'] = G.node[node]['pos'] + (dt_curr/const.eta)*((3/2)*force_dict[node]-(1/2)*force_dict_prev[node])  #forward euler step for nodes
 
-                G.node[node]['pos'] = G.node[node]['pos'] + (dt_curr/const.eta)*(force_dict[node])  #forward euler step for nodes
+                G.node[node]['pos'] = pos[node] + delta[i]   #forward euler step for nodes
 
 
             
-            dists_old[:]=dists[:]
+            
             compute_edge_distance_and_direction()
 
             # r=dt_curr/(2.0*const.tau)
-            r=dt_curr/(const.tau)
+            r=h/(const.tau)
             for i, e in enumerate(G.edges()):
                 dist_old = dists_old[i]
                 dist=dists[i]
                 strain = (dist/l_rest[e])-1.0
                 # if np.abs(strain)>0.01:
-                    # G[e[0]][e[1]]['l_rest'] = (l_rest[e]*(1.0-r) + r*(dist_old +dist))/(1+r)
-                G[e[0]][e[1]]['l_rest'] = (l_rest[e]+r*dist)/(1.0+r)
+                G[e[0]][e[1]]['l_rest'] = (l_rest[e]*(1.0-r) + r*(dist_old +dist))/(1+r)
+                # G[e[0]][e[1]]['l_rest'] = (l_rest[e]+r*dist)/(1.0+r)
 
             
 
             check_for_intercalations(t)
+            
+            t += h
+            t1=time.time()
+            print(h, t,f'{t1-t0} seconds elapsed') 
+            t0=t1
                             
 
         # Save nx Graph in pickled form for plotting later
@@ -149,10 +202,10 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             dists[i]=dist
             drx[i]=direction
 
-    def compute_forces():
+    def compute_forces(pos):
         nonlocal force_dict, circum_sorted, triangles, l_rest, dists, drx
 
-        pos = nx.get_node_attributes(G,'pos')
+        
         force_dict = {new_list: np.zeros(3,dtype=float) for new_list in G.nodes()} 
         
         # pre-calculate magnitude of pressure
@@ -221,7 +274,6 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         
         # Implement bending energy
         # Loop through all alpha, beta pairs of triangles
-        offset=0
         for pair in triangles:
             for offset in (0, basal_offset):
                 alpha = [i+offset for i in pair[0]]
