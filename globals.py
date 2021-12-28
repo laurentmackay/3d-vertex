@@ -12,7 +12,7 @@ import numpy as np
 
 # time
 t_pit = 0                   # time for myosin build-up (myo accumulates for t<t_pit) 
-t_intercalate = 6           # time for myosin to begin accumulating on intercalating edges
+t_intercalate = 4000          # time for myosin to begin accumulating on intercalating edges
 t_1 = 0                    # time for inner arc to begin 
 t_2 = 10                   # time for outer arc to begin 
 t_belt = 0                # time for belt to begin

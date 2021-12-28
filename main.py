@@ -1,4 +1,6 @@
 from numpy.core.numeric import Infinity
+
+from tissue_3d import tissue_3d
 from vertex_3d import *
 import SG
 from pyqt_viz import edge_viewer
@@ -10,8 +12,8 @@ if __name__ == '__main__':
     G, K, centers, num_api_nodes, circum_sorted, belt, triangles = tissue_3d()
 
     #initialize some things for the callback
-    invagination = SG.invagination(G, belt, )
-    viewer = edge_viewer(G,attr='myosin', cell_edges_only=True, apical_only=True)
+    invagination = SG.invagination(G, belt, centers)
+    viewer = edge_viewer(G,attr='myosin', cell_edges_only=False, apical_only=True)
     t_last = 0 
     t_plot = 0
 
@@ -21,7 +23,7 @@ if __name__ == '__main__':
             nonlocal t_last
             invagination(t,t_prev)
             if t-t_last>=t_plot:
-                viewer(G)
+                viewer(G, title=f't={t}')
                 t_last=t
         return callback
 
@@ -30,6 +32,6 @@ if __name__ == '__main__':
                                   triangles, 
                                   pre_callback=mkcallback(),
                                   intercalation_callback=lambda a, b: viewer(G),
-                                  length_prec=.05)
+                                  length_prec=.01)
     #integrate
-    integrate(1,20000)
+    integrate(100,20000)

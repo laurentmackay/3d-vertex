@@ -44,7 +44,7 @@ def euclidean_distance(v1, v2):
 # ###############
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def unit_vector(A,B):
     # Calculate the unit vector from A to B in 3D
 
@@ -55,7 +55,7 @@ def unit_vector(A,B):
 
     return (B-A)/dist
 ###############
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def unit_vector_and_dist(A,B):
     # Calculate the unit vector from A to B in 3D
 
@@ -118,6 +118,7 @@ def signed_angle(v1,v2):
 def tetrahedron_volume(a, b, c, d):
     
     return np.abs(np.einsum('ij,ij->i', a-d, crossMatMat(b-d, c-d))) / 6
+    
 
 def convex_hull_volume(pts):
 
@@ -165,21 +166,21 @@ def get_points(G, q, pos):
 
     return pts 
 
-@jit(nopython=True)
-def cross33(a,b):
-    return np.array([a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]])
+# @jit(nopython=True)
+# def cross33(a,b):
+#     return np.array([a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]])
 
-@jit(nopython=True)
-def cross3Mat(a,b):
-    out = np.zeros((b.shape))
-    for i in range(0,b.shape[0]):
-        out[i,0]=a[1]*b[i,2]-a[2]*b[i,1]
-        out[i,1]=a[2]*b[i,0]-a[0]*b[i,2]
-        out[i,2]=a[0]*b[i,1]-a[1]*b[i,0]
+# @jit(nopython=True)
+# def cross3Mat(a,b):
+#     out = np.zeros((b.shape))
+#     for i in range(0,b.shape[0]):
+#         out[i,0]=a[1]*b[i,2]-a[2]*b[i,1]
+#         out[i,1]=a[2]*b[i,0]-a[0]*b[i,2]
+#         out[i,2]=a[0]*b[i,1]-a[1]*b[i,0]
 
-    return out
+#     return out
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def crossMatMat(a,b):
     out = np.zeros((b.shape))
     for i in range(0,b.shape[0]):
@@ -206,13 +207,13 @@ def sort_corners(corners,center_pos,pos_nodes):
     
     return corn2, corn_sort
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def area_side(pos_side):
     
     A_alpha = np.zeros((3,))
     # inds=[2,0,1]
     for i in range(0,3):
-        A_alpha += (1/2)*cross33(pos_side[i],pos_side[i-1])
+        A_alpha += (1/2)*np.cross(pos_side[i],pos_side[i-1])
     
     return np.linalg.norm(A_alpha), A_alpha
 
@@ -239,16 +240,16 @@ def be_area(cw_alpha, cw_beta, pos):
 
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def be_area_2( pos_alpha, pos_beta):
     
     A_alpha = np.zeros((3,))
     A_beta = np.zeros((3,))
     # inds=np.array([2,0,1])
     for i in range(0,3):
-        A_alpha += (1/2)*cross33(pos_alpha[i],pos_alpha[i-1])
+        A_alpha += (1/2)*np.cross(pos_alpha[i],pos_alpha[i-1])
     
-        A_beta += (1/2)*cross33(pos_beta[i],pos_beta[i-1])
+        A_beta += (1/2)*np.cross(pos_beta[i],pos_beta[i-1])
     
     # A_alpha = np.sum(crossMatMat(pos_alpha,pos_alpha[inds]),axis=0)
     # A_beta = np.sum(crossMatMat(pos_beta,pos_beta[inds]),axis=0)
@@ -259,7 +260,7 @@ def be_area_2( pos_alpha, pos_beta):
 e = np.array([[1,0,0], [0,1,0], [0,0,1]])
 
 #@profile
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def bending_energy_2(nbhrs_alpha, nbhrs_beta, alpha_vec, A_alpha, beta_vec, A_beta, pos_alpha_A, pos_alpha_B, pos_beta_A, pos_beta_B):
 
     sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
@@ -394,57 +395,3 @@ def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_n
     return circum_sorted, triangles, K
 
 
-
-
-def new_topology2(G, belt, centers):
-    # obtain new network topology - i.e. triangles, and circum_sorted 
-    # inputs:   K: networkx graph
-    #           inter: a python list of the nodes that have been intercalated  
-    #           cents:
-    #           temp1
-    #           temp2
-    #           belt
-    #           centers, 
-    #
-    # returns:  circum_sorted - the peripheal nodes of the centers sorted. (update to previous)
-    #           triangles - a numpy.array of the triangle pairs (update to previous)
-    #           K - the new networkx Graph preserving the topology
-
-    
-    # new network made. Now get circum_sorted
-    # update pos list 
-    circum_sorted = [] 
-    pos = nx.get_node_attributes(G,'pos')
-    xy = [pos[n][:2] for n in pos if n<basal_offset]
-    
-    # be safe, just sort them all over again 
-    for center in centers:
-        neighbors = [n for n in G.neighbors(center) if n<basal_offset]
-        a, b = sort_corners(neighbors,xy[center],xy)
-        circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
-    circum_sorted = np.array(circum_sorted, dtype=object)
-
-    triangles = []
-    for node in G.nodes():
-        if node not in belt and node<basal_offset:
-            
-                neighbors = [n for n in G.neighbors(node) if n<basal_offset]
-                out1, out2 = sort_corners(neighbors,pos[node],pos)
-                neighbors = [out2[k][0] for k in range(0,len(out2))]
-
-                if node in centers:
-                    alpha_beta = [[[node,neighbors[k-1],neighbors[k-2]],[node, neighbors[k],neighbors[k-1]]] for k in range(0,len(neighbors))]
-
-                    for entry in alpha_beta:
-                        triangles.append(entry)
-                else:
-                    for k,_ in enumerate(neighbors):
-                        alpha = [node,neighbors[k-1],neighbors[k-2]]
-                        beta = [node,neighbors[k],neighbors[k-1]]
-                        
-                        if set(alpha) & set(centers) != set(beta) & set(centers):
-                            triangles.append([alpha,beta])
-
-
-        
-    return circum_sorted, triangles

@@ -1,0 +1,13 @@
+General
+- Precompilation (cache=True is good enough for now)
+- Figure out why some intercalating edges dont get displayed
+- Double check all the edge properties during intercalation resolution
+
+
+
+
+
+Viz:
+- Dynamic title (e.g., for displaying time)
+- controls to manipulate kwargs?
+- abitrary function for scalars?
