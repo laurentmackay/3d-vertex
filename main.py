@@ -3,7 +3,7 @@ from numpy.core.numeric import Infinity
 from tissue_3d import tissue_3d
 from vertex_3d import *
 import SG
-from pyqt_viz import edge_viewer
+from pyqt_viz import *
 from globals import inter_edges
 
 if __name__ == '__main__':
@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     #initialize some things for the callback
     invagination = SG.invagination(G, belt, centers)
-    viewer = edge_viewer(G,attr='myosin', cell_edges_only=False, apical_only=True)
+    viewer = edge_viewer(G, attr='myosin', cell_edges_only=False, apical_only=True)
     t_last = 0 
     t_plot = 0
 
