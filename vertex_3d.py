@@ -68,7 +68,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     myosin = np.fromiter(nx.get_edge_attributes(G,'myosin').values(),dtype=float).reshape((-1,1))
     l_rest = np.fromiter(nx.get_edge_attributes(G,'l_rest').values(),dtype=float).reshape((-1,1))
 
-    @jit(nopython=True)
+    @jit(nopython=True, cache=True)
     def timestep_bound(forces,drx,edges):
         delta_F = forces[edges[:,0]]-forces[edges[:,1]]
         dtmax=length_prec*dists/np.sum(drx*delta_F/const.eta,axis=1).reshape((-1,1))
@@ -159,7 +159,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             pre_callback(t+h, t_prev=t)
             t += h
             t1=time.time()
-            # print(h, t,f'{t1-t0} seconds elapsed') 
+            print(f'{t1-t0} seconds elapsed') 
             t0=t1
                             
 
@@ -172,7 +172,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
     two_thirds=2/3
     three_quarters=3/4
-    # @jit(nopython=True)
+    # @jit(nopython=True, cache=True)
     def  update_pos(h, dt, pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers):
 
             forces=compute_forces2(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
@@ -210,7 +210,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
             return h
 
-    @jit(nopython=True)
+    @jit(nopython=True, cache=True)
     def compute_edge_distance_and_direction(pos, edges, dists, drx):
         for i in range(len(edges)):
             e=edges[i]
@@ -240,7 +240,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         
         return vols
 
-    @jit(nopython=True)
+    @jit(nopython=True, cache=True)
     def compute_pressure(vols):
         return -press_alpha*(vols-const.v_0)
 

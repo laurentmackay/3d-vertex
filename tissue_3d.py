@@ -161,15 +161,15 @@ def tissue_3d():
                     AS_boundary, spokes, i = add_nodes(nodes,i)
                     add_spokes_edges(spokes, AS_boundary)
    
-    circum_sorted = []
+    # circum_sorted = []
     pos = nx.get_node_attributes(G,'pos') 
     xy = np.array([[pos[n][0],pos[n][1]] for n in range(0,i)])
-    for center in centers:
-        a, b = sort_corners(list(G.neighbors(center)),xy[center],xy)
-        circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
+    # for center in centers:
+    #     a, b = sort_corners(list(G.neighbors(center)),xy[center],xy)
+    #     circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
 
-    G.graph['circum_sorted']=np.array(circum_sorted)
-    circum_sorted = List(circum_sorted)
+    # G.graph['circum_sorted']=np.array(circum_sorted)
+    # circum_sorted = List(circum_sorted)
 
     belt = []
     for node in G.nodes():
@@ -184,26 +184,28 @@ def tissue_3d():
         if G.has_edge(belt[n-1],belt[n]) == False:
             belt[n], belt[n+1] = belt[n+1], belt[n]
 
-    triangles = []
-    for node in G.nodes():
-        if node not in belt:
-            if node in centers:
-                out1, out2 = sort_corners(list(G.neighbors(node)),pos[node],pos)
-                neighbors = [out2[k][0] for k in range(0,len(out2))]
-                alpha_beta = [[[node,neighbors[k-1],neighbors[k-2]],[node, neighbors[k],neighbors[k-1]]] for k in range(0,6)]
+    # triangles = []
+    # for node in G.nodes():
+    #     if node not in belt:
+    #         if node in centers:
+    #             out1, out2 = sort_corners(list(G.neighbors(node)),pos[node],pos)
+    #             neighbors = [out2[k][0] for k in range(0,len(out2))]
+    #             alpha_beta = [[[node,neighbors[k-1],neighbors[k-2]],[node, neighbors[k],neighbors[k-1]]] for k in range(0,6)]
 
-                for entry in alpha_beta:
-                    triangles.append(np.array(entry))
-            else: # node not a center, so that I don't double count pairs, only keep those that cross a cell edge
-                out1, out2 = sort_corners(list(G.neighbors(node)),pos[node],pos)
-                neighbors = [out2[k][0] for k in range(0,len(out2))]
+    #             for entry in alpha_beta:
+    #                 triangles.append(np.array(entry))
+    #         else: # node not a center, so that I don't double count pairs, only keep those that cross a cell edge
+    #             out1, out2 = sort_corners(list(G.neighbors(node)),pos[node],pos)
+    #             neighbors = [out2[k][0] for k in range(0,len(out2))]
 	            
-                for k in range(0,6):
-                    alpha = [node,neighbors[k-1],neighbors[k-2]]
-                    beta = [node,neighbors[k],neighbors[k-1]]
+    #             for k in range(0,6):
+    #                 alpha = [node,neighbors[k-1],neighbors[k-2]]
+    #                 beta = [node,neighbors[k],neighbors[k-1]]
                     
-                    if set(alpha) & set(centers) != set(beta) & set(centers):
-                        triangles.append(np.array([alpha,beta]))
+    #                 if set(alpha) & set(centers) != set(beta) & set(centers):
+    #                     triangles.append(np.array([alpha,beta]))
+
+    circum_sorted, triangles = topological_mesh(G, belt, centers) 
 
     print("Apical nodes added correctly.")
     print("Number of apical nodes are", i)
@@ -329,7 +331,7 @@ def tissue_3d():
     centers=np.array(centers)
     G.graph['centers']=centers
     
-    return G, G2D, centers, num_apical_nodes, G.graph['circum_sorted'], belt, triangles
+    return G, G2D, centers, num_apical_nodes, circum_sorted, belt, triangles
 
 
 
@@ -386,4 +388,4 @@ def topological_mesh(G, belt, centers):
 
     G.graph['circum_sorted']=circum_sorted
         
-    return circum_sorted, np.array(triangles)
+    return List(circum_sorted), np.array(triangles)

@@ -44,6 +44,6 @@ def invagination(G, belt, centers):
                 G[e[0]][e[1]]['myosin']=strength
                 G[e[0]+basal_offset][e[1]+basal_offset]['myosin']=strength
 
-                print(f'YEAH BOI\n this gonna happen\n\n intercalation shecdules for {e}')
+                print(f'intercalation shecduled for {e}')
             
     return f

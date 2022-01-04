@@ -225,7 +225,7 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
     else:
         gi.setData(**data)
 
-    gi.parent().setWindowTitle(title)
+    gi.parent().parent().setWindowTitle(title)
     
     if exec:
         pg.exec()
