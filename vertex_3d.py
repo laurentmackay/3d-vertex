@@ -75,7 +75,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         return np.min(np.abs(dtmax))
 
     # @profile
-    def integrate(dt,t_final, t=0):
+    def integrate(dt,t_final, t=0, save_rate=None):
         dt=float(dt)
         nonlocal G, K, edges,  centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, l_rest, dists, drx, ind_dict, myosin, l_rest
         
@@ -83,10 +83,9 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         
         contract = [True for counter in range(0,num_inter)]
 
-
-        # file_name = 't_fast' + str(int(t)) 
-        # nx.write_gpickle(G, file_name + '.pickle')
-        # np.save(file_name, circum_sorted) 
+        if save_rate is not None:
+            nx.write_gpickle(G, f't_{t}.pickle')
+            last_save=t
         t0 = time.time()
 
         pos = np.array([*nx.get_node_attributes(G,'pos').values()])
@@ -165,10 +164,9 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
         # Save nx Graph in pickled form for plotting later
             
-            if t % 1 == 0: 
-                file_name = 't_fast' + str(round(t)) 
-                nx.write_gpickle(G,file_name + '.pickle')
-                np.save(file_name,circum_sorted)
+        if save_rate is not None and t-last_save>=save_rate:
+            nx.write_gpickle(G, f't_{t}.pickle')
+            last_save=t
 
     two_thirds=2/3
     three_quarters=3/4
