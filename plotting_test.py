@@ -1,4 +1,5 @@
 from vertex_3d import *
+from tissue_3d import tissue_3d
 import SG
 from pyqt_viz import edge_view
 

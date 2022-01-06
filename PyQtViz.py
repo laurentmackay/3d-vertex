@@ -1,19 +1,20 @@
+import multiprocessing as mp
+import inspect
+import time
 
-
-from util import mkprocess
 
 import networkx as nx
 import numpy as np
-
-import multiprocessing as mp
 
 from pyqtgraph.Qt.QtGui import *
 from pyqtgraph.Qt.QtCore import *
 import pyqtgraph as pg
 from pyqtgraph.opengl import GLViewWidget
+
+
+from util import mkprocess, get_creationtime, get_filenames
 from GLNetworkItem import GLNetworkItem
-from globals import basal_offset
-import inspect
+from globals import basal_offset, save_pattern
 
 
 def edge_viewer(*args, refresh_rate=60, **kw):
@@ -231,51 +232,6 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
         pg.exec()
 
     return gi
-    
-def network_player(G, **kw):
-    def play():
-        pass
 
-    def setPosition():
-        pass
-
-    def setup_player(win):
-
-        docker = QDockWidget(win)
-        w = QWidget()
-        playbackLayout = QHBoxLayout()
-
-        layout = QVBoxLayout()
-        
-        playButton = QPushButton()
-        playButton.setEnabled(False)
-        playButton.setIcon(win.style().standardIcon(QStyle.SP_MediaPlay))
-        playButton.clicked.connect(play)
-
-        positionSlider = QSlider(Qt.Horizontal)
-        positionSlider.setRange(0, 0)
-        positionSlider.sliderMoved.connect(setPosition)
-
-        playbackLayout.addWidget(playButton)
-        playbackLayout.addWidget(positionSlider)
-
-
-
-        layout.addLayout(playbackLayout)
-        w.setLayout(layout)
-
-        docker.setWidget(w)
-        docker.setFloating(False)
-
-        win.addDockWidget(Qt.BottomDockWidgetArea, docker)
-    
-
-        print('that was done')
-
-
-
-    v = edge_viewer(G, window_callback=setup_player,**kw)
-    
-    print('we done it boss')
 
 

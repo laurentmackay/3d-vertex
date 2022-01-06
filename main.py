@@ -3,7 +3,7 @@ from numpy.core.numeric import Infinity
 from tissue_3d import tissue_3d
 from vertex_3d import *
 import SG
-from pyqt_viz import *
+from PyQtViz import *
 from globals import inter_edges
 
 if __name__ == '__main__':
@@ -34,4 +34,4 @@ if __name__ == '__main__':
                                   intercalation_callback=lambda a, b: viewer(G),
                                   length_prec=.01)
     #integrate
-    integrate(100,20000)
+    integrate(100,20000, save_rate=1.0)

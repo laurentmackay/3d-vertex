@@ -10,6 +10,7 @@ from numba import jit, prange
 from numba.typed import List
 
 
+
 # dimensions of the cell 
 l_apical = const.l_apical 
 l_depth = const.l_depth 
@@ -164,9 +165,9 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
         # Save nx Graph in pickled form for plotting later
             
-        if save_rate is not None and t-last_save>=save_rate:
-            nx.write_gpickle(G, f't_{t}.pickle')
-            last_save=t
+            if save_rate is not None and t-last_save>=save_rate:
+                nx.write_gpickle(G, f't_{t}.pickle')
+                last_save=t
 
     two_thirds=2/3
     three_quarters=3/4
