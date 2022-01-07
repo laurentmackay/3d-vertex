@@ -109,10 +109,12 @@ def edge_viewer(*args, refresh_rate=60, **kw):
 
             def listen():
                 nonlocal G
+                b.send([])
                 if b.poll():
                     while b.poll():
                         (G,kw2)=b.recv()
                     draw(kw2)
+                    b.send([])
                     
 
 
@@ -136,6 +138,10 @@ def edge_viewer(*args, refresh_rate=60, **kw):
         nonlocal plot
         if plot:
             try:
+                print(f'trying {a.poll()}')
+                while a.poll():
+                    a.recv() 
+
                 a.send((G,kw))
             except:
                 plot=False

@@ -1,9 +1,11 @@
 import multiprocessing as mp
 import inspect
-from time import perf_counter
 import asyncio
 import concurrent
+import math
+import itertools
 
+from time import perf_counter, sleep
 from collections import deque
 
 import _pickle as pickle
@@ -21,7 +23,7 @@ from GLNetworkItem import GLNetworkItem
 from globals import basal_offset, save_pattern
 
 
-def pickle_player(path='.', pattern=save_pattern, start_time=0, speedup=5.0, buffer_len=100, workers=2, **kw):
+def pickle_player(path='.', pattern=save_pattern, start_time=0, speedup=5.0, refresh_rate=60.0, buffer_len=100, workers=2, **kw):
     def play():
         pass
 
@@ -58,82 +60,169 @@ def pickle_player(path='.', pattern=save_pattern, start_time=0, speedup=5.0, buf
 
         win.addDockWidget(Qt.BottomDockWidgetArea, docker)
 
+    G=None
+    latest = float('inf')
     def load(entry):
+        nonlocal G, latest
+        # print(f'loading {entry}')
         with open(entry[0], 'rb') as input:
-            G=pickle.loads(input)
-            q.append((G, entry[1])) 
+            # print('inpout open')
+            G=pickle.load(input)
+            q.append((G, entry[1]))
+            # print(f'loaded {entry[0]}')
+
+        latest = entry[1]
 
     q = deque([],buffer_len)
-    start_timestamp = get_creationtime(pattern.replace('*',str(start_time)), path=path)
-    file_list = get_filenames(path=path, pattern=pattern, min_timestamp=start_timestamp)
+    start_file = pattern.replace('*',str(start_time))
+    start_timestamp = get_creationtime( start_file, path=path)
     
-    load(file_list[0])
+    load((start_file, start_time))
 
 
     view = edge_viewer(G, window_callback=setup_player, refresh_rate=refresh_rate, **kw)
+    print(view)
     refresh_interval = 1/refresh_rate
-
+    time_bounds = [float('inf'), float('-inf')]
+    file_list = get_filenames(path=path, pattern=pattern, min_timestamp=start_timestamp)
     def check_for_newfiles():
-        pass
+        nonlocal time_bounds 
+        while True:     
+            # print('hihi') 
+            get_filenames(path=path, pattern=pattern, min_timestamp=start_timestamp, extend=file_list)
+            if time_bounds[0]>file_list[0][1]:
+                time_bounds[0]=file_list[0][1]
+
+            if time_bounds[1]<file_list[-1][1]:
+                time_bounds[1]=file_list[-1][1]
+
+            sleep(1)
+
+
     
-    curr_time = start_time
+    prev_time = start_time
+    next_time = prev_time + refresh_interval*speedup
     dt=0
     now=perf_counter()
-    last=now
+    prev_now=now
 
     def loader():
-        nonlocal curr_time, dt
+        nonlocal prev_time, next_time, dt, latest
+        print('loader runing')
         now=perf_counter()
         lag=0
 
 
-        i=np.argmin(np.abs(file_list[:,1]-curr_time))
-        load(file_list[i])
+
+        i=np.argmin(np.abs(np.array([e[1]-prev_time for e in file_list])))
+
         while True:
+            # print(f'hihi {i}')
             if speedup:
-                if speedup>0:
-                    sub_list=file_list[i:]
+                if speedup>0 :
+                    sub_list=itertools.islice(file_list, len(file_list))
                 elif speedup<0:
-                    sub_list=file_list[:i]
-                    pass
-                for e in sub_list:
-                    if speedup * e[1] >= speedup * (curr_time + dt * speedup):
-                        load(e)
-                        break
-    
+                    sub_list=itertools.islice(file_list, i, 0, -1)
+                # curr_time = prev_time + dt  * speedup
+                
+                # speedup*next_time >= speedup*latest
+                # print(f'outer {dt} {next_time} {curr_time+dt*speedup}')
+                # pe=
+                for j, e in enumerate(sub_list):
+                    # print('inner')
+                    if   e[1] >= next_time:
+                        # print(f'wanna load {e[1]} {next_time}')
+                        if e[1] > latest + refresh_interval*speedup and len(q)<q.maxlen:
+                            load(e)
+
+                            # print(f'incrementing i {j}')
+                            i += int((j)*math.copysign(1,speedup))
+                            break
+
+            sleep(refresh_interval/2)
+
+
+
+            
+    t0=float('-inf')
+    displayed=False
+    Gdisp=G
+
+    def load_next(time):
+        nonlocal G, Gdisp, t0
+        i=np.argmin(np.abs(np.array([e[1]-time for e in file_list])))
+        print(i)
+        load(file_list[i])
+        Gdisp, t0 = q.popleft()
+        
 
     def refresh():
-            nonlocal curr_time, now, last, dt
-            if len(q) and speedup:
-                cont=True
-                while cont:
-                    G, time = q.pop_left()
-                    play = speedup  and  speedup * time >= speedup * (curr_time + dt * speedup)
-                    cont = len(q)  and not play
-
-            if play:
-                view(G, title=f't={time}')
-                curr_time = time
-
+            nonlocal prev_time, next_time, now, prev_now, dt, time_bounds, latest, t0, displayed, Gdisp
             now = perf_counter()
+            curr_time = prev_time + (now - prev_now) * speedup
+            search = len(q) and latest >= curr_time and curr_time >= next_time
+            
+            # if speedup and search and displayed:
+            #     cont=True
 
-            dt = now - last
-            if not play:    
-                curr_time += dt
+            #     while cont:
+            #         print(f'gonna pop {len(q)} {q.popleft()}')
+            #         Gdisp, t0 = q.popleft()
+            #         print(f'popped {t0}; curr_time {curr_time}; next_time {next_time}')
+            #         display =  t0 >= next_time
+            #         cont = len(q)  and  not display
+            #         print(f'cont {cont}')
+            #     displayed=False
+            # else:
+            #     print(f'not searching {len(q)} {latest} {curr_time} {next_time} {t0}')
+                    
+                    # print(cont)
+            print(curr_time)
+            if curr_time>=t0:
+                print(f'qlen: {len(q)}')
+                displayed=True
+                # G, t = q.popleft()
+                
+                # print(f'siapl {t} {next_time}')
+                view(Gdisp, title=f't={t0}')
+                print('viewed')
+                next_now = perf_counter()
+                prev_time=curr_time+(next_now-now)*speedup
+                now=next_now
+                load_next(prev_time + refresh_interval * speedup)
+                # next_time += max(refresh_interval-(now - last), refresh_interval) * speedup
+                # next_time += refresh_interval * speedup
+                print(f'next_time {next_time}')
+                # prev_time = t
+                prev_now = now
+            else:
+                now = perf_counter()
+            
 
-            last = now
-            sleep = refresh_interval - dt
+            dt = now - prev_now
+            
+            # if not display:
+            #     projected_time = curr_time + dt
+            #     # print(f'project_time {projected_time} {time_bounds}')
+            #     if projected_time<time_bounds[1] and projected_time>time_bounds[0]:
+            #         # curr_time = projected_time
+            #         # print(f'curr_time {curr_time}')
 
-            if sleep>0:
-                time.sleep(sleep/2)
+            # # print(f'curr_time: {curr_time}') 
+            
+            rem = refresh_interval - dt
+            # print(f'sleeping : {rem}') 
+            if rem>0:
+                sleep(rem/2)
+            else:
+                sleep(refresh_interval/2)
+            # print('wakey')
 
     loop = asyncio.get_event_loop()
     executor = concurrent.futures.ThreadPoolExecutor()
 
     def run():
 
-        loop.run_in_executor(executor, loader)
-                
         while True:
             refresh()
 
@@ -141,9 +230,13 @@ def pickle_player(path='.', pattern=save_pattern, start_time=0, speedup=5.0, buf
 
     
     loop.run_in_executor(executor, check_for_newfiles)
+    print('goona load')
+    # loop.run_in_executor(executor, loader)
+    print('that was done')  
     loop.run_in_executor(executor, run)
     
-
+    # while True:
+    #     sleep(1)
 
 
 
@@ -153,5 +246,5 @@ if __name__ == '__main__':
 
     pickle_player(attr='myosin', cell_edges_only=True, apical_only=True)
     
-    while True:
-        pass
+    # while True:
+    #     pass
