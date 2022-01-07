@@ -20,8 +20,8 @@ from globals import basal_offset, save_pattern
 def edge_viewer(*args, refresh_rate=60, **kw):
 
     def outer(*a,**kw):
-        callback = kw['window_callback'] if 'window_callback' in kw.keys() and callable(kw['window_callback']) else lambda win: None 
-        def inner(b):
+        init_callback = kw['window_callback'] if 'window_callback' in kw.keys() and callable(kw['window_callback']) else lambda win: None 
+        def inner(b, outb):
             # nonlocal kw
             win=None
             gi=None
@@ -102,22 +102,26 @@ def edge_viewer(*args, refresh_rate=60, **kw):
                 docker.setFloating(False)
 
                 win.addDockWidget(Qt.RightDockWidgetArea, docker)
-                callback(win)
+                init_callback(win, outb)
 
             G=a[0]
             gi = edge_view(*a,**{**kw, **{'window_callback':window_saver}})
 
             def listen():
                 nonlocal G
-                b.send([])
+
                 if b.poll():
+                    received = False
                     while b.poll():
                         (G,kw2)=b.recv()
+                        received = True
                     draw(kw2)
-                    b.send([])
+                    if received:
+                        b.send([])
+
                     
 
-
+            b.send([])
             tmr = QTimer()
             tmr.timeout.connect(listen)
             
@@ -129,25 +133,28 @@ def edge_viewer(*args, refresh_rate=60, **kw):
         return inner
 
 
-    a,b = mp.Pipe(duplex=True)
-    proc = mkprocess(outer(*args,**kw), args=(b,))
+    a, b = mp.Pipe(duplex=True)
+    outa, outb = mp.Pipe(duplex=True)
+    proc = mkprocess(outer(*args,**kw), args=(b, outb))
     proc.start()
 
     plot=True
-    def safe_plot(G,**kw):
+    def safe_plot(G, callback=None,**kw):
         nonlocal plot
         if plot:
             try:
-                print(f'trying {a.poll()}')
-                while a.poll():
-                    a.recv() 
+                if a.poll(0.5/refresh_rate): #wait up to half a framecycle to see if the plotter thread is ready to receive
+                    _ = a.recv() 
+                    a.send((G,kw))
 
-                a.send((G,kw))
+                # if callable(callback):
+                #     callback(_)
+
             except:
+                print('plotting is no longer an option')
                 plot=False
-
+    safe_plot.pipe = outa
     return safe_plot
-
 
     
 
@@ -155,8 +162,8 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
     pos = np.array([*nx.get_node_attributes(G,'pos').values()])
 
     if gi is None:
-        if  QApplication.instance() is None:
-            app = pg.mkQApp(title)
+        # if  QApplication.instance() is None:
+        app = pg.mkQApp(title)
 
         win = QMainWindow()
         

@@ -31,7 +31,7 @@ def get_filenames(path='.', pattern=const.save_pattern, min_timestamp=0, extend=
         for entry in it:
             name = entry.name
             match = regex.match(name)
-            if  match and entry.stat().st_ctime>=min_timestamp:
+            if  match and entry.stat().st_ctime > min_timestamp:
                 start, end = match.regs[1]
                 time = float(name[start:end])
                 out.append((name, time))
