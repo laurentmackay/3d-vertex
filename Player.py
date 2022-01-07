@@ -4,6 +4,7 @@ import asyncio
 import concurrent
 import math
 import itertools
+import os
 
 from time import perf_counter, sleep
 from collections import deque
@@ -23,7 +24,7 @@ from GLNetworkItem import GLNetworkItem
 from globals import basal_offset, save_pattern
 
 
-def pickle_player(path='.', pattern=save_pattern, start_time=0, speedup=5.0, refresh_rate=60.0, buffer_len=100, workers=2, **kw):
+def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=5.0, refresh_rate=60.0, buffer_len=100, workers=2, **kw):
     def play():
         pass
 
@@ -105,54 +106,36 @@ def pickle_player(path='.', pattern=save_pattern, start_time=0, speedup=5.0, ref
     dt=0
     now=perf_counter()
     prev_now=now
-
+    i_load=0
     def loader():
-        nonlocal prev_time, next_time, dt, latest
+        nonlocal prev_time, next_time, dt, latest, i_load
         print('loader runing')
         now=perf_counter()
         lag=0
 
+        
 
-
-        i=np.argmin(np.abs(np.array([e[1]-prev_time for e in file_list])))
+        i_last = None
 
         while True:
             # print(f'hihi {i}')
-            if speedup:
-                if speedup>0 :
-                    sub_list=itertools.islice(file_list, len(file_list))
-                elif speedup<0:
-                    sub_list=itertools.islice(file_list, i, 0, -1)
-                # curr_time = prev_time + dt  * speedup
-                
-                # speedup*next_time >= speedup*latest
-                # print(f'outer {dt} {next_time} {curr_time+dt*speedup}')
-                # pe=
-                for j, e in enumerate(sub_list):
-                    # print('inner')
-                    if   e[1] >= next_time:
-                        # print(f'wanna load {e[1]} {next_time}')
-                        if e[1] > latest + refresh_interval*speedup and len(q)<q.maxlen:
-                            load(e)
-
-                            # print(f'incrementing i {j}')
-                            i += int((j)*math.copysign(1,speedup))
-                            break
+           if (i_last is None) or i_last != i_load:
+                load(file_list[i_load])
+                i_last=i_load
 
             sleep(refresh_interval/2)
 
 
-
-            
     t0=float('-inf')
     displayed=False
     Gdisp=G
+  
 
     def load_next(time):
-        nonlocal G, Gdisp, t0
-        i=np.argmin(np.abs(np.array([e[1]-time for e in file_list])))
-        print(i)
-        load(file_list[i])
+        nonlocal G, Gdisp, t0, i_load
+        i_load=np.argmin(np.abs(np.array([e[1]-time for e in file_list])))
+        print(i_load)
+        load(file_list[i_load])
         Gdisp, t0 = q.popleft()
         
 
@@ -190,8 +173,7 @@ def pickle_player(path='.', pattern=save_pattern, start_time=0, speedup=5.0, ref
                 prev_time=curr_time+(next_now-now)*speedup
                 now=next_now
                 load_next(prev_time + refresh_interval * speedup)
-                # next_time += max(refresh_interval-(now - last), refresh_interval) * speedup
-                # next_time += refresh_interval * speedup
+
                 print(f'next_time {next_time}')
                 # prev_time = t
                 prev_now = now

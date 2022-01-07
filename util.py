@@ -42,5 +42,5 @@ def get_filenames(path='.', pattern=const.save_pattern, min_timestamp=0, extend=
         extend.extend(out)
     return out
 
-def get_creationtime(filename, path='.'):
+def get_creationtime(filename, path=os.getcwd()):
     return os.stat(os.path.join(path, filename)).st_ctime
