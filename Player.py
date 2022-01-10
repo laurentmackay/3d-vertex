@@ -51,8 +51,6 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
     def setPosition(a):
         nonlocal curr_time, next_disp_time, new
         curr_time = a/slider_ticks*(time_bounds[1]-time_bounds[0])
-        print(f'current time set to {curr_time}')
-        requesting_load = True
         next_disp_time = curr_time + refresh_interval * speedup
 
     advance = True
@@ -146,7 +144,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
                     with open(file, 'rb') as input:
                         G=pickle.load(input)
                         t_G = t
-                        print(f'loading {t}')
+                        # print(f'loading {t}')
                         i_loaded=i_load
                         new = True
                 except:
@@ -199,7 +197,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
             positionSlider.setSliderPosition(idx)
 
             if rem>0:
-                sleep(rem/2)
+                sleep(refresh_interval/2)
             else:
                 sleep(0.1)
 
@@ -236,8 +234,6 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
     app.aboutToQuit.connect(exit) 
 
     pg.exec()
-    # while True:
-    #     sleep(1)
 
 
 

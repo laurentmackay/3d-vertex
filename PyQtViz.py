@@ -102,10 +102,12 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
             win.addDockWidget(Qt.RightDockWidgetArea, docker)
             init_callback(win)
 
+        
+        kw = {**kw, **{'window_callback':mk_controls}}
+
         if not parallel:
             G=a[0]
-            gi = edge_view(*a,**{**kw, **{'window_callback':mk_controls}})
-            win=gi.parent()
+            gi = edge_view(*a, **kw)
 
         def draw(*a, **kw2):
             nonlocal kw, G, wind, glview
@@ -115,11 +117,11 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
             if gi and G:
                 edge_view(G, gi=gi, **{**kw, **kw2})
 
-        def start_in_parallel(b, outb):
+        def start_in_parallel(b):
             nonlocal G, gi
 
             G=a[0]
-            gi = edge_view(*a,**{**kw, **{'window_callback':mk_controls}})
+            gi = edge_view(*a, **kw)
 
             def listen():
                 nonlocal G
@@ -149,8 +151,7 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
     plot=True
     if parallel:
         a, b = mp.Pipe(duplex=True)
-        outa, outb = mp.Pipe(duplex=True)
-        proc = mkprocess(outer(*args,**kw), args=(b, outb))
+        proc = mkprocess(outer(*args,**kw), args=(b,))
         proc.start()
 
         
@@ -164,7 +165,7 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
                 except:
                     print('plotting is no longer an option')
                     plot=False
-        pipe_plot.pipe = outa
+
 
         return pipe_plot
 
