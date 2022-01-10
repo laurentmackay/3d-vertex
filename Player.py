@@ -173,7 +173,6 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
             if (not advance or dt>=t_G-prev_disp_time) and new:
 
                 view(G, title=f't={t_G}')
-
                 #update times
                 prev_counter =  perf_counter()
                 if advance:
