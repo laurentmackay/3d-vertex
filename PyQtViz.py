@@ -17,109 +17,119 @@ from GLNetworkItem import GLNetworkItem
 from globals import basal_offset, save_pattern
 
 
-def edge_viewer(*args, refresh_rate=60, **kw):
+def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
 
     def outer(*a,**kw):
-        init_callback = kw['window_callback'] if 'window_callback' in kw.keys() and callable(kw['window_callback']) else lambda win: None 
-        def inner(b, outb):
-            # nonlocal kw
-            win=None
-            gi=None
-            G=None
+        init_callback = kw['window_callback'] if 'window_callback' in kw.keys() and callable(kw['window_callback']) else lambda win: None
+        win=None
+        gi=None
+        G=None
+        wind=None
+        glview=None
 
-            def draw(kw2={}):
-                nonlocal G
-                if gi and G:
-                    edge_view(G, gi=gi, **{**kw, **kw2})
+        def modify_bool_kw(key):
+            def inner_bool(s):
+                nonlocal kw
+                kw={**kw, **{key:s!=0}}
+                draw()
 
-            def modify_bool_kw(key):
-                def inner_bool(s):
-                    nonlocal kw
-                    kw={**kw, **{key:s!=0}}
+            return inner_bool
+
+        def modify_float_kw(key):
+            def inner_float(v):
+                nonlocal kw
+                if len(v)==0:
+                    return
+                if v[0]=='.':
+                    v='0'+v
+                if v[-1]=='.':
+                    v=v+'0'
+                try:
+                    kw={**kw, **{key:float(v)}}
                     draw()
-
-                return inner_bool
-
-            def modify_float_kw(key):
-                def inner_float(v):
-                    nonlocal kw
-                    if len(v)==0:
-                        return
-                    if v[0]=='.':
-                        v='0'+v
-                    if v[-1]=='.':
-                        v=v+'0'
-                    try:
-                        kw={**kw, **{key:float(v)}}
-                        draw()
-                    except:
-                        pass
-                return inner_float
-
-            def window_saver(w):
-                nonlocal win
-                win=w
-                docker = QDockWidget(win)
-                widget = QWidget()
-                
-                checkbox_layout = QHBoxLayout()
-
-                layout = QVBoxLayout()
+                except:
+                    pass
+            return inner_float
 
 
-                argspec=inspect.getargspec(edge_view)
-                args=argspec.args
-                defs=argspec.defaults
-                ind_delta = len(args)-len(defs)
-                keyword_value = lambda k : defs[args.index(k)-ind_delta] if k not in kw.keys() else kw[k]
+        def mk_controls(win):
+            nonlocal wind, glview
+            wind=win
+            _, glview = win.children()
+
+            docker = QDockWidget(win)
+            widget = QWidget()
+            
+            checkbox_layout = QHBoxLayout()
+
+            layout = QVBoxLayout()
 
 
-                bools={'apical_only':'Apical Only', 'cell_edges_only':'No Spokes'}
-                for k, v in bools.items():
-                    box=QCheckBox(v)
-                    box.setCheckState(2 if keyword_value(k) else 0)
-                    box.stateChanged.connect(modify_bool_kw(k))
-                    checkbox_layout.addWidget(box)
+            argspec=inspect.getargspec(edge_view)
+            args=argspec.args
+            defs=argspec.defaults
+            ind_delta = len(args)-len(defs)
+            keyword_value = lambda k : defs[args.index(k)-ind_delta] if k not in kw.keys() else kw[k]
 
-                form_layout = QFormLayout()
-                
-                floats = {'edgeWidth':'Edge Width', 'edgeWidthMultiplier': 'Edge Width Mult.', 'spokeAlpha':'Spoke Alpha'}
-                for k, v in floats.items():
-                    line=QLineEdit()
-                    valid = QDoubleValidator(0, float('inf'), 3)
-                    valid.setNotation(QDoubleValidator.StandardNotation)
-                    line.setValidator(valid)
-                    line.setText(str(keyword_value(k)))
-                    line.textChanged.connect(modify_float_kw(k))
-                    form_layout.addRow(QLabel(v), line)
 
-                layout.addLayout(checkbox_layout)
-                layout.addLayout(form_layout)
+            bools={'apical_only':'Apical Only', 'cell_edges_only':'No Spokes'}
+            for k, v in bools.items():
+                box=QCheckBox(v)
+                box.setCheckState(2 if keyword_value(k) else 0)
+                box.stateChanged.connect(modify_bool_kw(k))
+                checkbox_layout.addWidget(box)
 
-                widget.setLayout(layout)
+            form_layout = QFormLayout()
+            
+            floats = {'edgeWidth':'Edge Width', 'edgeWidthMultiplier': 'Edge Width Mult.', 'spokeAlpha':'Spoke Alpha'}
+            for k, v in floats.items():
+                line=QLineEdit()
+                valid = QDoubleValidator(0, float('inf'), 3)
+                valid.setNotation(QDoubleValidator.StandardNotation)
+                line.setValidator(valid)
+                line.setText(str(keyword_value(k)))
+                line.textChanged.connect(modify_float_kw(k))
+                form_layout.addRow(QLabel(v), line)
 
-                docker.setWidget(widget)
-                docker.setFloating(False)
+            layout.addLayout(checkbox_layout)
+            layout.addLayout(form_layout)
 
-                win.addDockWidget(Qt.RightDockWidgetArea, docker)
-                init_callback(win, outb)
+            widget.setLayout(layout)
+
+            docker.setWidget(widget)
+            docker.setFloating(False)
+
+            win.addDockWidget(Qt.RightDockWidgetArea, docker)
+            init_callback(win)
+
+        if not parallel:
+            G=a[0]
+            gi = edge_view(*a,**{**kw, **{'window_callback':mk_controls}})
+            win=gi.parent()
+
+        def draw(*a, **kw2):
+            nonlocal kw, G, wind, glview
+            if len(a):
+                G=a[0]
+
+            if gi and G:
+                edge_view(G, gi=gi, **{**kw, **kw2})
+
+        def start_in_parallel(b, outb):
+            nonlocal G, gi
 
             G=a[0]
-            gi = edge_view(*a,**{**kw, **{'window_callback':window_saver}})
+            gi = edge_view(*a,**{**kw, **{'window_callback':mk_controls}})
 
             def listen():
                 nonlocal G
 
                 if b.poll():
-                    received = False
-                    while b.poll():
+                    while b.poll(): #empty the pipe if there has been some accumulatio
                         (G,kw2)=b.recv()
                         received = True
-                    draw(kw2)
-                    if received:
-                        b.send([])
-
-                    
+                    draw(G,**kw2)
+                    b.send([])
 
             b.send([])
             tmr = QTimer()
@@ -130,35 +140,42 @@ def edge_viewer(*args, refresh_rate=60, **kw):
 
             pg.exec()
 
-        return inner
-
-
-    a, b = mp.Pipe(duplex=True)
-    outa, outb = mp.Pipe(duplex=True)
-    proc = mkprocess(outer(*args,**kw), args=(b, outb))
-    proc.start()
+        if parallel:
+            return start_in_parallel
+        else:
+            return draw
+            
 
     plot=True
-    def safe_plot(G, callback=None,**kw):
-        nonlocal plot
-        if plot:
-            try:
-                if a.poll(0.5/refresh_rate): #wait up to half a framecycle to see if the plotter thread is ready to receive
-                    _ = a.recv() 
-                    a.send((G,kw))
+    if parallel:
+        a, b = mp.Pipe(duplex=True)
+        outa, outb = mp.Pipe(duplex=True)
+        proc = mkprocess(outer(*args,**kw), args=(b, outb))
+        proc.start()
 
-                # if callable(callback):
-                #     callback(_)
+        
+        def pipe_plot(G, callback=None,**kw):
+            nonlocal plot
+            if plot:
+                try:
+                    if a.poll(0.5/refresh_rate): #wait up to half a framecycle to see if the plotter thread is ready to receive
+                        _ = a.recv() 
+                        a.send((G,kw))
+                except:
+                    print('plotting is no longer an option')
+                    plot=False
+        pipe_plot.pipe = outa
 
-            except:
-                print('plotting is no longer an option')
-                plot=False
-    safe_plot.pipe = outa
-    return safe_plot
+        return pipe_plot
+
+    else:
+        return outer(*args,**kw)
 
     
 
 def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=False, exec=False, attr=None, colormap='CET-D4', edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None):
+    
+
     pos = np.array([*nx.get_node_attributes(G,'pos').values()])
 
     if gi is None:

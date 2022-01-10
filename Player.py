@@ -13,6 +13,7 @@ import _pickle as pickle
 import networkx as nx
 import numpy as np
 
+import pyqtgraph as pg
 from pyqtgraph.Qt.QtGui import *
 from pyqtgraph.Qt.QtCore import *
 
@@ -25,28 +26,48 @@ from globals import basal_offset, save_pattern
 
 
 def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=5.0, refresh_rate=60.0, buffer_len=100, workers=2, **kw):
-    def play():
-        pass
 
-    pos=None
-    def setPosition(a):
-        nonlocal pos
-        # print(a)
-        print(pipe)
-        pos=a
 
-    def setter(b, key):
-        def set(a):
-            print({key:a})
-            b.send({key:a})
-        return set
+    start_file = pattern.replace('*',str(start_time))
+    start_timestamp = get_creationtime( start_file, path=path)
 
+
+    refresh_interval = 1/refresh_rate
+    time_bounds = [start_time, float('-inf')]
+    file_list = [(pattern.replace('*',str(start_time)), start_time)]
+
+    i_load=0
+    i_loaded = None
+    prev_disp_time = start_time
+    next_disp_time = start_time
+    curr_time = start_time
+
+    counter=perf_counter()
+    prev_counter=counter
+
+    slider_ticks = 10**4
     positionSlider = None
-    playButton = None
-    sliderPrec = 10**4
-    tmr=None
-    def setup_player(win, b):
-        nonlocal tmr
+
+    def setPosition(a):
+        nonlocal curr_time, next_disp_time, new
+        curr_time = a/slider_ticks*(time_bounds[1]-time_bounds[0])
+        print(f'current time set to {curr_time}')
+        requesting_load = True
+        next_disp_time = curr_time + refresh_interval * speedup
+
+    advance = True
+    def freeze():
+        nonlocal advance
+        advance = False
+
+    def unfreeze():
+        nonlocal advance, new
+        advance = True
+        new = True
+
+
+    def setup_player(win):
+        nonlocal positionSlider
         positionSlider = QSlider(Qt.Horizontal)
         playButton = QPushButton()
 
@@ -59,11 +80,13 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         
         playButton.setEnabled(False)
         playButton.setIcon(win.style().standardIcon(QStyle.SP_MediaPlay))
-        playButton.clicked.connect(play)
+        # playButton.clicked.connect(play)
 
         
-        positionSlider.setRange(0, sliderPrec)
-        positionSlider.sliderMoved.connect(setter(b, 'pos'))
+        positionSlider.setRange(0, slider_ticks)
+        positionSlider.sliderMoved.connect(setPosition)
+        positionSlider.sliderPressed.connect(freeze)
+        positionSlider.sliderReleased.connect(unfreeze)
 
         playbackLayout.addWidget(playButton)
         playbackLayout.addWidget(positionSlider)
@@ -78,47 +101,11 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
 
         win.addDockWidget(Qt.BottomDockWidgetArea, docker)
 
-        def listen():
-            if b.poll():
-                while b.poll():
-                    msg=b.recv()
-                    positionSlider.setSliderPosition(msg)
 
-
-                    
-
-        tmr = QTimer()
-        tmr.timeout.connect(listen)
-        tmr.setInterval(int(500/refresh_rate))
-        tmr.start()
-
-        print(f'done setting up {tmr}')
-
-    
-
-
-        
-
-
-    start_file = pattern.replace('*',str(start_time))
-    start_timestamp = get_creationtime( start_file, path=path)
-
-    with open(start_file, 'rb') as input:
-        G=pickle.load(input)
-        t_G = start_time
-
-    new=True
-
-    view = edge_viewer(G, window_callback=setup_player, refresh_rate=refresh_rate, **kw)
-
-    print(view)
-    refresh_interval = 1/refresh_rate
-    time_bounds = [start_time, float('-inf')]
-    file_list = [(pattern.replace('*',str(start_time)), start_time)]
 
 
     def check_for_newfiles():
-        nonlocal time_bounds, positionSlider
+        nonlocal time_bounds
 
         get_filenames(path=path, pattern=pattern, min_timestamp=start_timestamp, extend=file_list)
         latest_timestamp = get_creationtime(file_list[-1][0])
@@ -142,10 +129,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
 
     
 
-    i_load=0
-    i_loaded = None
-    prev_disp_time = start_time
-    next_disp_time = start_time
+
 
     def loader():
         nonlocal  i_load, i_loaded, G, t_G, new, next_disp_time   
@@ -162,33 +146,40 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
                     with open(file, 'rb') as input:
                         G=pickle.load(input)
                         t_G = t
-
+                        print(f'loading {t}')
                         i_loaded=i_load
                         new = True
                 except:
                     pass
-            sleep(refresh_interval)
+            sleep(refresh_interval/2)
 
         
 
 
 
-           
 
-    counter=perf_counter()
-    prev_counter=counter
 
     def refresh():
-            nonlocal prev_disp_time, next_disp_time,  counter, prev_counter, t_G, G, i_loaded, new, positionSlider, pos
+            nonlocal prev_disp_time, curr_time, next_disp_time,  counter, prev_counter, t_G, G, i_loaded, new, advance
             counter = perf_counter()
-            curr_time = prev_disp_time + (counter - prev_counter) * speedup
+            if advance:
+                curr_time += (counter - prev_counter) * speedup
 
-            if curr_time>=t_G and new:
+            curr_time=max(min(curr_time, time_bounds[1]),time_bounds[0])
+            dt=curr_time-prev_disp_time
+
+            # print(f'current time {curr_time} {dt>=t_G-prev_disp_time}')
+
+            if (not advance or dt>=t_G-prev_disp_time) and new:
 
                 view(G, title=f't={t_G}')
+                
                 #update times
                 prev_counter =  perf_counter()
-                curr_time += (prev_counter-counter)*speedup
+                if advance:
+                    curr_time += (prev_counter-counter)*speedup
+
+                curr_time=max(min(curr_time,time_bounds[1]),time_bounds[0])
                 prev_disp_time = curr_time
                 
                 #update states
@@ -197,25 +188,31 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
                 next_disp_time = curr_time + refresh_interval * speedup
               
             else:
-                now = perf_counter()
+
+                prev_counter = perf_counter()
 
             if i_loaded is not None:
                 rem = (file_list[i_loaded][1]-curr_time)/speedup
-                # print(f'rem {rem}')
             else:
                 rem = refresh_interval
 
             timespan = time_bounds[1] - time_bounds[0]
-            idx = int(sliderPrec*(curr_time-time_bounds[0])/(timespan))
-            view.pipe.send(idx)
+            idx = int(slider_ticks*(curr_time-time_bounds[0])/(timespan))
+            positionSlider.setSliderPosition(idx)
 
             if rem>0:
-                sleep(refresh_interval/2)
+                sleep(rem/2)
             else:
                 sleep(0.1)
 
 
-            # print('wakey')
+    with open(start_file, 'rb') as input:
+        G=pickle.load(input)
+        t_G = start_time
+
+    new=True
+    
+    view = edge_viewer(G, window_callback=setup_player, refresh_rate=refresh_rate, parallel=False, **kw)
 
     loop = asyncio.get_event_loop()
     executor = concurrent.futures.ThreadPoolExecutor()
@@ -224,15 +221,23 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         while True:
             refresh()
 
+    def exit():
+        for f in futures:
+            f.cancel()
+        executor.shutdown(wait=False)
+        concurrent.futures.thread._threads_queues.clear()
+        loop.stop()
 
 
+    futures=[]
+    futures.append(loop.run_in_executor(executor, check_for_newfiles))
+    futures.append(loop.run_in_executor(executor, loader))
+    futures.append(loop.run_in_executor(executor, run))
     
-    loop.run_in_executor(executor, check_for_newfiles)
-    print('goona load')
-    loop.run_in_executor(executor, loader)
-    print('that was done')  
-    loop.run_in_executor(executor, run)
-    
+    app = QApplication.instance()
+    app.aboutToQuit.connect(exit) 
+
+    pg.exec()
     # while True:
     #     sleep(1)
 
