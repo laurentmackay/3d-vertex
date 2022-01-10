@@ -197,9 +197,9 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
             positionSlider.setSliderPosition(idx)
 
             if rem>0:
-                sleep(refresh_interval/2)
+                sleep(rem/2)
             else:
-                sleep(0.1)
+                sleep(refresh_interval/2)
 
 
     with open(start_file, 'rb') as input:
@@ -225,7 +225,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         loop.stop()
 
 
-    futures=[loop.run_in_executor(executor,func) for func in (check_for_newfiles, loader, run)]
+    futures=[ loop.run_in_executor(executor,f) for f in (check_for_newfiles, loader, run) ]
     
     app = QApplication.instance()
     app.aboutToQuit.connect(exit) 
