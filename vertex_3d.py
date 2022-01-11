@@ -76,7 +76,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         return np.min(np.abs(dtmax))
 
     # @profile
-    def integrate(dt,t_final, t=0, save_rate=None):
+    def integrate(dt,t_final, t=0, save_rate=None, maxwell=True):
         dt=float(dt)
         nonlocal G, K, edges,  centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, l_rest, dists, drx, ind_dict, myosin, l_rest
         
@@ -174,40 +174,59 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     # @jit(nopython=True, cache=True)
     def  update_pos(h, dt, pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers):
 
-            forces=compute_forces2(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
+        forces=compute_forces2(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
 
 
-            h1=timestep_bound(forces,drx,edges)
-            h=min((h1,dt,h))
+        h1=timestep_bound(forces,drx,edges)
+        h=min((h1,dt,h))
 
-            
+        
 
 
-            k1=forces/const.eta
+        k1=forces/const.eta
 
-            
+        
+        pos2 = pos + h*two_thirds*k1
+
+        dists, drx = compute_edge_distance_and_direction(pos2, edges, dists, drx)
+        forces = compute_forces2(pos2, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
+
+
+        h2=timestep_bound(forces,drx,edges)
+        h=min((h1,h2,dt))
+        if h2<h1 and h2<dt:
             pos2 = pos + h*two_thirds*k1
-
             dists, drx = compute_edge_distance_and_direction(pos2, edges, dists, drx)
             forces = compute_forces2(pos2, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
 
 
-            h2=timestep_bound(forces,drx,edges)
-            h=min((h1,h2,dt))
-            if h2<h1 and h2<dt:
-                pos2 = pos + h*two_thirds*k1
-                dists, drx = compute_edge_distance_and_direction(pos2, edges, dists, drx)
-                forces = compute_forces2(pos2, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
+
+        k2=forces/const.eta
+
+        
+
+        pos += h*(k1/4+three_quarters*k2)
+
+        return h
 
 
+    def  update_pos_maxwell(h, dt, pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers):
 
-            k2=forces/const.eta
+        forces=compute_forces2(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
 
-            
 
-            pos += h*(k1/4+three_quarters*k2)
+        h1=timestep_bound(forces,drx,edges)
+        h=min((h1,dt,h))
 
-            return h
+        
+
+
+        k1=forces/const.eta
+
+        
+        pos2 = pos + h*forces/const.eta
+
+        return h
 
     @jit(nopython=True, cache=True)
     def compute_edge_distance_and_direction(pos, edges, dists, drx):
