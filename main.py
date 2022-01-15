@@ -34,4 +34,4 @@ if __name__ == '__main__':
                                   intercalation_callback=lambda a, b: viewer(G),
                                   length_prec=.01)
     #integrate
-    integrate(100,20000, save_rate=1.0)
+    integrate(0.1,20000, save_rate=0, maxwell=False)

@@ -362,7 +362,7 @@ def topological_mesh(G, belt, centers):
     for center in centers:
         neighbors = [n for n in G.neighbors(center) if n<basal_offset]
         a, b = sort_corners(neighbors,xy[center],xy)
-        circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
+        circum_sorted.append(np.asarray([bb[0] for bb in b]))
     # circum_sorted = np.array(circum_sorted, dtype=object)
 
     triangles = []

@@ -6,6 +6,8 @@ import os
 import globals as const
 import fnmatch, re
 
+import numpy as np
+
 if IS_WINDOWS:
     import dill
     def run_dill(payload, args):
@@ -44,3 +46,6 @@ def get_filenames(path='.', pattern=const.save_pattern, min_timestamp=0, extend=
 
 def get_creationtime(filename, path=os.getcwd()):
     return os.stat(os.path.join(path, filename)).st_ctime
+
+def np_find(arr, x):
+    np.argwhere([ np.all(e == x)for e in arr ])

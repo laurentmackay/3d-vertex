@@ -69,6 +69,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     myosin = np.fromiter(nx.get_edge_attributes(G,'myosin').values(),dtype=float).reshape((-1,1))
     l_rest = np.fromiter(nx.get_edge_attributes(G,'l_rest').values(),dtype=float).reshape((-1,1))
 
+    forces_prev=None
+
     @jit(nopython=True, cache=True)
     def timestep_bound(forces,drx,edges):
         delta_F = forces[edges[:,0]]-forces[edges[:,1]]
@@ -78,7 +80,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     # @profile
     def integrate(dt,t_final, t=0, save_rate=None, maxwell=True):
         dt=float(dt)
-        nonlocal G, K, edges,  centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, l_rest, dists, drx, ind_dict, myosin, l_rest
+        nonlocal G, K, edges,  centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, l_rest, dists, drx, ind_dict, myosin, l_rest, forces_prev
         
         num_inter = 0 
         
@@ -92,13 +94,16 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         pos = np.array([*nx.get_node_attributes(G,'pos').values()])
  
 
-
+        if maxwell:
+            update=update_pos_maxwell
+        else:
+            update=update_pos
 
         print(t) 
         pre_callback(t)
         dists, drx = compute_edge_distance_and_direction(pos, edges, dists, drx)
         vols = compute_cell_volumes(pos)
-        forces=compute_forces(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
+        forces = compute_forces(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
         # force_dict_prev = force_dict
 
   
@@ -115,8 +120,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
         # dt_curr = dt
 
-
-
+        if maxwell:
+            forces_prev=forces
         
         while t <= t_final:
 
@@ -132,7 +137,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             # force_dict_prev_prev = force_dict_prev
             # force_dict_prev = force_dict
 
-            h=update_pos(h, dt, pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
+            h=update(h, dt, pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
 
             for i,node in enumerate(G.nodes()):
                 G.node[node]['pos'] = pos[i]   #forward euler step for nodes
@@ -143,13 +148,15 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             dists, drx = compute_edge_distance_and_direction(pos, edges, dists, drx)
 
             # r=dt_curr/(2.0*const.tau)
-            r=h/(const.tau)
-            for i, e in enumerate(G.edges()):
-                dist_old = dists_old[i]
-                dist=dists[i]
-                strain = (dist/l_rest[i])-1.0
-                if np.abs(strain)>0.01:# and (l_rest[i]<l_apical or (dist<l_apical and dist_old<l_apical)):
-                    G[e[0]][e[1]]['l_rest'] = (l_rest[i]*(1.0-r) + r*(dist_old +dist))/(1+r)
+            if not maxwell:
+                r=h/(const.tau)
+                for i, e in enumerate(G.edges()):
+                    dist_old = dists_old[i]
+                    dist=dists[i]
+                    strain = (dist/l_rest[i])-1.0
+                    # if np.abs(strain)>0.01:# and (l_rest[i]<l_apical or (dist<l_apical and dist_old<l_apical)):
+                    # G[e[0]][e[1]]['l_rest'] = (l_rest[i]*(1.0-r) + r*(dist_old +dist))/(1+r)
+                    G[e[0]][e[1]]['l_rest']   += r*(dist_old-l_rest[i])
                 # G[e[0]][e[1]]['l_rest'] = (l_rest[e]+r*dist)/(1.0+r)
 
             
@@ -173,7 +180,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     three_quarters=3/4
     # @jit(nopython=True, cache=True)
     def  update_pos(h, dt, pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers):
-
+        
         forces=compute_forces2(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
 
 
@@ -211,22 +218,19 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
 
     def  update_pos_maxwell(h, dt, pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers):
-
+        nonlocal forces_prev
         forces=compute_forces2(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
 
 
-        h1=timestep_bound(forces,drx,edges)
-        h=min((h1,dt,h))
-
         
 
 
-        k1=forces/const.eta
-
         
-        pos2 = pos + h*forces/const.eta
+        pos += (forces-forces_prev)/1000+dt*(forces/const.eta)
 
-        return h
+        forces_prev=forces
+
+        return dt
 
     @jit(nopython=True, cache=True)
     def compute_edge_distance_and_direction(pos, edges, dists, drx):
@@ -532,6 +536,9 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             # G.remove_edge(neighbor+basal_offset,cents[1]+basal_offset)
                             # G.remove_edge(neighbor+basal_offset,temp2[0]+basal_offset)
 
+                            new_edge = {'myosin':0, 'l_rest':l_apical}
+                            new_ab_link_edge = {'myosin':0, 'l_rest':l_depth}
+
                             # add new connections
                             # apical 
                             # new edges 
@@ -540,14 +547,28 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             # new spokes to new neighbors
                             G.add_edge(neighbor,ii,**G[node][ii])
                             G.add_edge(node,jj,**G[neighbor][jj])
+                            # # new edges 
+                            # G.add_edge(node,temp2[0],**new_edge)
+                            # G.add_edge(neighbor,temp1[0],**new_edge)
+                            # # new spokes to new neighbors
+                            # G.add_edge(neighbor,ii,**new_edge)
+                            # G.add_edge(node,jj,**new_edge)
 
-                            # basal 
+                            # # basal 
                             # new edges 
                             G.add_edge(node+basal_offset,temp2[0]+basal_offset,**old_edges_basal[3])
                             G.add_edge(neighbor+basal_offset,temp1[0]+basal_offset,**old_edges_basal[1])
                             # new spokes 
                             G.add_edge(neighbor+basal_offset,ii+basal_offset,**G[node+basal_offset][ii+basal_offset])
                             G.add_edge(node+basal_offset,jj+basal_offset,**G[neighbor+basal_offset][jj+basal_offset])
+
+                            # # new edges 
+                            # G.add_edge(node+basal_offset,temp2[0]+basal_offset,**new_edge)
+                            # G.add_edge(neighbor+basal_offset,temp1[0]+basal_offset,**new_edge)
+                            # # new spokes 
+                            # G.add_edge(neighbor+basal_offset,ii+basal_offset,**new_edge)
+                            # G.add_edge(node+basal_offset,jj+basal_offset,**new_edge)
+                            
                             
                             # reset myosin on contracted edge
                             G[node][neighbor]['myosin'] = 0
@@ -556,7 +577,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                             # blacklist.append([min(node, neighbor), max(node, neighbor)])
                             
                             circum_sorted, triangles = topological_mesh(G, belt, centers)
-                            circum_sorted=List(circum_sorted)
+                            circum_sorted = List(circum_sorted)
 
                             intercalation_callback(node,neighbor)
                             node-=1

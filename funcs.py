@@ -26,7 +26,7 @@ def vector(A,B):
         
     return [(B[0]-A[0]), (B[1]-A[1]), (B[2]-A[2])] 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def euclidean_distance(v1, v2):
     dist = [(a - b)**2 for a, b in zip(v1, v2)]
     dist = math.sqrt(sum(dist))

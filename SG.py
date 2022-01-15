@@ -30,20 +30,20 @@ def invagination(G, belt, centers):
             for e in inter_edges:
                 G[e[0]][e[1]]['myosin'] =  3*belt_strength
 
-        r=np.random.rand()
-        if t_prev>0 and r/(t-t_prev)<rate:
-            myo = nx.get_edge_attributes(G,'myosin')
+        # r=np.random.rand()
+        # if t_prev>0 and r/(t-t_prev)<rate:
+        #     myo = nx.get_edge_attributes(G,'myosin')
             
-            candidates = [key for (key, val) in  myo.items() if val==0 and key[0]<1000 and key[1]<1000 and key[0] not in centers and key[1] not in centers
-             and np.all(np.array([e['myosin'] for e in G[key[0]].values()])==0) and np.all(np.array([e['myosin'] for e in G[key[1]].values()])==0)]
-            if len(candidates):
-                e = candidates[np.random.randint(len(candidates))]
+        #     candidates = [key for (key, val) in  myo.items() if val==0 and key[0]<1000 and key[1]<1000 and key[0] not in centers and key[1] not in centers
+        #      and np.all(np.array([e['myosin'] for e in G[key[0]].values()])==0) and np.all(np.array([e['myosin'] for e in G[key[1]].values()])==0)]
+        #     if len(candidates):
+        #         e = candidates[np.random.randint(len(candidates))]
                 
-                strength=3*belt_strength
+        #         strength=3*belt_strength
                 
-                G[e[0]][e[1]]['myosin']=strength
-                G[e[0]+basal_offset][e[1]+basal_offset]['myosin']=strength
+        #         G[e[0]][e[1]]['myosin']=strength
+        #         G[e[0]+basal_offset][e[1]+basal_offset]['myosin']=strength
 
-                print(f'intercalation shecduled for {e}')
+        #         print(f'intercalation shecduled for {e}')
             
     return f
