@@ -54,16 +54,16 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     def integrate(dt,t_final, t=0):
         nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict
         
-        num_inter = 0 
+        # num_inter = 0 
         
-        contract = [True for counter in range(0,num_inter)]
+        # contract = [True for counter in range(0,num_inter)]
 
         print(t) 
         pre_callback(t)
 
         file_name = 't_fast' + str(int(t)) 
         nx.write_gpickle(G, file_name + '.pickle')
-        np.save(file_name, circum_sorted) 
+        # np.save(file_name, circum_sorted) 
         t0 = time.time()
         
         while t <= t_final:
@@ -81,7 +81,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             for node in force_dict:
                 G.node[node]['pos'] = G.node[node]['pos'] + (dt/const.eta)*force_dict[node]  #forward euler step for nodes
 
-            check_for_intercalations()
+            check_for_intercalations(t)
         
             
 
@@ -111,7 +111,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             if t % 1 == 0: 
                 file_name = 't_fast' + str(round(t)) 
                 nx.write_gpickle(G,file_name + '.pickle')
-                np.save(file_name,circum_sorted)
+                # np.save(file_name,circum_sorted)
 
     def compute_forces():
         nonlocal force_dict, circum_sorted, triangles
@@ -218,13 +218,18 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
 
                         force_dict[node] += frce
 
-    def check_for_intercalations():
+    def check_for_intercalations(t):
         nonlocal circum_sorted, triangles, K, blacklist
 
         pos = nx.get_node_attributes(G,'pos')
-        for node in range(0,num_api_nodes):
+        node=0
+        while node<num_api_nodes:
+        # for node in range(0,num_api_nodes):
             if node not in belt: 
-                for neighbor in G.neighbors(node):
+                nhbrs=list(G.neighbors(node))
+                j=0
+                while j<len(nhbrs):
+                    neighbor=nhbrs[j]
                     if (neighbor < basal_offset) and (neighbor not in belt) and (node not in centers) and (neighbor not in centers) and ([min(node, neighbor), max(node, neighbor)] not in blacklist): 
                     
                         a = pos[node]
@@ -250,18 +255,18 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                                 # apical 
                                 cents = list(set(G.neighbors(node)) & set(G.neighbors(neighbor)))
                                 mvmt = unit_vector(a,pos[cents[1]])
-                                a = [a[0]+l_mvmt*mvmt[0], a[1]+l_mvmt*mvmt[1], a[2]+l_mvmt*mvmt[2]]
+                                a = np.array([a[0]+l_mvmt*mvmt[0], a[1]+l_mvmt*mvmt[1], a[2]+l_mvmt*mvmt[2]])
                                 G.node[node]['pos'] = a 
                                 mvmt = unit_vector(b,pos[cents[0]])
-                                b = [b[0]+l_mvmt*mvmt[0], b[1]+l_mvmt*mvmt[1], b[2]+l_mvmt*mvmt[2]]
+                                b = np.array([b[0]+l_mvmt*mvmt[0], b[1]+l_mvmt*mvmt[1], b[2]+l_mvmt*mvmt[2]])
                                 G.node[neighbor]['pos'] = b 
                                 # basal 
                                 #cents = list(set(G.neighbors(node+basal_offset)) & set(G.neighbors(neighbor+basal_offset)))
                                 mvmt = unit_vector(c,pos[cents[1]+basal_offset])
-                                c = [c[0]+l_mvmt*mvmt[0], c[1]+l_mvmt*mvmt[1], c[2]+l_mvmt*mvmt[2]]
+                                c = np.array([c[0]+l_mvmt*mvmt[0], c[1]+l_mvmt*mvmt[1], c[2]+l_mvmt*mvmt[2]])
                                 G.node[node+basal_offset]['pos'] = c 
                                 mvmt = unit_vector(d,pos[cents[0]+basal_offset])
-                                d = [d[0]+l_mvmt*mvmt[0], d[1]+l_mvmt*mvmt[1], d[2]+l_mvmt*mvmt[2]]
+                                d = np.array([d[0]+l_mvmt*mvmt[0], d[1]+l_mvmt*mvmt[1], d[2]+l_mvmt*mvmt[2]])
                                 G.node[neighbor+basal_offset]['pos'] = d 
                                 
                                 ii = list((set(list(G.neighbors(node))) & set(list(centers))) - (set(list(G.neighbors(node))) & set(list(G.neighbors(neighbor)))))[0]
@@ -307,8 +312,12 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                                 
                                 circum_sorted, triangles, K = new_topology(K,[node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
                                 G.graph['circum_sorted']=circum_sorted
+                                node-=1
+                                break
+                    j += 1
 
-
+            node +=1
+        return
     return integrate
 
 
@@ -517,6 +526,8 @@ def tissue_3d():
     print("Number of apical nodes are", i)
     
     G2D = G.copy()
+    if nx.__version__>"2.3":
+        G2D.node=G2D._node
     num_apical_nodes = i
     
     # Basal Nodes
