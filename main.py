@@ -34,4 +34,4 @@ if __name__ == '__main__':
                                   intercalation_callback=lambda a, b: viewer(G),
                                   length_prec=.01)
     #integrate
-    integrate(0.1,20000, save_rate=0, maxwell=False)
+    integrate(10, 20000, save_rate=1, maxwell=False, visco=False, save_pattern='data/long_one/t_*.pickle')

@@ -155,7 +155,7 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
         proc.start()
 
         
-        def pipe_plot(G, callback=None,**kw):
+        def pipe_plot(G, **kw):
             nonlocal plot
             if plot:
                 try:

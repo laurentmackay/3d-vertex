@@ -1,13 +1,18 @@
+import os
 import time
+import pickle
+
 
 import networkx as nx
 import numpy as np
 
+from numba import jit, prange
+from numba.typed import List
+
 import globals as const
 from funcs import *
 from tissue_3d import topological_mesh
-from numba import jit, prange
-from numba.typed import List
+
 
 
 
@@ -78,7 +83,13 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         return np.min(np.abs(dtmax))
 
     # @profile
-    def integrate(dt,t_final, t=0, save_rate=None, maxwell=True):
+    def integrate(dt,t_final, t=0, save_rate=None, save_pattern=const.save_pattern, maxwell=True, visco=False):
+
+        if save_pattern and len(os.path.split(save_pattern)[0])>1:
+            save_path = os.path.split(save_pattern)[0]
+            if len(save_path)>1 and not os.path.exists(save_path):
+                os.makedirs(save_path)
+
         dt=float(dt)
         nonlocal G, K, edges,  centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, l_rest, dists, drx, ind_dict, myosin, l_rest, forces_prev
         
@@ -87,7 +98,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         contract = [True for counter in range(0,num_inter)]
 
         if save_rate is not None:
-            nx.write_gpickle(G, f't_{t}.pickle')
+            with open(save_pattern.replace('*',str(t)),'wb') as file: 
+                pickle.dump(G, file)
             last_save=t
         t0 = time.time()
 
@@ -103,7 +115,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         pre_callback(t)
         dists, drx = compute_edge_distance_and_direction(pos, edges, dists, drx)
         vols = compute_cell_volumes(pos)
-        forces = compute_forces(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
+        forces = compute_forces2(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
         # force_dict_prev = force_dict
 
   
@@ -148,15 +160,15 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             dists, drx = compute_edge_distance_and_direction(pos, edges, dists, drx)
 
             # r=dt_curr/(2.0*const.tau)
-            if not maxwell:
+            if not maxwell and visco:
                 r=h/(const.tau)
                 for i, e in enumerate(G.edges()):
                     dist_old = dists_old[i]
                     dist=dists[i]
                     strain = (dist/l_rest[i])-1.0
                     # if np.abs(strain)>0.01:# and (l_rest[i]<l_apical or (dist<l_apical and dist_old<l_apical)):
-                    # G[e[0]][e[1]]['l_rest'] = (l_rest[i]*(1.0-r) + r*(dist_old +dist))/(1+r)
-                    G[e[0]][e[1]]['l_rest']   += r*(dist_old-l_rest[i])
+                    G[e[0]][e[1]]['l_rest'] = (l_rest[i]*(1.0-r) + r*(dist_old +dist))/(1+r)
+                    # G[e[0]][e[1]]['l_rest']   += r*(dist_old-l_rest[i])
                 # G[e[0]][e[1]]['l_rest'] = (l_rest[e]+r*dist)/(1.0+r)
 
             
@@ -173,7 +185,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         # Save nx Graph in pickled form for plotting later
             
             if save_rate is not None and t-last_save>=save_rate:
-                nx.write_gpickle(G, f't_{t}.pickle')
+                with open(save_pattern.replace('*',str(t)),'wb') as file: 
+                    pickle.dump(G, file)
                 last_save=t
 
     two_thirds=2/3
@@ -267,93 +280,93 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         return -press_alpha*(vols-const.v_0)
 
     # @profile
-    @jit(nopython=True, cache=True)
-    def compute_forces(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers):
-        PI=-press_alpha*(vols-const.v_0)
+    # @jit(nopython=True, cache=True)
+    # def compute_forces(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers):
+    #     PI=-press_alpha*(vols-const.v_0)
 
-        num_api_nodes = int(pos.shape[0]/2)
+    #     num_api_nodes = int(pos.shape[0]/2)
 
-        forces = np.zeros(pos.shape)
+    #     forces = np.zeros(pos.shape)
 
-        mag_elastic = mu_apical*(dists - l_rest)
-        mag_myo = myo_beta*myosin
-        force_edge = (mag_elastic+ mag_myo)*drx
+    #     mag_elastic = mu_apical*(dists - l_rest)
+    #     mag_myo = myo_beta*myosin
+    #     force_edge = (mag_elastic+ mag_myo)*drx
 
-        for e, f in zip(edges, force_edge):
-            a, b = e[0], e[1]
-            forces[a] += f
-            forces[b] -= f
+    #     for e, f in zip(edges, force_edge):
+    #         a, b = e[0], e[1]
+    #         forces[a] += f
+    #         forces[b] -= f
         
-        #loop through each cell to handle pressure forces
-        for center, pts, pressure in zip(centers, circum_sorted, PI):
-            # pressure for apical and basal faces
-            for j in range(len(pts)):
-                for inds in (np.array((center,pts[j],pts[j-1])),np.array((center+num_api_nodes,pts[j-1]+num_api_nodes,pts[j]+num_api_nodes))):
-                    pos_face = pos[inds,:]
-                    _, area_vec, _, _ = be_area_2(pos_face,pos_face)                       
+    #     #loop through each cell to handle pressure forces
+    #     for center, pts, pressure in zip(centers, circum_sorted, PI):
+    #         # pressure for apical and basal faces
+    #         for j in range(len(pts)):
+    #             for inds in (np.array((center,pts[j],pts[j-1])),np.array((center+num_api_nodes,pts[j-1]+num_api_nodes,pts[j]+num_api_nodes))):
+    #                 pos_face = pos[inds,:]
+    #                 _, area_vec, _, _ = be_area_2(pos_face,pos_face)                       
 
-                    force = pressure*area_vec/3.0
+    #                 force = pressure*area_vec/3.0
                     
-                    forces[inds] += force
+    #                 forces[inds] += force
 
 
-            # pressure for side panels
-            for j in range(len(pts)):
-                pts_id = np.array((pts[j-1], pts[j], pts[j]+num_api_nodes, pts[j-1]+num_api_nodes))
-                pts_pos = pos[pts_id,:]
-                # on each face, calculate the center
-                center = np.sum(pts_pos,axis=0)/4.0
-                # loop through the 4 triangles that make the face
-                for ii in range(0,4):
-                    pos_side = np.vstack((center, pts_pos[ii-1,:], pts_pos[ii,:]))
-                    _, area_vec = area_side(pos_side) 
+    #         # pressure for side panels
+    #         for j in range(len(pts)):
+    #             pts_id = np.array((pts[j-1], pts[j], pts[j]+num_api_nodes, pts[j-1]+num_api_nodes))
+    #             pts_pos = pos[pts_id,:]
+    #             # on each face, calculate the center
+    #             center = np.sum(pts_pos,axis=0)/4.0
+    #             # loop through the 4 triangles that make the face
+    #             for ii in range(0,4):
+    #                 pos_side = np.vstack((center, pts_pos[ii-1,:], pts_pos[ii,:]))
+    #                 _, area_vec = area_side(pos_side) 
                     
-                    direction = area_vec 
-                    force = pressure*area_vec/2.0
-                    forces[pts_id[ii-1]] += force
-                    forces[pts_id[ii]] += force
+    #                 direction = area_vec 
+    #                 force = pressure*area_vec/2.0
+    #                 forces[pts_id[ii-1]] += force
+    #                 forces[pts_id[ii]] += force
     
                 
         
-        # Implement bending energy
-        # Loop through all alpha, beta pairs of triangles
-        for pair in triangles:
-            for offset in (0, num_api_nodes):
-                alpha = pair[0]+offset
-                beta = pair[1]+offset
+    #     # Implement bending energy
+    #     # Loop through all alpha, beta pairs of triangles
+    #     for pair in triangles:
+    #         for offset in (0, num_api_nodes):
+    #             alpha = pair[0]+offset
+    #             beta = pair[1]+offset
                 
-                # Apical faces, calculate areas and cross-products z
-                pos_alpha = pos[alpha]
-                pos_beta = pos[beta]
-                A_alpha, A_alpha_vec, A_beta, A_beta_vec = be_area_2(pos_alpha, pos_beta)
+    #             # Apical faces, calculate areas and cross-products z
+    #             pos_alpha = pos[alpha]
+    #             pos_beta = pos[beta]
+    #             A_alpha, A_alpha_vec, A_beta, A_beta_vec = be_area_2(pos_alpha, pos_beta)
 
-                for inda, node in enumerate(alpha):
-                    # inda = alpha.index(node) 
-                    nbhrs_alpha = (alpha[(inda+1)%3], alpha[(inda-1)%3]) 
-                    # beta_list = beta.tolist()
-                    if node in beta:
-                    #     indb = beta_list.index(node)
-                        indb=np.argwhere(beta==node)[0,0]
-                        nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
+    #             for inda, node in enumerate(alpha):
+    #                 # inda = alpha.index(node) 
+    #                 nbhrs_alpha = (alpha[(inda+1)%3], alpha[(inda-1)%3]) 
+    #                 # beta_list = beta.tolist()
+    #                 if node in beta:
+    #                 #     indb = beta_list.index(node)
+    #                     indb=np.argwhere(beta==node)[0,0]
+    #                     nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
 
-                        frce = const.c_ab * bending_energy_2(True, True,A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[-1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[-1]])
-                    else:
-                        frce = const.c_ab * bending_energy_2(True, False, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]], pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]])
+    #                     frce = const.c_ab * bending_energy_2(True, True,A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[-1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[-1]])
+    #                 else:
+    #                     frce = const.c_ab * bending_energy_2(True, False, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]], pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]])
                     
-                    forces[node] += frce
+    #                 forces[node] += frce
 
-                for indb, node in enumerate(beta):
-                    # don't double count the shared nodes
-                    nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
-                    if node not in alpha:
-                        # frce = const.c_ab*bending_energy(False, nbhrs_beta, A_alpha, A_beta, pos)
-                        frce = const.c_ab*bending_energy_2(False, True, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_beta[0]], pos[nbhrs_beta[1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[1]])
+    #             for indb, node in enumerate(beta):
+    #                 # don't double count the shared nodes
+    #                 nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
+    #                 if node not in alpha:
+    #                     # frce = const.c_ab*bending_energy(False, nbhrs_beta, A_alpha, A_beta, pos)
+    #                     frce = const.c_ab*bending_energy_2(False, True, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_beta[0]], pos[nbhrs_beta[1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[1]])
 
-                        forces[node] += frce
-        return forces
+    #                     forces[node] += frce
+    #     return forces
 
 
-    @jit(nopython=True, cache=True)
+    @jit(nopython=True, cache=True, nogil=True)
     def compute_forces2(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers):
         PI=-press_alpha*(vols-const.v_0)
 
@@ -590,7 +603,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     PI=compute_pressure(vols)
     dists, drx = compute_edge_distance_and_direction(pos, edges, dists, drx)
     # compute_forces_vectorized(pos, PI, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
-    forces=compute_forces(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
+    forces=compute_forces2(pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
     h=np.min((timestep_bound(forces,drx,edges),1.0))
     update_pos(h, 2*h, pos, vols, edges, dists, drx, myosin, l_rest, circum_sorted, triangles, centers)
     return integrate
