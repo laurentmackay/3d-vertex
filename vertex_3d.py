@@ -1,3 +1,4 @@
+import pickle
 import time
 
 import networkx as nx
@@ -51,7 +52,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     force_dict = {}
     blacklist = [] 
     #@profile
-    def integrate(dt,t_final, t=0):
+    def integrate(dt,t_final, t=0, save_pattern = const.save_pattern):
         nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict
         
         # num_inter = 0 
@@ -61,8 +62,9 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         print(t) 
         pre_callback(t)
 
-        file_name = 't_fast' + str(int(t)) 
-        nx.write_gpickle(G, file_name + '.pickle')
+        file_name = save_pattern.replace('*',str(t))
+        with open(file_name, 'wb') as file:
+            pickle.dump(G, file)
         # np.save(file_name, circum_sorted) 
         t0 = time.time()
         
@@ -82,35 +84,11 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 G.node[node]['pos'] = G.node[node]['pos'] + (dt/const.eta)*force_dict[node]  #forward euler step for nodes
 
             check_for_intercalations(t)
-        
-            
-
-        #    #set dt for next loop 
-        #    if var_dt == True:
-        #        if any(contract) == True:
-        #            # if any edges are still contracting, check for threshold length 
-        #            for i in range(0,num_inter):
-        #            # calculate lengths of those that are still True 
-        #                if contract[i] == True:
-        #                    a = inter_edges[i][0]
-        #                    b = inter_edges[i][1]
-        #                    if euclidean_distance(pos[a],pos[b]) < 0.2:
-        #                        dt = 0.1
-        #                        break 
-        #        else: 
-        #            if isclose(t % 1, 0) == False:       
-        #                dt = 0.1 
-        #            else:
-        #                dt = const.dt
-        #                var_dt = False 
-        #    else:
-        #        dt  = const.dt
-
-        # Save nx Graph in pickled form for plotting later
             
             if t % 1 == 0: 
-                file_name = 't_fast' + str(round(t)) 
-                nx.write_gpickle(G,file_name + '.pickle')
+                file_name = save_pattern.replace('*',str(t))
+                with open(file_name, 'wb') as file:
+                    pickle.dump(G, file)
                 # np.save(file_name,circum_sorted)
 
     def compute_forces():
