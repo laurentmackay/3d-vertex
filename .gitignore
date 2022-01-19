@@ -5,3 +5,4 @@
 3d_vertex.egg-info/*
 
 .vscode/launch.json
+/data/*
