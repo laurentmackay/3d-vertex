@@ -51,3 +51,5 @@ c_ab  = 3.0                 # bending energy coefficient
 basal_offset=1000
 
 tau = 60
+
+save_pattern="t_*.pickle"
