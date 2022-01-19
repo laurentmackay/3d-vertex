@@ -1,3 +1,4 @@
+import os
 import pickle
 import time
 
@@ -56,7 +57,10 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict
         
         # num_inter = 0 
-        
+        if save_pattern and len(os.path.split(save_pattern)[0])>1:
+            save_path = os.path.split(save_pattern)[0]
+            if len(save_path)>1 and not os.path.exists(save_path):
+                os.makedirs(save_path)
         # contract = [True for counter in range(0,num_inter)]
 
         print(t) 
