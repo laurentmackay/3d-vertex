@@ -1,6 +1,6 @@
 from vertex_3d import *
 import SG
-from pyqt_viz import edge_viewer
+from PyQtViz import edge_viewer
 
 
 if __name__ == '__main__':
@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     #initialize some things for the callback
     invagination = SG.invagination(G, belt)
-    viewer = edge_viewer(G,attr='myosin', cell_edges=True)
+    viewer = edge_viewer(G,attr='myosin', cell_edges_only=True)
     t_last = 0 
     t_plot = 5
 

@@ -630,5 +630,8 @@ def tissue_3d():
             G.add_edge(n,n+basal_offset, l_rest = const.l_depth, myosin = 0, beta = 0)
 
     print("Lateral Connections made")
+
+    G.graph['centers'] = centers
+    G.graph['circum_corted'] = circum_sorted
     
     return G, G2D, centers, num_apical_nodes, circum_sorted, belt, triangles
