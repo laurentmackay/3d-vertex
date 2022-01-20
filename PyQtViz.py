@@ -232,8 +232,11 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
         range   = vals.max()
 
     elif not cell_edges_only:
-        vals = np.zeros((edges.shape[0],1))
-        range=false
+        vals = np.zeros((edges.shape[0],))
+        range=False
+    else:
+        vals = np.zeros((edges.shape[0],))
+        range=False
 
 
     if range:

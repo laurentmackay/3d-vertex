@@ -17,7 +17,7 @@ if IS_WINDOWS:
     def make_dill(f,a):
         return (dill.dumps(f),(a,))
 
-def mkprocess(target, args=None,daemon=True):
+def mkprocess(target, args=tuple() ,daemon=True):
     if IS_WINDOWS:
         proc = mp.Process(target=run_dill, args=make_dill(target, *args), daemon=daemon)
     else:

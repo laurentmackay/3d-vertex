@@ -53,14 +53,16 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
     force_dict = {}
     blacklist = [] 
     #@profile
-    def integrate(dt,t_final, t=0, save_pattern = const.save_pattern):
+    def integrate(dt,t_final, t=0, save_pattern = const.save_pattern, player = True):
         nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict
         
         # num_inter = 0 
-        if save_pattern and len(os.path.split(save_pattern)[0])>1:
-            save_path = os.path.split(save_pattern)[0]
+        if (player or save_pattern) and len(os.path.split(save_pattern)[0])>1:
+            save_path, pattern = os.path.split(save_pattern)
             if len(save_path)>1 and not os.path.exists(save_path):
                 os.makedirs(save_path)
+        else:
+            save_path='.'
         # contract = [True for counter in range(0,num_inter)]
 
         print(t) 
@@ -70,6 +72,11 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         with open(file_name, 'wb') as file:
             pickle.dump(G, file)
         # np.save(file_name, circum_sorted) 
+        if player:
+
+            from Player import pickle_player
+            pickle_player(path=save_path, pattern=pattern, start_time=t, attr='myosin', cell_edges_only=True, apical_only=True, parallel=True)
+
         t0 = time.time()
         
         while t <= t_final:
@@ -78,7 +85,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             # increment t by dt
             t = round(t+dt,1)
             t1=time.time()
-            print(dt, t,f'{t1-t0} seconds elapsed') 
+            # print(dt, t,f'{t1-t0} seconds elapsed') 
             t0=t1
 
             pre_callback(t)
