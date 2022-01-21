@@ -9,8 +9,13 @@ if __name__ == '__main__':
 
     forced_points = [0,1]
     forces=[np.array([0,1]),np.array([0,-1])]
+<<<<<<< HEAD
 
     def forcing(t,force_dict):
+=======
+    
+    def frocing(t,force_dict):
+>>>>>>> 4c42c78ba345f722f2969c7b8990fd13114dce05
         for p,f in zip(forced_points, forces):
             force_dict[p] += f
 
