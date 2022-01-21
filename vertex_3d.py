@@ -43,18 +43,25 @@ be_area_2(np.tile(z3,reps=(3,1)),np.tile(z3,reps=(3,1)))
 area_side(np.tile(z3,reps=(3,1)))
 
 
+
 # calculate volume
 vol = convex_hull_volume_bis(np.random.random((6,3)))  
 
-def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=None):
+def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=None, ndim=3):
     if pre_callback is None or not callable(pre_callback):
         pre_callback = lambda t : None
 
     force_dict = {}
     blacklist = [] 
+    pos = nx.get_node_attributes(G,'pos')
     #@profile
-    def integrate(dt,t_final, t=0, save_pattern = const.save_pattern, player = True):
+    def integrate(dt,t_final, t=0, save_pattern = const.save_pattern, player = True, ndim=ndim):
         nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict
+
+        if ndim == 3:
+            compute_forces=compute_tissue_forces_3D
+        elif ndim == 2:
+            compute_forces=compute_elastic_forces
         
         # num_inter = 0 
         if (player or save_pattern) and len(os.path.split(save_pattern)[0])>1:
@@ -92,7 +99,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             compute_forces()
             
             for node in force_dict:
-                G.node[node]['pos'] = G.node[node]['pos'] + (dt/const.eta)*force_dict[node]  #forward euler step for nodes
+                G.node[node]['pos'][:ndim] += (dt/const.eta)*force_dict[node]  #forward euler step for nodes
 
             check_for_intercalations(t)
             
@@ -101,24 +108,12 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                 with open(file_name, 'wb') as file:
                     pickle.dump(G, file)
                 # np.save(file_name,circum_sorted)
-
-    def compute_forces():
-        nonlocal force_dict, circum_sorted, triangles
+    
+    def compute_elastic_forces():
+        nonlocal force_dict, pos
 
         pos = nx.get_node_attributes(G,'pos')
-        force_dict = {new_list: np.zeros(3,dtype=float) for new_list in G.nodes()} 
-        
-        # pre-calculate magnitude of pressure
-        # index of list corresponds to index of centers list
-        PI = np.zeros(len(centers),dtype=float) 
-        # eventually move to classes?
-        for n in range(len(centers)):
-            # get nodes for volume
-            pts = get_points(G,centers[n],pos) 
-            # calculate volume
-            vol = convex_hull_volume_bis(pts)  
-            # calculate pressure
-            PI[n] = -press_alpha*(vol-const.v_0) 
+        force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
 
         l_rest = nx.get_edge_attributes(G,'l_rest')
         myosin = nx.get_edge_attributes(G,'myosin')
@@ -135,10 +130,29 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             # drx[i] = direction
             magnitude = mu_apical*(dist - l_rest[e])
             magnitude2 = myo_beta*myosin[e]
-            force = (magnitude + magnitude2)*direction
+            force = (magnitude + magnitude2)*direction[:ndim]
 
             force_dict[a] += force
             force_dict[b] -= force
+
+    def compute_tissue_forces_3D():
+        nonlocal force_dict, circum_sorted, triangles, pos
+
+        compute_elastic_forces()
+        
+        # pre-calculate magnitude of pressure
+        # index of list corresponds to index of centers list
+        PI = np.zeros(len(centers),dtype=float) 
+        # eventually move to classes?
+        for n in range(len(centers)):
+            # get nodes for volume
+            pts = get_points(G,centers[n],pos) 
+            # calculate volume
+            vol = convex_hull_volume_bis(pts)  
+            # calculate pressure
+            PI[n] = -press_alpha*(vol-const.v_0) 
+
+
         
         for center, pts, pressure in zip(centers, circum_sorted, PI):  
             for i in range(len(pts)):
@@ -167,7 +181,6 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                     pos_side = np.array([center, pts_pos[ii-1], pts_pos[ii]])
                     _, area_vec = area_side(pos_side) 
                     
-                    direction = area_vec 
                     force = pressure*area_vec/2.0
                     force_dict[pts_id[ii-1]] += force
                     force_dict[pts_id[ii]] += force

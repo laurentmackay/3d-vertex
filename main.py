@@ -14,17 +14,9 @@ if __name__ == '__main__':
     t_last = 0 
     t_plot = 1
 
-    def mkcallback():
-        t_last=0.0;
-        def callback(t):
-            nonlocal t_last
-            invagination(t)
-            if t-t_last>=t_plot:
-                viewer(G, title=f't={t}')
-                t_last=t
-        return callback
+
 
     #create integrator
-    integrate = vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=mkcallback())
+    integrate = vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=invagination, ndim=3)
     #integrate
     integrate(0.5,2000, save_pattern='data/testing/elastic_*.pickle')

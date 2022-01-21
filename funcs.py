@@ -26,7 +26,7 @@ def vector(A,B):
         
     return [(B[0]-A[0]), (B[1]-A[1]), (B[2]-A[2])] 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def euclidean_distance(v1, v2):
     dist = [(a - b)**2 for a, b in zip(v1, v2)]
     dist = math.sqrt(sum(dist))
@@ -44,7 +44,7 @@ def euclidean_distance(v1, v2):
 # ###############
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def unit_vector(A,B):
     # Calculate the unit vector from A to B in 3D
 
@@ -55,7 +55,7 @@ def unit_vector(A,B):
 
     return (B-A)/dist
 ###############
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def unit_vector_and_dist(A,B):
     # Calculate the unit vector from A to B in 3D
 
@@ -165,11 +165,11 @@ def get_points(G, q, pos):
 
     return pts 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def cross33(a,b):
     return np.array([a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]])
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def cross3Mat(a,b):
     out = np.zeros((b.shape))
     for i in range(0,b.shape[0]):
@@ -179,7 +179,7 @@ def cross3Mat(a,b):
 
     return out
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def crossMatMat(a,b):
     out = np.zeros((b.shape))
     for i in range(0,b.shape[0]):
@@ -206,7 +206,7 @@ def sort_corners(corners,center_pos,pos_nodes):
     
     return corn2, corn_sort
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def area_side(pos_side):
     
     A_alpha = np.zeros((3,))
@@ -239,7 +239,7 @@ def be_area(cw_alpha, cw_beta, pos):
 
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def be_area_2( pos_alpha, pos_beta):
     
     A_alpha = np.zeros((3,))
@@ -259,7 +259,7 @@ def be_area_2( pos_alpha, pos_beta):
 e = np.array([[1,0,0], [0,1,0], [0,0,1]])
 
 #@profile
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def bending_energy_2(nbhrs_alpha, nbhrs_beta, alpha_vec, A_alpha, beta_vec, A_beta, pos_alpha_A, pos_alpha_B, pos_beta_A, pos_beta_B):
 
     sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
