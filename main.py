@@ -1,4 +1,5 @@
-from vertex_3d import *
+from vertex_3d import vertex_integrator
+from Tissue import tissue_3d
 import SG
 from PyQtViz import edge_viewer
 
@@ -17,6 +18,6 @@ if __name__ == '__main__':
 
 
     #create integrator
-    integrate = vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=invagination, ndim=3)
+    integrate = vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=invagination)
     #integrate
     integrate(0.5,2000, save_pattern='data/testing/elastic_*.pickle')
