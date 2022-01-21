@@ -8,6 +8,19 @@ import fnmatch, re
 
 import numpy as np
 
+
+def new_graph(G=None):
+    if G is None:
+        G = nx.Graph()
+    else:
+        G=G.copy()
+    if nx.__version__>"2.3":
+        G.node=G._node
+    
+    return G
+
+
+
 if IS_WINDOWS:
     import dill
     def run_dill(payload, args):

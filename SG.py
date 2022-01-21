@@ -3,7 +3,7 @@ from globals import inner_arc, outer_arc, belt_strength, t_1, t_2, t_belt, t_int
 
 def just_arcs(G, belt):
 
-    def f(t):
+    def f(t, force_dict):
         # update myosin on inner arc 
         if t == t_1:
             for i in range(0,len(inner_arc)):
@@ -26,7 +26,7 @@ def just_arcs(G, belt):
 
 def arcs_with_intercalation(G, belt):
 
-    def f(t):
+    def f(t, force_dict):
         # update myosin on inner arc 
         if t == t_1:
             for i in range(0,len(inner_arc)):
