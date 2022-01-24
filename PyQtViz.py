@@ -198,25 +198,28 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
     ind_dict={n:i for i,n in enumerate(G._node)}
 
     # if cell_edges_only:
-    circum_sorted = G.graph['circum_sorted']
-    apical = np.vstack([np.array([[c[i-1],c[i]] if c[i-1]<c[i] else [c[i],c[i-1]]  for i, _ in enumerate(c)]) for c in  circum_sorted])
-    
-    if apical_only:
-        edges = (apical,)
-    else:
-        basal = apical+basal_offset
-        ab = np.vstack([[n, n+basal_offset] for n in np.unique(apical)])
-        edges = (apical,basal,ab)
-
-    if not cell_edges_only:
-        centers = G.graph['centers']
-        spokes = np.vstack([np.array([[o,ci] if ci>o else [ci,o]  for ci in c]) for o, c in  zip(centers,circum_sorted)])
-        if not apical_only:
-            spokes=(spokes,spokes+basal_offset)
+    if 'circum_sorted' in G.graph.keys():
+        circum_sorted = G.graph['circum_sorted']
+        apical = np.vstack([np.array([[c[i-1],c[i]] if c[i-1]<c[i] else [c[i],c[i-1]]  for i, _ in enumerate(c)]) for c in  circum_sorted])
+        
+        if apical_only:
+            edges = (apical,)
         else:
-            spokes=(spokes,)
+            basal = apical+basal_offset
+            ab = np.vstack([[n, n+basal_offset] for n in np.unique(apical)])
+            edges = (apical,basal,ab)
 
-        edges=edges+spokes
+        if not cell_edges_only:
+            centers = G.graph['centers']
+            spokes = np.vstack([np.array([[o,ci] if ci>o else [ci,o]  for ci in c]) for o, c in  zip(centers,circum_sorted)])
+            if not apical_only:
+                spokes=(spokes,spokes+basal_offset)
+            else:
+                spokes=(spokes,)
+
+            edges=edges+spokes
+    else:
+        edges=G.edges()
 
     edges=np.vstack(edges)
 

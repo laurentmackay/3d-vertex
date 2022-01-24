@@ -10,14 +10,16 @@
 ##########
 
 import networkx as nx
+from numba import jit
+import math
 
 from scipy.spatial import ConvexHull
 from scipy.spatial import Delaunay
 import numpy as np
+
 import globals as const
 
-from numba import jit
-import math
+
 basal_offset = const.basal_offset
 
 
@@ -311,88 +313,4 @@ def bending_energy(nbhrs_alpha, nbhrs_beta, A_alpha, A_beta, pos):
     return np.array((1/(A_alpha[0]*A_beta[0]))*(sums[0]+sums[1]) \
             + (-sums[2]/(A_alpha[0]*A_beta[0])**2)*((A_alpha[0]/A_beta[0])*sums[3] \
             +(A_beta[0]/A_alpha[0])*sums[4]))
-
-
-def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes):
-    # obtain new network topology - i.e. triangles, and circum_sorted 
-    # inputs:   K: networkx graph
-    #           inter: a python list of the nodes that have been intercalated  
-    #           cents:
-    #           temp1
-    #           temp2
-    #           belt
-    #           centers
-    #
-    # returns:  circum_sorted - the peripheal nodes of the centers sorted. (update to previous)
-    #           triangles - a numpy.array of the triangle pairs (update to previous)
-    #           K - the new networkx Graph preserving the topology
-
-    l_mvmt = const.l_mvmt
-    node = inter[0]
-    neighbor = inter[1]
-    pos = nx.get_node_attributes(K,'pos')
-    a = pos[node]
-    b = pos[neighbor]
-    
-    # collapse nodes to same position 
-    K.node[node]['pos'] = np.array([(a[0]+b[0])/2.0, (a[1]+b[1])/2.0, (a[2]+b[2])/2.0])
-    K.node[neighbor]['pos'] = np.array([(a[0]+b[0])/2.0, (a[1]+b[1])/2.0, (a[2]+b[2])/2.0])
-
-    # move nodes toward new center 
-    mvmt = unit_vector(a,pos[cents[1]])
-    K.node[node]['pos'] = np.array([a[0]+l_mvmt*mvmt[0], a[1]+l_mvmt*mvmt[1], a[2]+l_mvmt*mvmt[2]])
-    mvmt = unit_vector(b,pos[cents[0]])
-    K.node[neighbor]['pos'] = np.array([b[0]+l_mvmt*mvmt[0], b[1]+l_mvmt*mvmt[1], b[2]+l_mvmt*mvmt[2]])
-
-    # sever connections
-    K.remove_edge(node,cents[0])
-    K.remove_edge(node,temp1[0])
-    K.remove_edge(neighbor,cents[1])
-    K.remove_edge(neighbor,temp2[0])
-
-    # add new connections
-    # new edges 
-    K.add_edge(node,temp2[0],myosin=0,color='#808080')
-    K.add_edge(neighbor,temp1[0],myosin=0,color='#808080')
-    # new spokes 
-    K.add_edge(neighbor,ii,l_rest = const.l_apical, myosin=0)
-    K.add_edge(node,jj,l_rest = const.l_apical, myosin=0)
-    
-    # new network made. Now get circum_sorted
-    # update pos list 
-    circum_sorted = [] 
-    pos = nx.get_node_attributes(K,'pos')
-    xy = np.array([np.array(pos[n]) for n in range(0,num_api_nodes)])
-    
-    # be safe, just sort them all over again 
-    for center in centers:
-        a, b = sort_corners(list(K.neighbors(center)),xy[center],xy)
-        circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
-    
-    # circum_sorted = np.array(circum_sorted)
-
-    triangles = []
-    for node in K.nodes():
-        if node not in belt:
-            if node in centers:
-                out1, out2 = sort_corners(list(K.neighbors(node)),pos[node],pos)
-                neighbors = [out2[k][0] for k in range(0,len(out2))]
-                alpha_beta = [[[node,neighbors[k-1],neighbors[k-2]],[node, neighbors[k],neighbors[k-1]]] for k in range(0,len(neighbors))]
-
-                for entry in alpha_beta:
-                    triangles.append(entry)
-            else: # node not a center, so that I don't double count pairs, only keep those that cross a cell edge
-                out1, out2 = sort_corners(list(K.neighbors(node)),pos[node],pos)
-                neighbors = [out2[k][0] for k in range(0,len(out2))]
-	            
-                for k in range(0,len(neighbors)):
-                    alpha = [node,neighbors[k-1],neighbors[k-2]]
-                    beta = [node,neighbors[k],neighbors[k-1]]
-                    
-                    if set(alpha) & set(centers) != set(beta) & set(centers):
-                        triangles.append([alpha,beta])
-        
-    return circum_sorted, triangles, K
-
-
 

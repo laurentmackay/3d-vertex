@@ -6,6 +6,7 @@ import os
 import globals as const
 import fnmatch, re
 
+import networkx as nx
 import numpy as np
 
 

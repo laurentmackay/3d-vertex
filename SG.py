@@ -1,8 +1,8 @@
+from Tissue import get_outer_belt
 from globals import inner_arc, outer_arc, belt_strength, t_1, t_2, t_belt, t_intercalate, inter_edges
 
 
 def just_arcs(G, belt):
-
     def f(t, force_dict):
         # update myosin on inner arc 
         if t == t_1:
@@ -25,7 +25,6 @@ def just_arcs(G, belt):
     return f
 
 def arcs_with_intercalation(G, belt):
-
     def f(t, force_dict):
         # update myosin on inner arc 
         if t == t_1:

@@ -4,6 +4,7 @@ import time
 
 import networkx as nx
 import numpy as np
+from Tissue import get_triangles, get_outer_belt, new_topology
 
 import globals as const
 from funcs import *
@@ -47,16 +48,39 @@ area_side(np.tile(z3,reps=(3,1)))
 # calculate volume
 vol = convex_hull_volume_bis(np.random.random((6,3)))  
 
-def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=None, ndim=3):
+def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save_pattern = const.save_pattern):
     if pre_callback is None or not callable(pre_callback):
         pre_callback = lambda t : None
 
-    force_dict = {}
+    force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
     blacklist = [] 
+
     pos = nx.get_node_attributes(G,'pos')
+    pos_apical = nx.get_node_attributes(G_apical ,'pos')
+
+    if 'circum_sorted' in G.graph.keys():
+        circum_sorted = G.graph['circum_sorted']
+    else:
+        circum_sorted = None
+
+    if 'centers' in G.graph.keys():
+        centers = G.graph['centers']
+    else:
+        centers = None
+
+    belt = get_outer_belt(G_apical)
+    triangles = get_triangles(G_apical, pos_apical, centers, belt)
+
+    if 'num_apical_nodes' in G.graph.keys():
+        num_api_nodes=G.graph['num_apical_nodes']
+    else:
+        num_api_nodes=0
+    
+
+
     #@profile
-    def integrate(dt,t_final, t=0, save_pattern = const.save_pattern, player = True, ndim=ndim):
-        nonlocal G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback, force_dict
+    def integrate(dt, t_final, t=0, save_pattern = save_pattern, player = player, ndim=ndim):
+        nonlocal G, G_apical, centers,  pre_callback, force_dict
 
         if ndim == 3:
             compute_forces=compute_tissue_forces_3D
@@ -73,7 +97,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
         # contract = [True for counter in range(0,num_inter)]
 
         print(t) 
-        pre_callback(t)
+        pre_callback(t, force_dict)
 
         file_name = save_pattern.replace('*',str(t))
         with open(file_name, 'wb') as file:
@@ -92,7 +116,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
             # increment t by dt
             t = round(t+dt,1)
             t1=time.time()
-            # print(dt, t,f'{t1-t0} seconds elapsed') 
+            print(dt, t,f'{t1-t0} seconds elapsed') 
             t0=t1
 
             force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
@@ -222,7 +246,7 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                         force_dict[node] += frce
 
     def check_for_intercalations(t):
-        nonlocal circum_sorted, triangles, K, blacklist
+        nonlocal circum_sorted, triangles, G_apical, blacklist
 
         pos = nx.get_node_attributes(G,'pos')
         node=0
@@ -313,8 +337,8 @@ def vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangl
                                 
                                 blacklist.append([min(node, neighbor), max(node, neighbor)])
                                 
-                                circum_sorted, triangles, K = new_topology(K,[node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
-                                G.graph['circum_sorted']=circum_sorted
+                                circum_sorted, triangles, G_apical = new_topology(G_apical, [node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
+                                G.graph['circum_sorted'] = circum_sorted
                                 node-=1
                                 break
                     j += 1

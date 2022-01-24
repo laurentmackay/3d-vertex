@@ -1,5 +1,5 @@
 from vertex_3d import vertex_integrator
-from Tissue import tissue_3d
+from Tissue import tissue_3d, get_outer_belt
 import SG
 from PyQtViz import edge_viewer
 
@@ -7,7 +7,8 @@ from PyQtViz import edge_viewer
 if __name__ == '__main__':
 
     # initialize the tissue
-    G, K, centers, num_api_nodes, circum_sorted, belt, triangles = tissue_3d()
+    G, G_apical = tissue_3d()
+    belt = get_outer_belt(G_apical)
 
     #initialize some things for the callback
     invagination = SG.arcs_with_intercalation(G, belt)
@@ -18,6 +19,6 @@ if __name__ == '__main__':
 
 
     #create integrator
-    integrate = vertex_integrator(G, K, centers, num_api_nodes, circum_sorted, belt, triangles, pre_callback=invagination)
+    integrate = vertex_integrator(G, G_apical, pre_callback=invagination)
     #integrate
     integrate(0.5,2000, save_pattern='data/testing/elastic_*.pickle')
