@@ -79,7 +79,7 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
 
 
     #@profile
-    def integrate(dt, t_final, t=0, save_pattern = save_pattern, player = player, ndim=ndim, save_rate=save_rate):
+    def integrate(dt, t_final, t=0, save_pattern = save_pattern, player = player, ndim=ndim, save_rate=save_rate, maxwell=maxwell):
         nonlocal G, G_apical, centers,  pre_callback, force_dict
 
         if ndim == 3:
@@ -124,7 +124,16 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
 
 
             if maxwell:
-                pass
+                for e in G.edges():
+                    a, b = e[0], e[1]
+                    pos_a = pos[a]
+                    pos_b = pos[b]
+                    
+                    tau = G[a][b]['tau']
+                    r= dt/tau
+                    if r:
+                        dist = euclidean_distance(pos_a,pos_b)
+                        G[a][b]['l_rest'] += dt*(dist - G[a][b]['l_rest'])/tau
 
             check_for_intercalations(t)
 

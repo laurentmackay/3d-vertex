@@ -293,7 +293,7 @@ def tissue_3d(hex=7, spoke_attr = const.default_edge, cell_edge_attr = const.def
         AS_boundary, spokes, i = add_nodes(nodes,i)
         add_spokes_edges(spokes, AS_boundary)
 
-    for index in range(1,const.hex):  
+    for index in range(1,hex):  
         if (num_cells - index) % 2 == 0:
             for j in range(1,(num_cells-index),2):
                 origin = [(3/2.)*r*index,(np.sqrt(3)/2.)*r*j,z]

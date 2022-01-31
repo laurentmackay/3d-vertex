@@ -7,7 +7,7 @@ from PyQtViz import edge_viewer
 if __name__ == '__main__':
 
     # initialize the tissue
-    G, G_apical = tissue_3d(jitter=10**(-9))
+    G, G_apical = tissue_3d()
     belt = get_outer_belt(G_apical)
 
     #initialize some things for the callback
