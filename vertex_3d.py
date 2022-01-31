@@ -122,11 +122,6 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
             for node in force_dict:
                 G.node[node]['pos'][:ndim] += (dt/const.eta)*force_dict[node]  #forward euler step for nodes
 
-            lr = (1 -.5*(np.exp(-t/100)-1) )*l_apical
-            for e in G.edges():
-                if np.abs(e[0]-e[1])<basal_offset:
-                    G[e[0]][e[1]]['l_rest'] = lr
-
             check_for_intercalations(t)
 
             # increment t by dt
