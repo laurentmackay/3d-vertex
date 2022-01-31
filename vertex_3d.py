@@ -48,9 +48,9 @@ area_side(np.tile(z3,reps=(3,1)))
 # calculate volume
 vol = convex_hull_volume_bis(np.random.random((6,3)))  
 
-def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save_pattern = const.save_pattern):
+def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save_pattern = const.save_pattern, save_rate=1.0):
     if pre_callback is None or not callable(pre_callback):
-        pre_callback = lambda t : None
+        pre_callback = lambda t,f : None
 
     force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
     blacklist = [] 
@@ -79,7 +79,7 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
 
 
     #@profile
-    def integrate(dt, t_final, t=0, save_pattern = save_pattern, player = player, ndim=ndim):
+    def integrate(dt, t_final, t=0, save_pattern = save_pattern, player = player, ndim=ndim, save_rate=save_rate):
         nonlocal G, G_apical, centers,  pre_callback, force_dict
 
         if ndim == 3:
@@ -94,15 +94,15 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
                 os.makedirs(save_path)
         else:
             save_path='.'
-        # contract = [True for counter in range(0,num_inter)]
+   
 
         print(t) 
         pre_callback(t, force_dict)
-
+        t_last_save = t
         file_name = save_pattern.replace('*',str(t))
         with open(file_name, 'wb') as file:
             pickle.dump(G, file)
-        # np.save(file_name, circum_sorted) 
+
         if player:
 
             from Player import pickle_player
@@ -113,11 +113,7 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
         while t <= t_final:
 
             
-            # increment t by dt
-            t = round(t+dt,1)
-            t1=time.time()
-            print(dt, t,f'{t1-t0} seconds elapsed') 
-            t0=t1
+
 
             force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
             pre_callback(t, force_dict)
@@ -126,13 +122,24 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
             for node in force_dict:
                 G.node[node]['pos'][:ndim] += (dt/const.eta)*force_dict[node]  #forward euler step for nodes
 
+            lr = (1 -.5*(np.exp(-t/100)-1) )*l_apical
+            for e in G.edges():
+                if np.abs(e[0]-e[1])<basal_offset:
+                    G[e[0]][e[1]]['l_rest'] = lr
+
             check_for_intercalations(t)
+
+            # increment t by dt
+            t = t + dt
+            t1=time.time()
+            print(dt, t,f'{t1-t0} seconds elapsed') 
+            t0 = t1
             
-            if t % 1 == 0: 
+            if abs((t - t_last_save) - save_rate)  <= dt/2 : 
+                t_last_save = t
                 file_name = save_pattern.replace('*',str(t))
                 with open(file_name, 'wb') as file:
                     pickle.dump(G, file)
-                # np.save(file_name,circum_sorted)
     
     def compute_elastic_forces():
         nonlocal force_dict, pos

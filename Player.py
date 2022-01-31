@@ -16,8 +16,8 @@ import networkx as nx
 import numpy as np
 
 import pyqtgraph as pg
-from pyqtgraph.Qt.QtGui import *
-from pyqtgraph.Qt.QtCore import *
+from pyqtgraph.Qt.QtGui import QLabel, QSlider, QStyleOptionSlider, QPushButton, QApplication,  QStyle, QLabel, QDockWidget, QWidget, QHBoxLayout, QVBoxLayout
+from pyqtgraph.Qt.QtCore import Qt
 
 
 
@@ -90,6 +90,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
 
     slider_ticks = 10**4
     positionSlider = None
+    positionLabel = None
     playButton = None
     window = None
 
@@ -127,7 +128,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
 
 
     def setup_player(win):
-        nonlocal positionSlider, playButton, window
+        nonlocal positionSlider, positionLabel, playButton, window
 
         window = win
         positionSlider = ClickSlider(Qt.Horizontal)
@@ -151,9 +152,11 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         positionSlider.sliderPressed.connect(freeze)
         positionSlider.sliderReleased.connect(unfreeze)
 
+        positionLabel = QLabel("/")
 
         playbackLayout.addWidget(playButton)
         playbackLayout.addWidget(positionSlider)
+        playbackLayout.addWidget(positionLabel)
 
 
 
@@ -167,12 +170,13 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
 
 
     def syncSlider():
-        nonlocal curr_time, time_bounds
+        nonlocal curr_time, time_bounds, positionLabel
         
         timespan = time_bounds[1] - time_bounds[0]
         if timespan:
             idx = int(slider_ticks*(curr_time-time_bounds[0])/(timespan))
             positionSlider.setSliderPosition(idx)
+            positionLabel.setText(f"{curr_time:4.2f}/{time_bounds[1]:4.2f}")
 
     def check_for_newfiles():
         nonlocal time_bounds
@@ -182,7 +186,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         time_bounds[1]=file_list[-1][1]
 
         while True:     
-            sleep(0.1)
+            sleep(0.05)
             
 
             get_filenames(path=path, pattern=pattern, min_timestamp=latest_timestamp, extend=file_list)
@@ -256,7 +260,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
 
             if (not playing or dt>=t_G-prev_disp_time) and new:
 
-                view(G, title=f't={t_G}')
+                view(G, title=f't={t_G:.2f}')
                 #update times
                 prev_counter =  perf_counter()
                 if playing:
@@ -333,7 +337,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
 if __name__ == '__main__':
 
 
-    pickle_player(attr='myosin', cell_edges_only=True, apical_only=True)
+    pickle_player(path='./data/testing/', pattern='elastic_*.pickle',attr='myosin', cell_edges_only=True, apical_only=True)
     
     # while True:
     #     pass

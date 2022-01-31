@@ -10,11 +10,11 @@ def just_arcs(G, belt):
                 G[inner_arc[i-1]][inner_arc[i]]['myosin'] = belt_strength     
             print("Inner arc established")
 
-        # update myosin on outer arc 
-        if t == t_2:
-            for i in range(0,len(outer_arc)):
-                G[outer_arc[i-1]][outer_arc[i]]['myosin'] = belt_strength     
-            print("Outer arc established")
+        # # update myosin on outer arc 
+        # if t == t_2:
+        #     for i in range(0,len(outer_arc)):
+        #         G[outer_arc[i-1]][outer_arc[i]]['myosin'] = belt_strength     
+        #     print("Outer arc established")
 
         # update myosin on belt
         if t == t_belt:
@@ -25,14 +25,17 @@ def just_arcs(G, belt):
     return f
 
 def arcs_with_intercalation(G, belt):
+    inter=False
     def f(t, force_dict):
+        nonlocal inter
         # update myosin on inner arc 
         if t == t_1:
             for i in range(0,len(inner_arc)):
                 G[inner_arc[i-1]][inner_arc[i]]['myosin'] = belt_strength     
             print("Inner arc established")
 
-        if t == t_intercalate :
+        if t >= t_intercalate and not inter:
+            inter=True
             for e in inter_edges:
                 G[e[0]][e[1]]['myosin'] =  3*belt_strength
 

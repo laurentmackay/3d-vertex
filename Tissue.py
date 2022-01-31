@@ -48,7 +48,7 @@ def square_grid_2d(N,M, h=const.l_apical, l_rest=None, embed=3):
 
 
 
-def tissue_3d():
+def tissue_3d(hex=7, spoke_attr = {'l_rest' : const.l_apical, 'myosin':0}, cell_edge_attr = {'l_rest' : const.l_apical, 'myosin':0}):
 
     def gen_nodes(ori,z):
         nodes = [[ori[0] + r*np.cos(n*np.pi/3), ori[1] + r*np.sin(n*np.pi/3),z] for n in range(0,6)]
@@ -80,12 +80,12 @@ def tissue_3d():
 
     def add_spokes_edges(spokes, boundary):
         boundary.append(boundary[0])
-        G.add_edges_from(spokes, l_rest=const.l_apical, myosin=0)
-        attr = {'l_rest' : const.l_apical, 'myosin':0, 'color':'#808080'}
+        G.add_edges_from(spokes, **spoke_attr)
+
         if nx.__version__>"2.3":
-            nx.classes.function.add_path(G,boundary, **attr)
+            nx.classes.function.add_path(G,boundary, **cell_edge_attr)
         else:
-            G.add_path(boundary, **attr)
+            G.add_path(boundary, **cell_edge_attr)
 
         return
 
@@ -93,7 +93,7 @@ def tissue_3d():
 
 
     r = const.l_apical              # initial spoke length
-    num_cells = 2*const.hex-1          # number of cells in center row
+    num_cells = 2*hex-1          # number of cells in center row
 
     centers = []
     
@@ -417,7 +417,7 @@ def get_triangles(G, pos, centers, belt):
                 if node in centers:
                     out1, out2 = sort_corners(list(G.neighbors(node)),pos[node],pos)
                     neighbors = [out2[k][0] for k in range(0,len(out2))]
-                    alpha_beta = [[[node,neighbors[k-1],neighbors[k-2]],[node, neighbors[k],neighbors[k-1]]] for k in range(0,6)]
+                    alpha_beta = [[[node,neighbors[k-1],neighbors[k-2]],[node, neighbors[k],neighbors[k-1]]] for k in range(0,len(neighbors))]
 
                     for entry in alpha_beta:
                         triangles.append(entry)
@@ -495,7 +495,7 @@ def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_n
     # new network made. Now get circum_sorted
     # update pos list 
     circum_sorted = [] 
-    pos = nx.get_node_attributes(K,'pos')
+    pos = np.array([*nx.get_node_attributes(K,'pos').values()])
     xy = np.array([np.array(pos[n]) for n in range(0,num_api_nodes)])
     
     # be safe, just sort them all over again 

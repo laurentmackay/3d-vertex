@@ -7,19 +7,20 @@ from PyQtViz import edge_viewer
 if __name__ == '__main__':
 
     # initialize the tissue
-    N=2
-    M=3
-    G = square_grid_2d(2,3)
-
-    forced_points = [0, len(G)-1]
+    N=1
+    M=1
+    G = square_grid_2d( N, M)
+    l1 = list(range(M+1))
+    l2 = list(range(len(G)-M-1, len(G)))
+    forced_points = [ *l1 , *l2]
     pos_a = G.nodes[forced_points[0]]['pos']
-    pos_b = G.nodes[forced_points[-1]]['pos']
+    pos_b = G.nodes[forced_points[-(M+1)]]['pos']
 
-    force_vec = unit_vector_2D(pos_a, pos_b)
+    force_vec = 2.5*unit_vector_2D(pos_a, pos_b)
 
     # forced_points=[range(N+1)]
 
-    forces=[-force_vec, force_vec]
+    forces=[-force_vec,  -force_vec,   force_vec,  force_vec]
 
     def forcing(t,force_dict):
         for p,f in zip(forced_points, forces):
@@ -28,7 +29,7 @@ if __name__ == '__main__':
 
 
     #create integrator
-    integrate = vertex_integrator(G, G, pre_callback=forcing, ndim=2, player=True)
+    integrate = vertex_integrator(G, G, pre_callback=forcing, ndim=2, player=True, save_rate=1)
     #integrate
-    integrate(0.1, 20000, save_pattern='data/testing/elastic_*.pickle')
+    integrate(0.1, 2000, save_pattern='data/elastic/extension_large_*.pickle')
     print('Done')
