@@ -4,9 +4,8 @@ from funcs import *
 import globals as const
 import numpy as np
 
-def square_grid_2d(N,M, h=const.l_apical, l_rest=None, embed=3):
-    if l_rest is None:
-        l_rest=h
+def square_grid_2d(N,M, h=const.default_edge['l_rest'], embed=3):
+
 
     G = new_graph()
     nodes=[]
@@ -42,13 +41,13 @@ def square_grid_2d(N,M, h=const.l_apical, l_rest=None, embed=3):
     nodes=[(ind, {'pos':np.pad(pos,(0,embed-2))})for ind, pos in zip(inds, pos_xy)]
     G.add_nodes_from(nodes)
 
-    G.add_edges_from([tuple(e) for e in edges], l_rest=l_rest, myosin=0)
+    G.add_edges_from([tuple(e) for e in edges], **const.default_edge)
     return G
 
 
 
 
-def tissue_3d(hex=7, spoke_attr = {'l_rest' : const.l_apical, 'myosin':0}, cell_edge_attr = {'l_rest' : const.l_apical, 'myosin':0}):
+def tissue_3d(hex=7, spoke_attr = const.default_edge, cell_edge_attr = const.default_edge):
 
     def gen_nodes(ori,z):
         nodes = [[ori[0] + r*np.cos(n*np.pi/3), ori[1] + r*np.sin(n*np.pi/3),z] for n in range(0,6)]
@@ -128,7 +127,7 @@ def tissue_3d(hex=7, spoke_attr = {'l_rest' : const.l_apical, 'myosin':0}, cell_
         AS_boundary, spokes, i = add_nodes(nodes,i)
         add_spokes_edges(spokes, AS_boundary)
 
-    for index in range(1,const.hex):  
+    for index in range(1,hex):  
         if (num_cells - index) % 2 == 0:
             for j in range(1,(num_cells-index),2):
                 origin = [(3/2.)*r*index,(np.sqrt(3)/2.)*r*j,z]

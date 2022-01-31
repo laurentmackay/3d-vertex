@@ -48,7 +48,7 @@ area_side(np.tile(z3,reps=(3,1)))
 # calculate volume
 vol = convex_hull_volume_bis(np.random.random((6,3)))  
 
-def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save_pattern = const.save_pattern, save_rate=1.0):
+def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save_pattern = const.save_pattern, save_rate=1.0, maxwell=False):
     if pre_callback is None or not callable(pre_callback):
         pre_callback = lambda t,f : None
 
@@ -121,6 +121,10 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
             
             for node in force_dict:
                 G.node[node]['pos'][:ndim] += (dt/const.eta)*force_dict[node]  #forward euler step for nodes
+
+
+            if maxwell:
+                pass
 
             check_for_intercalations(t)
 

@@ -16,7 +16,7 @@ if __name__ == '__main__':
     pos_a = G.nodes[forced_points[0]]['pos']
     pos_b = G.nodes[forced_points[-(M+1)]]['pos']
 
-    force_vec = 2.5*unit_vector_2D(pos_a, pos_b)
+    force_vec = 1.0*unit_vector_2D(pos_a, pos_b)
 
     # forced_points=[range(N+1)]
 
@@ -31,5 +31,5 @@ if __name__ == '__main__':
     #create integrator
     integrate = vertex_integrator(G, G, pre_callback=forcing, ndim=2, player=True, save_rate=1)
     #integrate
-    integrate(0.1, 2000, save_pattern='data/elastic/extension_large_*.pickle')
+    integrate(0.1, 2000, save_pattern='data/viscoelastic/extension_*.pickle')
     print('Done')

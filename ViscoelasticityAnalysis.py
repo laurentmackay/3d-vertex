@@ -9,7 +9,7 @@ if __name__ == '__main__':
     def square_length(G,t):
         return euclidean_distance(G.nodes[0]['pos'], G.nodes[2]['pos'])
 
-    results = analyze_networks(path='./data/elastic/',
+    results = analyze_networks(path='./data/viscoelastic/',
                                patterns=('compression_*.pickle','compression_large_*.pickle', 'expansion_*.pickle','extension_large_*.pickle'),
                                func=square_length)
 
