@@ -10,7 +10,7 @@ def in_wsl() -> bool:
     return 'microsoft-standard' in uname().release
 
 
-install_requires=['networkx','numpy>1.10','scipy','numba>=0.54','pyqtgraph','pyopengl']
+install_requires=['networkx','numpy>1.10','scipy','numba>=0.54','pyqtgraph','pyopengl', 'matplotlib']
 dependency_links =[]
 
 
@@ -18,9 +18,12 @@ dependency_links =[]
 #       install_requires.append('mayavi')
 #       dependency_links.append('git+https://github.com/enthought/mayavi.git@master')
 
-if IS_WINDOWS:
-      install_requires.append('dill')
-      dependency_links.append('git+https://github.com/uqfoundation/dill.git@master')
+#if IS_WINDOWS:
+install_requires.append('dill')
+dependency_links.append('git+https://github.com/uqfoundation/dill.git@master')
+
+install_requires.append('pathos')
+dependency_links.append('git+https://github.com/uqfoundation/pathos.git@master')
 
 setup(name='3d-vertex',
       version='1.0',

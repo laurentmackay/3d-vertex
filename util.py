@@ -38,7 +38,7 @@ def mkprocess(target, args=tuple() ,daemon=True):
         proc = mp.Process(target=target, args=args, daemon=daemon)
     return proc
 
-def get_filenames(path='.', pattern=const.save_pattern, min_timestamp=0, extend=None):
+def get_filenames(path='.', pattern=const.save_pattern, min_timestamp=0, extend=None, include_path=False):
     out=[]
     pattern = fnmatch.translate(pattern)
     pattern = pattern.replace('.*','(.*)')
@@ -47,10 +47,16 @@ def get_filenames(path='.', pattern=const.save_pattern, min_timestamp=0, extend=
         for entry in it:
             name = entry.name
             match = regex.match(name)
+
             if  match and entry.stat().st_ctime > min_timestamp:
                 start, end = match.regs[1]
-                time = float(name[start:end])
-                out.append((name, time))
+                try:
+                    time = float(name[start:end])
+                    if include_path:
+                        name =os.path.join(path, name)
+                    out.append((name, time))
+                except:
+                    pass
                 # print(entry.name)
 
     out.sort(key=lambda x: x[1])
