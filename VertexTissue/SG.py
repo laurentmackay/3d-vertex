@@ -1,5 +1,5 @@
-from Tissue import get_outer_belt
-from globals import inner_arc, outer_arc, belt_strength, t_1, t_2, t_belt, t_intercalate, inter_edges
+from .Tissue import get_outer_belt
+from .globals import inner_arc, outer_arc, belt_strength, t_1, t_2, t_belt, t_intercalate, inter_edges
 
 
 def just_arcs(G, belt):

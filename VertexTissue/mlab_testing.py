@@ -1,5 +1,5 @@
 import os
-from mlab_viz import *
+from .mlab_viz import *
 from mayavi import mlab
 if __name__ == '__main__':
     G = nx.read_gpickle(os.path.join(os.getcwd(),f't0.pickle'))

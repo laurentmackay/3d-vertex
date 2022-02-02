@@ -4,10 +4,12 @@ import time
 
 import networkx as nx
 import numpy as np
-from Tissue import get_triangles, get_outer_belt, new_topology
 
-import globals as const
-from funcs import *
+
+from .Tissue import get_triangles, get_outer_belt, new_topology
+from . import globals as const
+from .funcs import *
+from .Player import pickle_player
 
 
 # dimensions of the cell 
@@ -105,7 +107,7 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
 
         if player:
 
-            from Player import pickle_player
+            
             pickle_player(path=save_path, pattern=pattern, start_time=t, attr='myosin', cell_edges_only=True, apical_only=True, parallel=True)
 
         t0 = time.time()

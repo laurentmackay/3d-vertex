@@ -25,7 +25,7 @@ dependency_links.append('git+https://github.com/uqfoundation/dill.git@master')
 install_requires.append('pathos')
 dependency_links.append('git+https://github.com/uqfoundation/pathos.git@master')
 
-setup(name='3d-vertex',
+setup(name='VertexTissue',
       version='1.0',
       packages=find_packages(),
       install_requires=install_requires,

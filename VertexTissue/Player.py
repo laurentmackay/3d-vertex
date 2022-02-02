@@ -21,10 +21,9 @@ from pyqtgraph.Qt.QtCore import Qt
 
 
 
-from PyQtViz import edge_viewer
-from util import mkprocess, get_creationtime, get_filenames
-from GLNetworkItem import GLNetworkItem
-from globals import basal_offset, save_pattern
+from .PyQtViz import edge_viewer
+from .util import mkprocess, get_creationtime, get_filenames
+from .globals import save_pattern
 
 # class ClickSlider(QSlider):
 #     """A slider with a signal that emits its position when it is pressed. Created to get around the slider only updating when the handle is dragged, but not when a new position is clicked"""

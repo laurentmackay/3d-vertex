@@ -12,9 +12,9 @@ import pyqtgraph as pg
 from pyqtgraph.opengl import GLViewWidget
 
 
-from util import mkprocess, get_creationtime, get_filenames
-from GLNetworkItem import GLNetworkItem
-from globals import basal_offset, save_pattern
+from .util import mkprocess
+from .GLNetworkItem import GLNetworkItem
+from .globals import basal_offset
 
 
 def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):

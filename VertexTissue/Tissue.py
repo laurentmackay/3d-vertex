@@ -1,8 +1,8 @@
-
-from util import new_graph
-from funcs import *
-import globals as const
 import numpy as np
+
+from .util import new_graph
+from .funcs import *
+from . import globals as const
 
 def square_grid_2d(N,M, h=const.default_edge['l_rest'], embed=3):
 

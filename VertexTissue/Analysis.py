@@ -3,8 +3,7 @@ from pathos.multiprocessing import ProcessingPool as Pool
 
 import numpy as np
 
-from funcs import euclidean_distance
-from util import get_creationtime, get_filenames
+from .util import get_creationtime, get_filenames
 
 
 def analyze_network_evolution(path='.', pattern=None, func=lambda G, t: None, processes=None):

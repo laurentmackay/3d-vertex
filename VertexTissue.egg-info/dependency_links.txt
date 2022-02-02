@@ -1,0 +1,2 @@
+git+https://github.com/uqfoundation/dill.git@master
+git+https://github.com/uqfoundation/pathos.git@master

@@ -3,11 +3,13 @@ IS_WINDOWS = sys.platform.startswith('win')
 
 import multiprocessing as mp
 import os
-import globals as const
+
 import fnmatch, re
 
 import networkx as nx
 import numpy as np
+
+from . import globals as const
 
 
 def new_graph(G=None):

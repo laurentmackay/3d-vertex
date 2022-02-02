@@ -17,7 +17,7 @@ from scipy.spatial import ConvexHull
 from scipy.spatial import Delaunay
 import numpy as np
 
-import globals as const
+from . import globals as const
 
 
 basal_offset = const.basal_offset
