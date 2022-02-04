@@ -1,4 +1,5 @@
 import numpy as np
+from numba.typed import List
 
 from .util import new_graph
 from .funcs import *
@@ -47,7 +48,7 @@ def square_grid_2d(N,M, h=const.default_edge['l_rest'], embed=3):
 
 
 
-def tissue_3d(hex=7, spoke_attr = const.default_edge, cell_edge_attr = const.default_edge):
+def tissue_3d(hex=7, spoke_attr = const.default_edge, cell_edge_attr = const.default_edge, linker_attr = const.default_ab_linker):
 
     def gen_nodes(ori,z):
         nodes = [[ori[0] + r*np.cos(n*np.pi/3), ori[1] + r*np.sin(n*np.pi/3),z] for n in range(0,6)]
@@ -370,7 +371,7 @@ def tissue_3d(hex=7, spoke_attr = const.default_edge, cell_edge_attr = const.def
     print("Basal Nodes Added")
     for n in range(0,num_apical_nodes):
         if n not in centers:
-            G.add_edge(n,n+basal_offset, l_rest = const.l_depth, myosin = 0, beta = 0)
+            G.add_edge(n, n+basal_offset, **linker_attr)
 
     print("Lateral Connections made")
 
@@ -442,11 +443,11 @@ def get_circum_sorted(G, pos, centers):
         a, b = sort_corners(list(G.neighbors(center)), xy[center],xy)
         circum_sorted.append(np.asarray([b[n][0] for n in range(len(b))]))
     
-    return np.array(circum_sorted)
+    return circum_sorted
 
 
 
-def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes):
+def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes, linker_attr=None, edge_attr=None):
     # obtain new network topology - i.e. triangles, and circum_sorted 
     # inputs:   K: networkx graph (apical nodes only)
     #           inter: a python list of the nodes that have been intercalated  

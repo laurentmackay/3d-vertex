@@ -142,7 +142,7 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
             # increment t by dt
             t = t + dt
             t1=time.time()
-            print(dt, t,f'{t1-t0} seconds elapsed') 
+            # print(dt, t,f'{t1-t0} seconds elapsed') 
             t0 = t1
             
             if abs((t - t_last_save) - save_rate)  <= dt/2 : 
@@ -320,37 +320,28 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
                                 temp2 = list(set(G.neighbors(neighbor)) & set(G.neighbors(cents[1])))
                                 temp2.remove(node)
 
-                                # sever connections
-                                # apical   
-                                G.remove_edge(node,cents[0])
-                                G.remove_edge(node,temp1[0])
-                                G.remove_edge(neighbor,cents[1])
-                                G.remove_edge(neighbor,temp2[0])
-                                # basal 
-                                G.remove_edge(node+basal_offset,cents[0]+basal_offset)
-                                G.remove_edge(node+basal_offset,temp1[0]+basal_offset)
-                                G.remove_edge(neighbor+basal_offset,cents[1]+basal_offset)
-                                G.remove_edge(neighbor+basal_offset,temp2[0]+basal_offset)
 
-                                # add new connections
-                                # apical 
-                                # new edges 
-                                G.add_edge(node,temp2[0],l_rest = const.l_apical, myosin=0,color='#808080')
-                                G.add_edge(neighbor,temp1[0],l_rest = const.l_apical, myosin=0,color='#808080')
-                                # new spokes 
-                                G.add_edge(neighbor,ii,l_rest = const.l_apical, myosin=0)
-                                G.add_edge(node,jj,l_rest = const.l_apical, myosin=0)
-                                # basal 
-                                # new edges 
-                                G.add_edge(node+basal_offset,temp2[0]+basal_offset,l_rest = const.l_apical, myosin=0,color='#808080')
-                                G.add_edge(neighbor+basal_offset,temp1[0]+basal_offset,l_rest = const.l_apical, myosin=0,color='#808080')
-                                # new spokes 
-                                G.add_edge(neighbor+basal_offset,ii+basal_offset,l_rest = const.l_apical, myosin=0)
-                                G.add_edge(node+basal_offset,jj+basal_offset,l_rest = const.l_apical, myosin=0)
-                                
-                                # reset myosin on contracted edge
-                                G[node][neighbor]['myosin'] = 0
-                                G[node+basal_offset][neighbor+basal_offset]['myosin'] = 0
+                                for offset in (0, basal_offset):
+
+                                    old_rods = np.array(((node, cents[0]), (node, temp1[0]),(neighbor, cents[1]),(neighbor, temp2[0])))+offset
+                                    new_rods = np.array(((node, temp2[0]), (node, jj),(neighbor, temp1[0]),(neighbor, ii)))+offset
+                                    
+                                    old_attrs = [ G[s[0]][s[1]] for  s in old_rods]
+                                                
+                                    # # sever connections
+                                    for spoke in old_rods:
+                                        G.remove_edge(*spoke)
+                                    
+                                    # # add new connections
+                                    # new edges 
+                                    G.add_edge(*new_rods[0],**old_attrs[3])
+                                    G.add_edge(*new_rods[2],**old_attrs[1])
+                                    # new spokes 
+                                    G.add_edge(*new_rods[3], **G[node+offset][ii+offset])
+                                    G.add_edge(*new_rods[1], **G[neighbor+offset][jj+offset])
+
+                                    # # reset myosin on contracted edge
+                                    G[node+offset][neighbor+offset]['myosin'] = 0
                                 
                                 blacklist.append([min(node, neighbor), max(node, neighbor)])
                                 

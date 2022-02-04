@@ -331,12 +331,3 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
     else:
         start()
 
-
-
-if __name__ == '__main__':
-
-
-    pickle_player(path='./data/viscoelastic/', pattern='extension_*.pickle',attr='myosin', cell_edges_only=True, apical_only=True)
-    
-    # while True:
-    #     pass
