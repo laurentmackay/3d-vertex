@@ -1,5 +1,6 @@
 *.npy
 /*.pickle
+/*/__pycache__/*
 /__pycache__/*
 *.lprof
 3d_vertex.egg-info/*
