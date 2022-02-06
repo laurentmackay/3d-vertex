@@ -68,7 +68,7 @@ tau = 60
 
 save_pattern="t_*.pickle"
 
-default_edge = {'l_rest': l_apical, 'myosin':0, 'tau': 60}
+default_edge = {'l_rest': l_apical, 'myosin':0, 'tau': np.inf}
 
 default_ab_linker = default_edge.copy()
 default_ab_linker['l_rest'] = l_depth

@@ -91,6 +91,8 @@ class GLNetworkItem(GLGraphicsItem):
 
     def initializeGL(self):
         glEnable(GL_DEPTH_TEST)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable( GL_BLEND );
 
 
     def paint(self):

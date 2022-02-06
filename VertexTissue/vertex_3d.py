@@ -10,6 +10,7 @@ from .Tissue import get_triangles, get_outer_belt, new_topology
 from . import globals as const
 from .funcs import *
 from .Player import pickle_player
+from . PyQtViz import edge_viewer
 
 
 # dimensions of the cell 
@@ -50,11 +51,13 @@ area_side(np.tile(z3,reps=(3,1)))
 # calculate volume
 vol = convex_hull_volume_bis(np.random.random((6,3)))  
 
-def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save_pattern = const.save_pattern, save_rate=1.0, maxwell=False):
+def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, maxwell=False, adaptive=False, length_prec=0.05):
     if pre_callback is None or not callable(pre_callback):
         pre_callback = lambda t,f : None
 
     force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
+    dists = {node: 0 for node in G.edges()} 
+    drx ={node: np.zeros(ndim ,dtype=float) for node in G.edges()} 
     blacklist = [] 
 
     pos = nx.get_node_attributes(G,'pos')
@@ -78,19 +81,32 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
     else:
         num_api_nodes=0
     
+    # @jit(nopython=True, cache=True)
+
 
 
     #@profile
-    def integrate(dt, t_final, t=0, save_pattern = save_pattern, player = player, ndim=ndim, save_rate=save_rate, maxwell=maxwell):
-        nonlocal G, G_apical, centers,  pre_callback, force_dict
+    def integrate(dt, t_final, dt_init=None, dt_min = None,t=0, save_pattern = save_pattern, player = player, ndim=ndim, save_rate=save_rate, maxwell=maxwell, strain_thresh=0.01, length_prec=length_prec, adaptive=adaptive, adaptation_rate=0.1):
+        nonlocal G, G_apical, centers,  pre_callback, force_dict, drx, dists
+        if dt_init is None:
+            h=dt
+        else:
+            h=dt_init
+
+        if adaptive and dt_min is None:
+            dt_min = 0
+        
+        def timestep_bound():
+            dot = np.array([dists[e]/np.sum((force_dict[e[0]]-force_dict[e[1]])*drx[e]) for e in G.edges()])
+            return np.maximum(np.minimum(length_prec*np.nanmin(np.abs(dot))*const.eta, dt), dt_min)
 
         if ndim == 3:
             compute_forces=compute_tissue_forces_3D
         elif ndim == 2:
-            compute_forces=compute_elastic_forces
+            compute_forces=compute_rod_forces
         
         # num_inter = 0 
-        if (player or save_pattern) and len(os.path.split(save_pattern)[0])>1:
+        if (player or save_pattern is not None) and len(os.path.split(save_pattern)[0])>1:
             save_path, pattern = os.path.split(save_pattern)
             if len(save_path)>1 and not os.path.exists(save_path):
                 os.makedirs(save_path)
@@ -100,30 +116,45 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
 
         print(t) 
         pre_callback(t, force_dict)
-        t_last_save = t
-        file_name = save_pattern.replace('*',str(t))
-        with open(file_name, 'wb') as file:
-            pickle.dump(G, file)
+        if save_pattern:
+            t_last_save = t
+            file_name = save_pattern.replace('*',str(t))
+            with open(file_name, 'wb') as file:
+                pickle.dump(G, file)
 
         if player:
-
-            
             pickle_player(path=save_path, pattern=pattern, start_time=t, attr='myosin', cell_edges_only=True, apical_only=True, parallel=True)
 
+        if viewer:
+            view = edge_viewer(G,attr='myosin', cell_edges_only=True, apical_only=True)
+
         t0 = time.time()
+
+        force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
+
+        dists = {node: 0 for node in G.edges()} 
+        drx ={node: np.zeros(ndim ,dtype=float) for node in G.edges()} 
+
+        pre_callback(t, force_dict)
+        compute_distances_and_directions()
+        compute_forces()
         
         while t <= t_final:
 
             
 
 
-            force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
-            pre_callback(t, force_dict)
-            compute_forces()
-            
-            for node in force_dict:
-                G.node[node]['pos'][:ndim] += (dt/const.eta)*force_dict[node]  #forward euler step for nodes
 
+
+
+
+            for node in force_dict:
+                G.node[node]['pos'][:ndim] += (h/const.eta)*force_dict[node]  #forward euler step for nodes
+
+            old_dists=dists
+            dists = {node: 0 for node in G.edges()} 
+            drx ={node: np.zeros(ndim ,dtype=float) for node in G.edges()} 
+            compute_distances_and_directions()
 
             if maxwell:
                 for e in G.edges():
@@ -132,55 +163,77 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
                     pos_b = pos[b]
                     
                     tau = G[a][b]['tau']
-                    r= dt/tau
+                    r = h/(tau*2)
                     if r:
-                        dist = euclidean_distance(pos_a,pos_b)
-                        G[a][b]['l_rest'] += dt*(dist - G[a][b]['l_rest'])/tau
+                        dist = dists[e]
+                        l_rest = G[a][b]['l_rest']
+                        eps = (dist - l_rest)
+                        if abs(eps)/l_rest>strain_thresh:
+                            G[a][b]['l_rest'] = (l_rest*(1-r)+r*(dist+old_dists[e]))/(1+r) #Crank-Nicholson
 
             check_for_intercalations(t)
 
             # increment t by dt
-            t = t + dt
+            t = t + h
             t1=time.time()
-            # print(dt, t,f'{t1-t0} seconds elapsed') 
+            # print(h, t,f'{t1-t0} seconds elapsed') 
             t0 = t1
+
+            force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
+            pre_callback(t, force_dict)
             
-            if abs((t - t_last_save) - save_rate)  <= dt/2 : 
+            compute_forces()
+
+            if adaptive:
+                hnew=timestep_bound()
+                if hnew>h:
+                    h=(1-adaptation_rate)*h+adaptation_rate*hnew
+                else:
+                    h=hnew
+            else:
+                h=dt
+
+            # print(h, t)
+            if save_pattern and abs((t - t_last_save) - save_rate)  <= h/2 : 
                 t_last_save = t
                 file_name = save_pattern.replace('*',str(t))
                 with open(file_name, 'wb') as file:
                     pickle.dump(G, file)
-    
-    def compute_elastic_forces():
-        nonlocal force_dict, pos
 
+            if viewer:
+                view(G, title = f't={t}')
+
+    def compute_distances_and_directions():
+        nonlocal pos, dists, drx
         pos = nx.get_node_attributes(G,'pos')
+        
+        
+        for e in G.edges():
+            
+            direction, dist = unit_vector_and_dist(pos[e[0]],pos[e[1]])
+            dists[e] = dist
+            drx[e] = direction
+    
+    def compute_rod_forces():
+        nonlocal force_dict, pos, dists, drx
         
 
         l_rest = nx.get_edge_attributes(G,'l_rest')
         myosin = nx.get_edge_attributes(G,'myosin')
         
-        for i, e in enumerate(G.edges()):
-            
-            a, b = e[0], e[1]
-            pos_a = pos[a]
-            pos_b = pos[b]
-            direction, dist = unit_vector_and_dist(pos_a,pos_b)
+        for  e in G.edges():
 
-            
-            # dists[i] = dist
-            # drx[i] = direction
-            magnitude = mu_apical*(dist - l_rest[e])
+            magnitude = mu_apical*(dists[e] - l_rest[e])
             magnitude2 = myo_beta*myosin[e]
-            force = (magnitude + magnitude2)*direction[:ndim]
+            force = (magnitude + magnitude2)*drx[e][:ndim]
 
-            force_dict[a] += force
-            force_dict[b] -= force
+            force_dict[e[0]] += force
+            force_dict[e[1]] -= force
 
     def compute_tissue_forces_3D():
         nonlocal force_dict, circum_sorted, triangles, pos
 
-        compute_elastic_forces()
+        compute_rod_forces()
         
         # pre-calculate magnitude of pressure
         # index of list corresponds to index of centers list
@@ -348,6 +401,7 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, save
                                 circum_sorted, triangles, G_apical = new_topology(G_apical, [node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
                                 G.graph['circum_sorted'] = circum_sorted
                                 node-=1
+                                compute_distances_and_directions()
                                 break
                     j += 1
 
