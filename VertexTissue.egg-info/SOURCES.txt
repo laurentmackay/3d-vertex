@@ -1,6 +1,7 @@
 README.md
 setup.py
 VertexTissue/Analysis.py
+VertexTissue/EventExecutor.py
 VertexTissue/GLNetworkItem.py
 VertexTissue/Player.py
 VertexTissue/PyQtViz.py
@@ -17,11 +18,9 @@ VertexTissue/pyqt_viz.py
 VertexTissue/util.py
 VertexTissue/validate.py
 VertexTissue/vertex_3d.py
+VertexTissue/visualization.py
 VertexTissue.egg-info/PKG-INFO
 VertexTissue.egg-info/SOURCES.txt
 VertexTissue.egg-info/dependency_links.txt
 VertexTissue.egg-info/requires.txt
 VertexTissue.egg-info/top_level.txt
-VertexTissue/Validation/ViscoelasticityAnalysis.py
-VertexTissue/Validation/ViscoelasticityConvergenceAnalysis.py
-VertexTissue/Validation/__init__.py
