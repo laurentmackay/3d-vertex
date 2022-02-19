@@ -257,6 +257,9 @@ def be_area_2( pos_alpha, pos_beta):
     return np.linalg.norm(A_alpha), A_alpha, np.linalg.norm(A_beta), A_beta
 
 
+def get_pos(G):
+    return nx.get_node_attributes(G,'pos')
+
 # principal unit vectors e_x, e_y, e_z
 e = np.array([[1,0,0], [0,1,0], [0,0,1]])
 

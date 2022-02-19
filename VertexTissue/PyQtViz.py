@@ -17,7 +17,7 @@ from .GLNetworkItem import GLNetworkItem
 from .globals import basal_offset
 
 
-def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
+def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, **kw):
 
     def outer(*a,**kw):
         init_callback = kw['window_callback'] if 'window_callback' in kw.keys() and callable(kw['window_callback']) else lambda win: None
@@ -130,6 +130,7 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
                     while b.poll(): #empty the pipe if there has been some accumulatio
                         (G,kw2)=b.recv()
                         received = True
+                        
                     draw(G,**kw2)
                     b.send([])
 
@@ -154,12 +155,12 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
         proc = mkprocess(outer(*args,**kw), args=(b,))
         proc.start()
 
-        
+        timeout =  0.0 if drop_frames else 0.5/refresh_rate 
         def pipe_plot(G, **kw):
             nonlocal plot
             if plot:
                 try:
-                    if a.poll(0.5/refresh_rate): #wait up to half a framecycle to see if the plotter thread is ready to receive
+                    if a.poll(timeout): #wait up to half a framecycle to see if the plotter thread is ready to receive
                         _ = a.recv() 
                         a.send((G,kw))
                 except:
@@ -174,7 +175,7 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, **kw):
 
     
 
-def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=False, exec=False, attr=None, colormap='CET-D4', edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None):
+def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=False, exec=False, attr=None, label_nodes=True, colormap='CET-D4', edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None):
     
 
     pos = np.array([*nx.get_node_attributes(G,'pos').values()])
@@ -195,7 +196,7 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
         if callable(window_callback):
             window_callback(win)
 
-    ind_dict={n:i for i,n in enumerate(G._node)}
+    ind_dict_0={n:i for i,n in enumerate(G._node)}
 
     # if cell_edges_only:
     if 'circum_sorted' in G.graph.keys():
@@ -222,6 +223,17 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
         edges=G.edges()
 
     edges=np.vstack(edges)
+
+    visble_nodes = np.unique(edges.flatten())
+    ind_dict={n:i for i,n in enumerate(visble_nodes)}
+    visble_nodes = np.array([ind_dict_0[n] for n in visble_nodes])
+    visible_pos = pos[visble_nodes]
+
+    
+    if label_nodes:
+        lbls = [str(n) for n in visble_nodes]
+    else:
+        lbls = None
 
     cmap = pg.colormap.get(colormap)
     
@@ -254,7 +266,7 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
 
     edges=np.array([np.array([ ind_dict[e[0]], ind_dict[e[1]]]) for e in edges])
 
-    data =  {'edges':edges, 'edgeColor':edgeColor, 'nodePositions':pos, 'edgeWidth':edgeWidth, 'nodeSize':0.0}
+    data =  {'edges':edges, 'edgeColor':edgeColor, 'nodePositions':visible_pos, 'edgeWidth':edgeWidth, 'nodeSize':0.0, 'nodeLabels':lbls}
 
     if gi is None:
         gi = GLNetworkItem(parent=w, **data)

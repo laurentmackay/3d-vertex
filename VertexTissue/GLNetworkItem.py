@@ -1,4 +1,6 @@
 from OpenGL.GL import *
+from OpenGL.GLUT import glutBitmapCharacter, glutInit, glutSwapBuffers
+from OpenGL.GLUT.fonts import GLUT_BITMAP_9_BY_15
 from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
 from pyqtgraph.opengl.items.GLScatterPlotItem import GLScatterPlotItem
 from pyqtgraph.Qt import QtCore, QtGui
@@ -9,21 +11,37 @@ import numpy as np
 
 __all__ = ['GLNetworkItem']
 
+def glut_print( xyz,  font,  text, r,  g , b , a):
+
+    blending = False 
+    if glIsEnabled(GL_BLEND) :
+        blending = True
+
+    #glEnable(GL_BLEND)
+    glColor4f(r,g,b,a)
+    glRasterPos3d(*xyz)
+    for ch in text :
+        glutBitmapCharacter( font , ctypes.c_int( ord(ch) ) )
+
+
+    if not blending :
+        glDisable(GL_BLEND) 
+
 class GLNetworkItem(GLGraphicsItem):
     """A GLGraphItem displays graph information as
     a set of nodes connected by lines (as in 'graph theory', not 'graphics').
     Useful for drawing networks, trees, etc.
     """
 
-    def __init__(self, **kwds):
+    def __init__(self, draw_axes=True, **kwds):
         GLGraphicsItem.__init__(self)
 
         self.edges = None
         self.edgeColor = QtGui.QColor(QtCore.Qt.GlobalColor.white)
         self.edgeWidth = 1.0
 
-        # self.scatter = GLScatterPlotItem()
-        # self.scatter.setParentItem(self)
+        self.nodeLabels=None
+        self.draw_axes = draw_axes
         self.setData(**kwds)
 
     def setData(self, **kwds):
@@ -68,6 +86,7 @@ class GLNetworkItem(GLGraphicsItem):
             self.edges = kwds.pop('edges')
             if self.edges.dtype.kind not in 'iu':
                 raise TypeError("edges array must have int or unsigned dtype.")
+
         if 'edgeColor' in kwds:
             edgeColor = kwds.pop('edgeColor')
             if edgeColor is not None:
@@ -78,6 +97,7 @@ class GLNetworkItem(GLGraphicsItem):
 
             else:
                 self.edgeColor = None
+
         if 'edgeWidth' in kwds:
             self.edgeWidth = kwds.pop('edgeWidth')
         if 'nodePositions' in kwds:
@@ -86,6 +106,8 @@ class GLNetworkItem(GLGraphicsItem):
             kwds['color'] = kwds.pop('nodeColor')
         if 'nodeSize' in kwds:
             kwds['size'] = kwds.pop('nodeSize')
+        if 'nodeLabels' in kwds:
+            self.nodeLabels = kwds.pop('nodeLabels')
         self.pos=kwds['pos']
         self.update()
 
@@ -93,6 +115,7 @@ class GLNetworkItem(GLGraphicsItem):
         glEnable(GL_DEPTH_TEST)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glEnable( GL_BLEND );
+        glutInit()
 
 
     def paint(self):
@@ -102,13 +125,53 @@ class GLNetworkItem(GLGraphicsItem):
             return None
         verts = self.pos
         edges = self.edges
-        glEnableClientState(GL_VERTEX_ARRAY)
+        lbls = self.nodeLabels
+        
         try:
+            if self.draw_axes:
+                glColor4f(0.5,0.5,0.5,1.0)
+                glLineWidth(1.0)
+                
+
+                xhat=(1.0, 0.0, 0.0)
+                yhat=(0.0, 1.0, 0.0)
+                zhat=(0.0, 0.0, 1.0)
+                origin=(0.0, 0.0, 0.0)
+
+
+                glBegin(GL_LINES)
+
+                glVertex3f(*origin)
+                glVertex3f(*xhat)
+
+                glVertex3f(*origin)
+                glVertex3f(*yhat)
+
+
+
+                glVertex3f(*origin)
+                glVertex3f(*zhat)
+
+                glEnd()
+
+                glut_print( xhat, GLUT_BITMAP_9_BY_15 , 'x' , 0.5 , .5 , .5 , 1.0 )
+                glut_print( yhat, GLUT_BITMAP_9_BY_15 , 'y' , 0.5 , .5 , .5 , 1.0 )
+                glut_print( zhat, GLUT_BITMAP_9_BY_15 , 'z' , 0.5 , .5 , .5 , 1.0 )
+
+            glEnableClientState(GL_VERTEX_ARRAY)
+            if lbls is not None:
+                for pos, lbl  in zip(verts, lbls):
+                    glut_print( pos, GLUT_BITMAP_9_BY_15 , lbl , 0.5 , .5 , .5 , 1.0 )
+
+
             glVertexPointerf(verts)
 
             multicolor = not (len(self.edgeColor.shape)==1 or 1 in  self.edgeColor.shape)
             multiwidth = isinstance(self.edgeWidth, (list, tuple, np.ndarray))
             mode = GL_LINE_STRIP
+
+
+
             if not multiwidth:
                 glLineWidth(self.edgeWidth)
 
@@ -125,6 +188,7 @@ class GLNetworkItem(GLGraphicsItem):
                     glColor4f(*self.edgeColor[i])
                     glLineWidth(self.edgeWidth[i])
                     glDrawElements(mode, 2, GL_UNSIGNED_INT, e)
+            # glutSwapBuffers()
         finally:
             glDisableClientState(GL_VERTEX_ARRAY)
         return None

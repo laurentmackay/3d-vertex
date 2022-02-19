@@ -59,7 +59,7 @@ myo_beta = 10e-3            # force per myosin motor
 
 eta = 100.0                 # viscous coefficient 
 
-press_alpha = 0.046         # area/pressure coefficient
+press_alpha = 0.00735        # area/pressure coefficient
 c_ab  = 3.0                 # bending energy coefficient
 
 basal_offset=1000

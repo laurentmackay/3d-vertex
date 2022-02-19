@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from Validation.Viscoelastic.TimeseriesAnalysis import get_theo_length
+from Validation.Elastic.TimeseriesAnalysis import get_theo_length
 
 from VertexTissue import globals as const
 from VertexTissue.Analysis import *
@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
 
     patterns = [ f'extension_{fmag}_dt_{dt}_*.pickle' for dt in dts]
-    results = analyze_networks(path='./data/viscoelastic/',
+    results = analyze_networks(path='./data/elastic/',
                                patterns=patterns,
                                func=square_length)
 
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     f=fmag/2
     linewidth=3
     max_error=[]
-    fig, axs = plt.subplots(2,4)
+    fig, axs = plt.subplots(2,3)
     fig.set_size_inches(12, 8)
     axs = axs.flatten()
     for res, ax  in zip(results, axs):
@@ -36,10 +36,9 @@ if __name__ == '__main__':
             # tau = 0.5*const.eta/const.mu_apical
 
             sol = get_theo_length(t, fmag)
-            ax.plot(t, sol,linewidth=linewidth, label='numerical', linestyle='--')
+            ax.plot(t, sol,linewidth=linewidth, label='numerical')
 
             max_error.append(np.max(np.abs(sol-res[:,1])))
-            # max_error.append(np.max(np.abs(sol[-1]-res[-1,1])))
         else:
             max_error.append(np.nan)
 
@@ -48,7 +47,7 @@ if __name__ == '__main__':
     fig.set_size_inches(6, 4)
 
     x=np.logspace(-.8,-4.2)
-    plt.loglog(x,x *max_error[0]/dts[0], color='k', linewidth=1 )
+    plt.loglog(x,x *max_error[-1]/dts[-1], color='k', linewidth=1 )
 
     plt.loglog(dts, max_error, '--',linewidth=2, marker='o')
     
@@ -62,5 +61,5 @@ if __name__ == '__main__':
     
     
     plt.tight_layout()
-    plt.savefig('./Validation/Viscoelastic/viscoelastic_convergence.png', dpi=300)
+    plt.savefig('./Validation/Elastic/elastic_convergence.png', dpi=300)
     plt.show()

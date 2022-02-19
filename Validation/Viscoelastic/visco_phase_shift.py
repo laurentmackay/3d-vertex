@@ -11,16 +11,17 @@ import VertexTissue.SG as SG
 from VertexTissue.funcs import unit_vector_2D
 from VertexTissue.globals import default_ab_linker, default_edge
 
-dev_null = open('/dev/null', 'w')
-original_stdout = sys.stdout
-sys.stdout = dev_null
 
 N=1
 M=1
 
+omegas =( *np.logspace(-1, -2, num= 20),)
+omegas = ( *np.geomspace(0.5, 0.125, num= 8),) + omegas 
+f=1
+
 def main(omega):
 
-    f=1
+    
 
     G = square_grid_2d( N, M)
     l1 = list(range(M+1))
@@ -45,14 +46,18 @@ def main(omega):
 
 
     #create integrator
-    integrate = vertex_integrator(G, G, pre_callback=forcing, ndim=2, save_rate=1, maxwell=True)
+    integrate = vertex_integrator(G, G, pre_callback=forcing, ndim=2, save_rate=0.1, maxwell=True)
     #integrate
         
+    T=2*np.pi/omega
 
     #integrate
     try:
-        integrate(0.1, 800, save_pattern='data/viscoelastic/'+f'periodic_force_{f}_freq_{omega}_*.pickle')
+        print(f'Starting: omega={omega}', file=original_stdout)
+        integrate(0.01, 40*T, save_pattern=None)
+        integrate(0.01, 10*T, save_pattern='data/viscoelastic/'+f'periodic_force_{f}_freq_{omega}_*.pickle')
         print(f'Done: omega={omega}', file=original_stdout)
+
     except Exception as e:
 
         print(f'###############\n###############\n failed to integrate tau={omega} \n {e} \n###############\n###############', file=original_stdout)
@@ -63,9 +68,14 @@ def main(omega):
 
 if __name__ == '__main__':
 
-    pool = Pool(nodes=4)
+    dev_null = open('/dev/null', 'w')
+    original_stdout = sys.stdout
+    sys.stdout = dev_null
 
-    omegas =( *np.logspace(-1, -3), )
+
+    pool = Pool(nodes=6)
+
+    
 
     pool.map( main, omegas )
 

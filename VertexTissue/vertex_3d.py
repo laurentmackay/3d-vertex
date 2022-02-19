@@ -1,3 +1,4 @@
+from dis import dis
 import os
 import pickle
 import time
@@ -6,11 +7,12 @@ import networkx as nx
 import numpy as np
 
 
-from .Tissue import get_triangles, get_outer_belt, new_topology
+from .Tissue import Tissue_Forces, get_triangles, get_outer_belt, new_topology
 from . import globals as const
 from .funcs import *
 from .Player import pickle_player
 from . PyQtViz import edge_viewer
+from VertexTissue import Tissue
 
 
 # dimensions of the cell 
@@ -45,20 +47,21 @@ euclidean_distance(z3,z3)
 bending_energy_2(True, True,z3, 1.0 , z3, 1.0, z3, z3, z3, z3)
 be_area_2(np.tile(z3,reps=(3,1)),np.tile(z3,reps=(3,1)))
 area_side(np.tile(z3,reps=(3,1)))
-
-
-
-# calculate volume
 vol = convex_hull_volume_bis(np.random.random((6,3)))  
 
-def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, maxwell=False, adaptive=False, length_prec=0.05):
+def vertex_integrator(G, G_apical, pre_callback=None, post_callback=None, ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, maxwell=False, adaptive=False, length_prec=0.05, minimal=False):
     if pre_callback is None or not callable(pre_callback):
-        pre_callback = lambda t,f : None
+        pre_callback = lambda t, f : None
+
+    if post_callback is None or not callable(post_callback):
+        post_callback = lambda t, f : None
 
     force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
     dists = {node: 0 for node in G.edges()} 
     drx ={node: np.zeros(ndim ,dtype=float) for node in G.edges()} 
     blacklist = [] 
+
+    view = None
 
     pos = nx.get_node_attributes(G,'pos')
     pos_apical = nx.get_node_attributes(G_apical ,'pos')
@@ -84,10 +87,14 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, view
     # @jit(nopython=True, cache=True)
 
 
+    compute_forces = Tissue_Forces(G, ndim=ndim, minimal=minimal)
+
+    def init_force_dict():
+        return {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
 
     #@profile
-    def integrate(dt, t_final, dt_init=None, dt_min = None,t=0, save_pattern = save_pattern, player = player, ndim=ndim, save_rate=save_rate, maxwell=maxwell, strain_thresh=0.01, length_prec=length_prec, adaptive=adaptive, adaptation_rate=0.1):
-        nonlocal G, G_apical, centers,  pre_callback, force_dict, drx, dists
+    def integrate(dt, t_final, dt_init=None, dt_min = None, t=0, save_pattern = save_pattern, player = player, ndim=ndim, save_rate=save_rate, maxwell=maxwell, strain_thresh=0, length_prec=length_prec, adaptive=adaptive, adaptation_rate=0.1, **kw):
+        nonlocal G, G_apical, centers,  pre_callback, force_dict, drx, dists, view
         if dt_init is None:
             h=dt
         else:
@@ -97,13 +104,11 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, view
             dt_min = 0
         
         def timestep_bound():
+
             dot = np.array([dists[e]/np.sum((force_dict[e[0]]-force_dict[e[1]])*drx[e]) for e in G.edges()])
             return np.maximum(np.minimum(length_prec*np.nanmin(np.abs(dot))*const.eta, dt), dt_min)
 
-        if ndim == 3:
-            compute_forces=compute_tissue_forces_3D
-        elif ndim == 2:
-            compute_forces=compute_rod_forces
+
         
         # num_inter = 0 
         if (player or save_pattern is not None) and len(os.path.split(save_pattern)[0])>1:
@@ -130,31 +135,27 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, view
 
         t0 = time.time()
 
-        force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
+        force_dict = init_force_dict() 
 
-        dists = {node: 0 for node in G.edges()} 
-        drx ={node: np.zeros(ndim ,dtype=float) for node in G.edges()} 
+
 
         pre_callback(t, force_dict)
-        compute_distances_and_directions()
-        compute_forces()
-        
+
+        dists, drx  = compute_forces.compute_distances_and_directions()
+        compute_forces(force_dict=force_dict, compute_distances=False, **kw)
+
+        post_callback(t, force_dict)
+
         while t <= t_final:
 
             
-
-
-
-
-
-
             for node in force_dict:
                 G.node[node]['pos'][:ndim] += (h/const.eta)*force_dict[node]  #forward euler step for nodes
 
             old_dists=dists
-            dists = {node: 0 for node in G.edges()} 
-            drx ={node: np.zeros(ndim ,dtype=float) for node in G.edges()} 
-            compute_distances_and_directions()
+            # dists = {node: 0 for node in G.edges()} 
+            # drx ={node: np.zeros(ndim ,dtype=float) for node in G.edges()} 
+            dists, drx = compute_forces.compute_distances_and_directions()
 
             if maxwell:
                 for e in G.edges():
@@ -170,6 +171,7 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, view
                         eps = (dist - l_rest)
                         if abs(eps)/l_rest>strain_thresh:
                             G[a][b]['l_rest'] = (l_rest*(1-r)+r*(dist+old_dists[e]))/(1+r) #Crank-Nicholson
+                            # G[a][b]['l_rest'] += h*eps/tau #Forward-Euler
 
             check_for_intercalations(t)
 
@@ -179,10 +181,12 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, view
             # print(h, t,f'{t1-t0} seconds elapsed') 
             t0 = t1
 
-            force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
+            force_dict = init_force_dict()
             pre_callback(t, force_dict)
             
-            compute_forces()
+            compute_forces(force_dict=force_dict, compute_distances=False, **kw)
+            
+            post_callback(t, force_dict)
 
             if adaptive:
                 hnew=timestep_bound()
@@ -203,123 +207,12 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, view
             if viewer:
                 view(G, title = f't={t}')
 
-    def compute_distances_and_directions():
-        nonlocal pos, dists, drx
-        pos = nx.get_node_attributes(G,'pos')
-        
-        
-        for e in G.edges():
-            
-            direction, dist = unit_vector_and_dist(pos[e[0]],pos[e[1]])
-            dists[e] = dist
-            drx[e] = direction
-    
-    def compute_rod_forces():
-        nonlocal force_dict, pos, dists, drx
-        
-
-        l_rest = nx.get_edge_attributes(G,'l_rest')
-        myosin = nx.get_edge_attributes(G,'myosin')
-        
-        for  e in G.edges():
-
-            magnitude = mu_apical*(dists[e] - l_rest[e])
-            magnitude2 = myo_beta*myosin[e]
-            force = (magnitude + magnitude2)*drx[e][:ndim]
-
-            force_dict[e[0]] += force
-            force_dict[e[1]] -= force
-
-    def compute_tissue_forces_3D():
-        nonlocal force_dict, circum_sorted, triangles, pos
-
-        compute_rod_forces()
-        
-        # pre-calculate magnitude of pressure
-        # index of list corresponds to index of centers list
-        PI = np.zeros(len(centers),dtype=float) 
-        # eventually move to classes?
-        for n in range(len(centers)):
-            # get nodes for volume
-            pts = get_points(G,centers[n],pos) 
-            # calculate volume
-            vol = convex_hull_volume_bis(pts)  
-            # calculate pressure
-            PI[n] = -press_alpha*(vol-const.v_0) 
-
-
-        
-        for center, pts, pressure in zip(centers, circum_sorted, PI):  
-            for i in range(len(pts)):
-                for inds in ((center,pts[i],pts[i-1]),(center+basal_offset,pts[i-1]+basal_offset,pts[i]+basal_offset)):
-                    pos_face =np.array([pos[j] for j in inds])
-                    _, area_vec, _, _ = be_area_2(pos_face,pos_face)                       
-
-                    force = pressure*area_vec/3.0
-                    force_dict[inds[0]] += force
-                    force_dict[inds[1]] += force
-                    force_dict[inds[2]] += force
-    
-
-
-        # pressure for side panels
-        # loop through each cell
-        for cell_nodes, pressure in zip(circum_sorted, PI):
-            # loop through the faces
-            for i in range(len(cell_nodes)):
-                pts_id = (cell_nodes[i-1], cell_nodes[i], cell_nodes[i]+basal_offset, cell_nodes[i-1]+basal_offset)
-                pts_pos = np.array([pos[pts_id[ii]] for ii in range(4)])
-                # on each face, calculate the center
-                center = np.average(pts_pos,axis=0)
-                # loop through the 4 triangles that make the face
-                for ii in range(0,4):
-                    pos_side = np.array([center, pts_pos[ii-1], pts_pos[ii]])
-                    _, area_vec = area_side(pos_side) 
-                    
-                    force = pressure*area_vec/2.0
-                    force_dict[pts_id[ii-1]] += force
-                    force_dict[pts_id[ii]] += force
-        
-        # Implement bending energy
-        # Loop through all alpha, beta pairs of triangles
-        offset=0
-        for pair in triangles:
-            for offset in (0, basal_offset):
-                alpha = [i+offset for i in pair[0]]
-                beta = [i+offset for i in pair[1]]
-                
-                # Apical faces, calculate areas and cross-products z
-                pos_alpha = np.array([pos[i] for i in alpha])
-                pos_beta = np.array([pos[i] for i in beta])
-                A_alpha, A_alpha_vec, A_beta, A_beta_vec = be_area_2(pos_alpha, pos_beta)
-
-                for inda, node in enumerate(alpha):
-                    # inda = alpha.index(node) 
-                    nbhrs_alpha = (alpha[(inda+1)%3], alpha[(inda-1)%3]) 
-                    if node in beta:
-                        indb = beta.index(node)
-                        nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
-
-                        frce = const.c_ab * bending_energy_2(True, True,A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[-1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[-1]])
-                    else:
-                        frce = const.c_ab * bending_energy_2(True, False, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]], pos[nbhrs_alpha[0]], pos[nbhrs_alpha[1]])
-                    
-                    force_dict[node] += frce
-
-                for indb, node in enumerate(beta):
-                    # don't double count the shared nodes
-                    nbhrs_beta = (beta[(indb+1)%3], beta[(indb-1)%3]) 
-                    if node not in alpha:
-                        # frce = const.c_ab*bending_energy(False, nbhrs_beta, A_alpha, A_beta, pos)
-                        frce = const.c_ab*bending_energy_2(False, True, A_alpha_vec, A_alpha , A_beta_vec, A_beta, pos[nbhrs_beta[0]], pos[nbhrs_beta[1]], pos[nbhrs_beta[0]], pos[nbhrs_beta[1]])
-
-                        force_dict[node] += frce
-
     def check_for_intercalations(t):
-        nonlocal circum_sorted, triangles, G_apical, blacklist
+        nonlocal circum_sorted, triangles, G_apical, blacklist, view, dists, drx
 
         pos = nx.get_node_attributes(G,'pos')
         node=0
+        intercal = False
         while node<num_api_nodes:
         # for node in range(0,num_api_nodes):
             if node not in belt: 
@@ -338,7 +231,12 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, view
                         
                         if (dist < const.l_intercalation): 
                             if (np.random.rand(1)[0] < 1.):
+                                intercal=True
                                 print("Intercalation event between nodes", node, "and", neighbor, "at t = ", t) 
+
+
+                                if viewer:
+                                    view(G, title = f'about to intercalate; t={t}')
                                 # collapse nodes to same position 
                                 # apical  
                                 avg_loc = (np.array(a) + np.array(b)) / 2.0 
@@ -400,12 +298,16 @@ def vertex_integrator(G, G_apical, pre_callback=None, ndim=3, player=False, view
                                 
                                 circum_sorted, triangles, G_apical = new_topology(G_apical, [node, neighbor], cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes)
                                 G.graph['circum_sorted'] = circum_sorted
+                                G.graph['triangles'] = triangles
                                 node-=1
-                                compute_distances_and_directions()
+                                dists, drx = compute_forces.compute_distances_and_directions()
+                                if viewer:
+                                    view(G, title = f'freshly resolved intercalation t={t}')
+                                    print('resolved')
                                 break
                     j += 1
 
             node +=1
-        return
+        return intercal
     return integrate
 

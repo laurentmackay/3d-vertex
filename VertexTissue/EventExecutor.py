@@ -1,4 +1,4 @@
-def EventExecutor(events, fired = None):
+def EventExecutor(events, fired=None):
     if not fired:
         fired = [False for e in events]
 

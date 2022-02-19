@@ -33,6 +33,13 @@ def just_arcs(G, belt):
 
     return EventExecutor(events)
 
+def just_belt(G, belt):
+    events = [
+            (t_belt, arc_activator(G, belt),"Belt established")
+            ]
+
+    return EventExecutor(events)
+
 def arcs_with_intercalation(G, belt):
     inter=False
     def f(t, force_dict):

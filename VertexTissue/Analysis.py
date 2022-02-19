@@ -6,7 +6,7 @@ import numpy as np
 from .util import get_creationtime, get_filenames
 
 
-def analyze_network_evolution(path='.', pattern=None, func=lambda G, t: None, processes=None):
+def analyze_network_evolution(path='.', start_time=0, pattern=None, func=lambda G, t: None, processes=None):
     try:
         def load_and_run(a):
             with open(a[0],'rb') as file:

@@ -21,11 +21,11 @@ def main(dt):
         #setup the desired rod attributes
         # spoke_attr['tau'] = tau
         # linker_attr['tau'] = tau
-        edge_attr['tau'] = 60
+        # edge_attr['tau'] = 60
         
         # initialize the tissue
-        # G, G_apical = tissue_3d( gen_centers=T1_minimal,  basal=True, cell_edge_attr=edge_attr, linker_attr=linker_attr, spoke_attr=spoke_attr)
-        G, G_apical = tissue_3d(  basal=True, cell_edge_attr=edge_attr, linker_attr=linker_attr, spoke_attr=spoke_attr)
+        G, G_apical = tissue_3d( gen_centers=T1_minimal,  basal=True, cell_edge_attr=edge_attr, linker_attr=linker_attr, spoke_attr=spoke_attr)
+        # G, G_apical = tissue_3d(  basal=True, cell_edge_attr=edge_attr, linker_attr=linker_attr, spoke_attr=spoke_attr)
 
         belt = get_outer_belt(G_apical)
 
@@ -34,21 +34,21 @@ def main(dt):
 
         #initialize some things for the callback
         intercalation = T1.simple_T1(G)
-        invagination = SG.arcs_and_pit(G,belt)
+        # invagination = SG.arcs_and_pit(G,belt)
         
 
 
         #create integrator
-        integrate = vertex_integrator(G, G_apical, pre_callback=invagination, player=False, viewer=True, maxwell=True, minimal=False)
+        integrate = vertex_integrator(G, G_apical, pre_callback=intercalation, player=False, viewer=True, maxwell=False, minimal=False)
         #integrates
         # try:
-        integrate(dt, 500, 
+        integrate(dt, 5000, 
                 dt_init = 1e-3,
-                adaptive=True,
-                dt_min=1e-2,
+                adaptive=False,
+                dt_min=0,
                 save_rate=dt,
                 length_prec=0.01,
-                save_pattern=None)
+                save_pattern='./data/T1/adaptive_*.pickle')
         # except:
         #     print(f'failed to integrate tau={tau}')
         #     pass
