@@ -12,16 +12,19 @@ from VertexTissue.funcs import unit_vector_2D
 from VertexTissue.globals import default_ab_linker, default_edge
 from VertexTissue.PyQtViz import edge_view
 
+from shear_2 import dts
+
 
 N=2
 M=2
-taus = np.logspace(6,1,5)
+
+tau=60
 
 fmag=1
 
 dt=0.1
 
-def run(tau):
+def run(dt):
 
     G = square_grid_2d( N, M)
     # edge_view(G, exec=True)
@@ -44,12 +47,13 @@ def run(tau):
     def forcing(t,force_dict):
         for p,f in zip(forced_points, forces):
             force_dict[p] += f
+            # force_dict[p][0] = 0
 
 
 
     #create integrator
-    integrate = vertex_integrator(G, G, pre_callback=forcing, ndim=2, viewer=False, save_rate=1, maxwell=True)
-    t_final=1000
+    integrate = vertex_integrator(G, G, post_callback=forcing, ndim=2, viewer=True, save_rate=1, maxwell=True)
+    t_final=8000
     integrate(dt, t_final, save_pattern=f'data/viscoelastic/shear_1_{tau}_dt_{dt}_*.pickle')
     #integrate
     # if fmag>=0:
@@ -61,6 +65,6 @@ def run(tau):
 
 if __name__ == '__main__':
 
-
-    Pool(nodes=6).map( run, taus)
+    run(0.1)
+    # Pool(nodes=6).map( run, dts)
     

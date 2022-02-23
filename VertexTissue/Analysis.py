@@ -1,4 +1,4 @@
-import pickle, os
+import pickle, os, collections
 from pathos.multiprocessing import ProcessingPool as Pool
 
 import numpy as np
@@ -22,7 +22,16 @@ def analyze_network_evolution(path='.', start_time=0, pattern=None, func=lambda 
         get_filenames(path=path, pattern=pattern, min_timestamp=start_timestamp, extend=file_list, include_path=True)
 
         pool = Pool(processes)
-        return pool.map(load_and_run, file_list)
+        results = pool.map(load_and_run, file_list)
+
+        lens = np.array([ len(r[1]) if isinstance(r[1], collections.Iterable) else 1.0 for r in results ])
+
+        if lens.min() == lens.max():
+            t = np.array([r[0] for r in results]).reshape(-1,1)
+            data = np.array([np.array(r[1]) for r in results]).reshape(len(t),-1)
+            results = np.hstack((t,  data))
+
+        return results
     except:
         return None
 

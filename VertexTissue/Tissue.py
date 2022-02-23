@@ -22,6 +22,40 @@ l_mvmt = const.l_mvmt
 basal_offset=const.basal_offset
 
 
+
+def linear_grid(N, h=const.default_edge['l_rest'], embed=3):
+
+
+    G = new_graph()
+    nodes=[]
+    edges=[]
+    i=np.arange(N)
+    i=i.ravel()
+    # j=j.ravel()
+    p0=i
+    p1=i+1
+
+    
+    neighbours = np.vstack((p0,p1))
+
+
+    shape = (N+1,)
+
+    edges= np.vstack((*neighbours,)).T.ravel().reshape(-1,2)
+    edges = np.unique(edges, axis=0)
+
+    ptot=np.unique(np.hstack((p0,p1)),axis=-1)
+
+    pos_x = ptot.T*h
+    pos_x -= np.mean(pos_x,axis=0)
+
+    inds = ptot
+    nodes=[(ind, {'pos':np.pad((pos, ),(0,embed-1))})for ind, pos in zip(inds, pos_x)]
+    G.add_nodes_from(nodes)
+
+    G.add_edges_from([tuple(e) for e in edges], **const.default_edge)
+    return G
+
 def square_grid_2d(N,M, h=const.default_edge['l_rest'], embed=3):
 
 

@@ -240,9 +240,18 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
     edgeColor=pg.glColor(edgeColor)
 
     if attr:
-        attrs=nx.get_edge_attributes(G,attr)
+        if type(attr) is dict:
+            attrs=nx.get_edge_attributes(G,list(attr.keys())[0])
+            attr_fun = list(attr.values())[0]
+            # attrs ={k: attr_fun(v) for k,v in attrs.items()}
+        else:
+            attrs=nx.get_edge_attributes(G,attr)
 
         vals=np.array([attrs[(e[0],e[1])] for e in edges])
+
+        if type(attr) is dict:
+            vals = attr_fun(vals)
+            
         vals = (vals-vals.min())
         range   = vals.max()
 

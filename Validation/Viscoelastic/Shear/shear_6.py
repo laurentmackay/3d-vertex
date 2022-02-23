@@ -16,7 +16,7 @@ from VertexTissue.PyQtViz import edge_view
 N=2
 M=2
 taus = np.logspace(6,1,5)
-dts = np.logspace(0, -3, 4)
+dts = np.logspace(0, -4, 6)
 fmag=1
 
 # dt=0.01
@@ -25,7 +25,7 @@ def run(dt):
 
     G = square_grid_2d( N, M)
     # edge_view(G, exec=True)
-    for a,b in ((2,5),(5,8),(0,3),(3,6)):
+    for a,b in ((2,5),(5,8),(0,3),(3,6), (1,4), (4,7), (3,4), (4,5)):
         G[a][b]['tau'] = tau
 
 
@@ -44,14 +44,14 @@ def run(dt):
     def forcing(t,force_dict):
         for p,f in zip(forced_points, forces):
             force_dict[p] += f
-            force_dict[p][0] = 0
+            # force_dict[p][0] = 0
 
 
 
     #create integrator
-    integrate = vertex_integrator(G, G, post_callback=forcing, ndim=2, viewer=True, save_rate=1, maxwell=True)
-    t_final=400
-    integrate(dt, t_final, save_pattern=f'data/viscoelastic/shear_2_{tau}_dt_{dt}_*.pickle')
+    integrate = vertex_integrator(G, G, post_callback=forcing, ndim=2, viewer=False, save_rate=1, maxwell=True)
+    t_final=8000
+    integrate(dt, t_final, save_pattern=f'data/viscoelastic/shear_6_{tau}_dt_{dt}_*.pickle')
 
     print(f'Done dt={dt}')
 
