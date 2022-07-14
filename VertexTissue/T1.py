@@ -1,4 +1,4 @@
-from .EventExecutor import EventExecutor
+from .Events import EventExecutor
 from .globals import inner_arc, outer_arc, belt_strength, t_1, t_2, t_belt, t_intercalate, inter_edges, pit_centers, t_pit
 
 

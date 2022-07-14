@@ -6,6 +6,7 @@ VertexTissue/GLNetworkItem.py
 VertexTissue/Player.py
 VertexTissue/PyQtViz.py
 VertexTissue/SG.py
+VertexTissue/T1.py
 VertexTissue/Tissue.py
 VertexTissue/__init__.py
 VertexTissue/funcs.py
@@ -14,7 +15,6 @@ VertexTissue/globals.py
 VertexTissue/mlab_testing.py
 VertexTissue/mlab_viz.py
 VertexTissue/plotting_test.py
-VertexTissue/pyqt_viz.py
 VertexTissue/util.py
 VertexTissue/validate.py
 VertexTissue/vertex_3d.py

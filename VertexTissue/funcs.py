@@ -17,10 +17,9 @@ from scipy.spatial import ConvexHull
 from scipy.spatial import Delaunay
 import numpy as np
 
-from . import globals as const
+import numba
 
 
-basal_offset = const.basal_offset
 
 
 
@@ -68,6 +67,10 @@ def unit_vector_and_dist(A,B):
 
     return (B-A)/dist, dist
 ###############
+
+
+
+
 
 def unit_vector_2D(A,B):
     # Calculate the unit vector from A to B in 3D
@@ -117,25 +120,34 @@ def signed_angle(v1,v2):
     return theta
 ###############
 
+# @jit(nopython=True, cache=True)
+# def tetrahedron_volume(v0, simplices, points):
+#     a=points[v0]
+#     b=points[simplices[:,0]]
+#     c=points[simplices[:,1]]
+#     d=points[simplices[:,2]]
+#     A=a-d
+#     B=crossMatMat(b-d, c-d)
+#     return np.sum(np.abs(np.sum(A*B,axis=1)))/6 #np.abs(np.einsum('ij,ij->i', a-d, crossMatMat(b-d, c-d))) / 6
+
 def tetrahedron_volume(a, b, c, d):
     
     return np.abs(np.einsum('ij,ij->i', a-d, crossMatMat(b-d, c-d))) / 6
 
+# @profile
 def convex_hull_volume(pts):
-
+    pts=np.array(pts)
     ch = ConvexHull(pts)
     dt = Delaunay(pts[ch.vertices])
     tets = dt.points[dt.simplices]
 
     return np.sum(tetrahedron_volume(tets[:, 0], tets[:, 1], tets[:, 2], tets[:, 3]))
-
+#@profile
 def convex_hull_volume_bis(pts):
 
-    ch = ConvexHull(pts)
-    simplices = np.column_stack((np.repeat(ch.vertices[0], ch.nsimplex), ch.simplices))
-    tets = ch.points[simplices]
+    ch = ConvexHull(pts, qhull_options='Q0')
 
-    return np.sum(tetrahedron_volume(tets[:, 0], tets[:, 1], tets[:, 2], tets[:, 3]))
+    return ch.volume
 
 def in_hull(p, hull):
     """
@@ -158,7 +170,7 @@ def get_points(G, q, pos):
     #           q: number of center node (apical only)
     #           pos: position of nodes 
     # returns:  pts: list of positions that are associated with that center 
-
+    basal_offset=G.graph['basal_offset']
     api_nodes = [q] + list(G.neighbors(q))
     basal_nodes = [q+basal_offset] + list(G.neighbors(q+basal_offset)) 
 #    basal_nodes = [api_nodes[n] + 1000 for n in range(1,7)]
@@ -211,13 +223,44 @@ def sort_corners(corners,center_pos,pos_nodes):
 @jit(nopython=True, cache=True)
 def area_side(pos_side):
     
-    A_alpha = np.zeros((3,))
-    # inds=[2,0,1]
-    for i in range(0,3):
-        A_alpha += (1/2)*cross33(pos_side[i],pos_side[i-1])
-    
+    # A_alpha = np.zeros((3,))
+    # inds=np.array([2,0,1])
+    # for i in range(0,3):
+    #     A_alpha += (1/2)*cross33(pos_side[i],pos_side[i-1])
+    A_alpha = area_side_vec(pos_side)
     return np.linalg.norm(A_alpha), A_alpha
 
+@jit(nopython=True, cache=True)
+def area_side_vec(pos_side):
+    
+    # A_alpha = np.zeros((3,))
+    inds=np.array([2,0,1])
+    # for i in range(0,3):
+    #     A_alpha += (1/2)*cross33(pos_side[i],pos_side[i-1])
+    A_alpha = np.sum(crossMatMat(pos_side,pos_side[inds]),axis=0)/2
+    return A_alpha
+
+@jit(nopython=True, cache=True)
+def area_side2(pos_side):
+    
+    # A_alpha = np.zeros((3,))
+    # inds=np.array([2,0,1])
+    # for i in range(0,3):
+    #     A_alpha += (1/2)*cross33(pos_side[i],pos_side[i-1])
+    A_alpha = area_side_vec2(pos_side)
+    
+    return np.array([np.linalg.norm(v) for v in A_alpha]), A_alpha
+
+@jit(nopython=True, cache=True)
+def area_side_vec2(pos_side):
+    
+    # A_alpha = np.zeros((3,))
+    inds=np.array([2,0,1])
+    # for i in range(0,3):
+    #     A_alpha += (1/2)*cross33(pos_side[i],pos_side[i-1])
+    A_alpha = np.sum(np.cross(pos_side,pos_side[:,inds,:]), axis=1)/2
+    
+    return A_alpha
 # def area_side(pos_side):
     
 #     A_alpha = np.array([0.,0.,0.])
@@ -244,50 +287,130 @@ def be_area(cw_alpha, cw_beta, pos):
 @jit(nopython=True, cache=True)
 def be_area_2( pos_alpha, pos_beta):
     
-    A_alpha = np.zeros((3,))
-    A_beta = np.zeros((3,))
-    # inds=np.array([2,0,1])
-    for i in range(0,3):
-        A_alpha += (1/2)*cross33(pos_alpha[i],pos_alpha[i-1])
+    # A_alpha = np.zeros((3,))
+    # A_beta = np.zeros((3,))
     
-        A_beta += (1/2)*cross33(pos_beta[i],pos_beta[i-1])
+    # for i in range(0,3):
+    #     A_alpha += (1/2)*np.cross(pos_alpha[i],pos_alpha[i-1])
     
-    # A_alpha = np.sum(crossMatMat(pos_alpha,pos_alpha[inds]),axis=0)
-    # A_beta = np.sum(crossMatMat(pos_beta,pos_beta[inds]),axis=0)
+    #     A_beta += (1/2)*np.cross(pos_beta[i],pos_beta[i-1])
+    inds=np.array([2,0,1])
+    A_alpha = np.sum(crossMatMat(pos_alpha,pos_alpha[inds]),axis=0)/2
+    A_beta = np.sum(crossMatMat(pos_beta,pos_beta[inds]),axis=0)/2
     return np.linalg.norm(A_alpha), A_alpha, np.linalg.norm(A_beta), A_beta
 
 
-def get_pos(G):
-    return nx.get_node_attributes(G,'pos')
+def get_node_attribute_dict(G,attr):
+    return nx.get_node_attributes(G,attr)
+
+def get_node_attribute_array(G,attr):
+    return np.array((*nx.get_node_attributes(G,attr).values(),))
+
+def get_edge_attribute_array(G, attr, dtype=float):
+    return np.fromiter(nx.get_edge_attributes(G,attr).values(),dtype=dtype)
+
+def set_node_attributes(G,attr,vals):
+    for k,v in enumerate(vals):
+        G.node[k][attr]=v
+
+def set_edge_attributes(G,attr,vals):
+    for e, v in zip(G.edges(),vals):
+        G[e[0]][e[1]][attr]=v
+    # nx.set_node_attributes(G,{k:{'pos':v} })
 
 # principal unit vectors e_x, e_y, e_z
-e = np.array([[1,0,0], [0,1,0], [0,0,1]])
+e_hat = np.array([[1,0,0], [0,1,0], [0,0,1]])
 
 #@profile
-@jit(nopython=True, cache=True)
+# @jit(nopython=True, cache=True)
 def bending_energy_2(nbhrs_alpha, nbhrs_beta, alpha_vec, A_alpha, beta_vec, A_beta, pos_alpha_A, pos_alpha_B, pos_beta_A, pos_beta_B):
 
-    sums = np.array([[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.]])
+    # sums = np.zeros((5,3),dtype=numba.float32)
+    # sums = np.zeros((5,3),dtype=float)#numba.float32)
+    delta_alpha = pos_alpha_B-pos_alpha_A
+    delta_beta = pos_beta_B-pos_beta_A
+    cross_alpha = np.cross(delta_alpha,e_hat)
+    cross_beta = np.cross(delta_beta,e_hat)
+    # for k in range(0,3):
+    #     # sum (1) and (5) use the alpha cell
+        
+    #     if nbhrs_alpha != False:
+            
+    #         sums[0] += beta_vec[k]*(1/2)*cross_alpha[k]
+    #         sums[4] += alpha_vec[k]*(1/2)*cross_alpha[k]
+
+    #     # sum (2) and (4) use the beta cell
+    #     if nbhrs_beta != False:
+    #         sums[1] += alpha_vec[k]*(1/2)*cross_beta[k]
+    #         sums[3] += beta_vec[k]*(1/2)*cross_beta[k]
+
+    #     # sum (3)
+    #     sums[2] += alpha_vec[k]*beta_vec[k]
+
+    sums2=np.dot(alpha_vec,beta_vec)
+
+    if nbhrs_alpha:
+        sums0=np.dot(beta_vec,cross_alpha)/2
+        sums4=np.dot(alpha_vec,cross_alpha)/2
+
+    if nbhrs_beta:
+        sums1=np.dot(alpha_vec,cross_beta)/2
+        sums3=np.dot(beta_vec,cross_beta)/2
+    
+    if nbhrs_alpha and nbhrs_beta:
+        return (1.0/(A_alpha*A_beta))*(sums0+sums1) \
+                + (-sums2/(A_alpha*A_beta)**2)*((A_alpha/A_beta)*sums3 \
+                +(A_beta/A_alpha)*sums4)
+    elif nbhrs_alpha:
+        return (1.0/(A_alpha*A_beta))*(sums0) \
+                + (-sums2/(A_alpha*A_beta)**2)*((A_beta/A_alpha)*sums4)
+    elif nbhrs_beta:
+        return (1.0/(A_alpha*A_beta))*(sums1) \
+        + (-sums2/(A_alpha*A_beta)**2)*((A_alpha/A_beta)*sums3)
+
+
+
+@jit(nopython=True, cache=True)
+def bending_energy_3(nbhrs_alpha, nbhrs_beta, alpha_vec, A_alpha, beta_vec, A_beta, delta_alpha, delta_beta):
+
+
+    shape=alpha_vec.shape
+
+    if nbhrs_alpha:
+        sums0=np.zeros(shape)
+        sums4=np.zeros(shape)
+        
+    if nbhrs_beta:
+        sums1=np.zeros(shape)
+        sums3=np.zeros(shape)
+
+    sums2=np.sum(alpha_vec*beta_vec,axis=1).reshape(-1,1)
+
     for k in range(0,3):
-        # sum (1) and (5) use the alpha cell
-        if nbhrs_alpha != False:
-            cross = np.cross(pos_alpha_B-pos_alpha_A,e[k])
-            sums[0] += beta_vec[k]*(1/2)*cross
-            sums[4] += alpha_vec[k]*(1/2)*cross
+        
+        cross_beta = np.cross(delta_beta,e_hat[k])
 
-        # sum (2) and (4) use the beta cell
-        if nbhrs_beta != False:
-            cross = np.cross(pos_beta_B-pos_beta_A,e[k])
-            sums[1] += alpha_vec[k]*(1/2)*cross
-            sums[3] += beta_vec[k]*(1/2)*cross
+        if nbhrs_alpha:
+            cross_alpha = np.cross(delta_alpha,e_hat[k])
+            sums0+=beta_vec[:,k].reshape(-1,1)*cross_alpha/2
+            sums4+=alpha_vec[:,k].reshape(-1,1)*cross_alpha/2
 
-        # sum (3)
-        sums[2] += alpha_vec[k]*beta_vec[k]
+        if nbhrs_beta:
+            cross_beta = np.cross(delta_beta,e_hat[k])
+            sums1+=alpha_vec[:,k].reshape(-1,1)*cross_beta/2
+            sums3+=beta_vec[:,k].reshape(-1,1)*cross_beta/2
 
-
-    return (1.0/(A_alpha*A_beta))*(sums[0]+sums[1]) \
-            + (-sums[2]/(A_alpha*A_beta)**2)*((A_alpha/A_beta)*sums[3] \
-            +(A_beta/A_alpha)*sums[4])
+    
+    if nbhrs_alpha and nbhrs_beta:
+        return (1.0/(A_alpha*A_beta))*(sums0+sums1) \
+                + (-sums2/(A_alpha*A_beta)**2)*((A_alpha/A_beta)*sums3 \
+                +(A_beta/A_alpha)*sums4)
+    elif nbhrs_alpha:
+        return (1.0/(A_alpha*A_beta))*(sums0) \
+                + (-sums2/(A_alpha*A_beta)**2)*((A_beta/A_alpha)*sums4)
+    elif nbhrs_beta:
+        return (1.0/(A_alpha*A_beta))*(sums1) \
+        + (-sums2/(A_alpha*A_beta)**2)*((A_alpha/A_beta)*sums3)
 
 def bending_energy(nbhrs_alpha, nbhrs_beta, A_alpha, A_beta, pos):
     

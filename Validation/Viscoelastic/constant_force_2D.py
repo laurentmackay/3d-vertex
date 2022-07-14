@@ -5,7 +5,7 @@ import sys
 import numpy as np
 from pathos.pools import ProcessPool as Pool
 
-from VertexTissue.vertex_3d import vertex_integrator
+from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.Tissue import square_grid_2d
 import VertexTissue.SG as SG
 from VertexTissue.funcs import unit_vector_2D
@@ -45,7 +45,7 @@ def run(dt):
 
 
     #create integrator
-    integrate = vertex_integrator(G, G, pre_callback=forcing, ndim=2, player=False, save_rate=1, maxwell=True)
+    integrate = monolayer_integrator(G, G, pre_callback=forcing, ndim=2, player=False, save_rate=1, maxwell=True)
     t_final=100
     #integrate
     if fmag>=0:

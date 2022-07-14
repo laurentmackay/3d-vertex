@@ -6,7 +6,8 @@ import time
 import networkx as nx
 import numpy as np
 
-from pyqtgraph.Qt.QtGui import *
+from pyqtgraph.Qt.QtWidgets import QMainWindow, QDockWidget, QWidget, QHBoxLayout, QVBoxLayout, QCheckBox, QFormLayout, QLineEdit, QLabel, QPushButton
+from pyqtgraph.Qt.QtGui import QDoubleValidator, QColor
 from pyqtgraph.Qt.QtCore import *
 import pyqtgraph as pg
 from pyqtgraph.opengl import GLViewWidget
@@ -14,15 +15,16 @@ from pyqtgraph.opengl import GLViewWidget
 
 from .util import mkprocess
 from .GLNetworkItem import GLNetworkItem
-from .globals import basal_offset
 
 
-def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, **kw):
+
+def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, button_callback=None, **kw):
 
     def outer(*a,**kw):
         init_callback = kw['window_callback'] if 'window_callback' in kw.keys() and callable(kw['window_callback']) else lambda win: None
         win=None
         gi=None
+        colorbar=None
         G=None
         wind=None
         glview=None
@@ -51,16 +53,29 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, **kw):
                     pass
             return inner_float
 
+        def modify_string_kw(key):
+            def inner_string(v):
+                nonlocal kw
+                if len(v)==0:
+                    return
+                try:
+                    kw={**kw, **{key:v}}
+                    draw()
+                except:
+                    pass
+            return inner_string
+
+
 
         def mk_controls(win):
-            nonlocal wind, glview
+            nonlocal wind, glview, colorbar
             wind=win
             _, glview = win.children()
 
             docker = QDockWidget(win)
             widget = QWidget()
             
-            checkbox_layout = QHBoxLayout()
+            
 
             layout = QVBoxLayout()
 
@@ -71,6 +86,10 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, **kw):
             ind_delta = len(args)-len(defs)
             keyword_value = lambda k : defs[args.index(k)-ind_delta] if k not in kw.keys() else kw[k]
 
+            
+
+
+            checkbox_layout = QHBoxLayout()
 
             bools={'apical_only':'Apical Only', 'cell_edges_only':'No Spokes'}
             for k, v in bools.items():
@@ -80,6 +99,13 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, **kw):
                 checkbox_layout.addWidget(box)
 
             form_layout = QFormLayout()
+
+            strings = {'attr':'Edge Attribute'}
+            for k, v in strings.items():
+                line=QLineEdit()
+                line.setText(str(keyword_value(k)))
+                line.textChanged.connect(modify_string_kw(k))
+                form_layout.addRow(QLabel(v), line)
             
             floats = {'edgeWidth':'Edge Width', 'edgeWidthMultiplier': 'Edge Width Mult.', 'spokeAlpha':'Spoke Alpha'}
             for k, v in floats.items():
@@ -91,8 +117,26 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, **kw):
                 line.textChanged.connect(modify_float_kw(k))
                 form_layout.addRow(QLabel(v), line)
 
+
+
             layout.addLayout(checkbox_layout)
             layout.addLayout(form_layout)
+
+            if button_callback is not None:
+                button = QPushButton()
+                button.setCheckable(True)
+
+       
+        
+        
+                button.setEnabled(True)
+                button.setText('run callback')
+                def request_callback_execution():
+                    b.send('run callback')
+
+                button.clicked.connect(request_callback_execution)
+
+                layout.addWidget(button)
 
             widget.setLayout(layout)
 
@@ -108,6 +152,8 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, **kw):
         if not parallel:
             G=a[0]
             gi = edge_view(*a, **kw)
+            # colorbar=gi.gview
+            # glview = 
 
         def draw(*a, **kw2):
             nonlocal kw, G, wind, glview
@@ -118,11 +164,12 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, **kw):
                 edge_view(G, gi=gi, **{**kw, **kw2})
 
         def start_in_parallel(b):
-            nonlocal G, gi
+            nonlocal G, gi, colorbar
 
             G=a[0]
             gi = edge_view(*a, **kw)
-
+            # colorbar=gi.colorBar
+            # wtv = gi.gview
             def listen():
                 nonlocal G
 
@@ -161,22 +208,42 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, **kw):
             if plot:
                 try:
                     if a.poll(timeout): #wait up to half a framecycle to see if the plotter thread is ready to receive
-                        _ = a.recv() 
+                        msg = a.recv() 
                         a.send((G,kw))
+
+                        # print(msg)
+                        if len(msg)>0  and  msg=='run callback':
+                            button_callback()
                 except:
                     print('plotting is no longer an option')
                     plot=False
 
+        def kill():
+            proc.kill()
 
+        pipe_plot.kill=kill
         return pipe_plot
 
     else:
         return outer(*args,**kw)
 
-    
+class myGraphicsView(pg.GraphicsView):
+    def __init__(self, parent=None, useOpenGL=None, background='default', padding=(5,10)):
+        self.pixelPadding=padding
+        super().__init__(parent=parent, useOpenGL=useOpenGL, background=background)
+        
 
-def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=False, exec=False, attr=None, label_nodes=True, colormap='CET-D4', edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None):
-    
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+
+        pg.GraphicsView.setRange(self, self.range, padding=(self.pixelPadding[0]/self.visibleRange().width(),-self.pixelPadding[1]/self.visibleRange().height()), disableAutoPixel=False)  ## we do this because some subclasses like to redefine setRange in an incompatible way.
+        self.updateMatrix()
+
+def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=False, exec=False, attr=None, label_nodes=True, colormap='CET-D4', edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None, **kw):
+
+    has_basal = 'basal_offset' in G.graph.keys()
+    if has_basal:
+        basal_offset=G.graph['basal_offset']
 
     pos = np.array([*nx.get_node_attributes(G,'pos').values()])
 
@@ -185,13 +252,16 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
         app = pg.mkQApp(title)
 
         win = QMainWindow()
-        
-        w = GLViewWidget(parent=win)
-        w.setMinimumSize(QSize(*size))
-        w.setBackgroundColor(1.0)
-        w.show()
-        w.setCameraPosition(distance=3*np.sqrt(np.sum((pos*pos),axis=1)).max())
-        win.setCentralWidget(w)
+        layout = pg.LayoutWidget()
+        layout.layout.setContentsMargins(0,0,0,0)
+        layout.layout.setHorizontalSpacing(0)
+        gl_widget = GLViewWidget(parent=win)
+        gl_widget.setMinimumSize(QSize(*size))
+        gl_widget.setBackgroundColor(1.0)
+        gl_widget.show()
+        gl_widget.setCameraPosition(distance=3*np.sqrt(np.sum((pos*pos),axis=1)).max())
+        win.setCentralWidget(layout)
+        layout.addWidget(gl_widget)
         win.show()
         if callable(window_callback):
             window_callback(win)
@@ -246,14 +316,15 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
             # attrs ={k: attr_fun(v) for k,v in attrs.items()}
         else:
             attrs=nx.get_edge_attributes(G,attr)
-
-        vals=np.array([attrs[(e[0],e[1])] for e in edges])
-
+        
+        vals=np.array([attrs.get((e[0],e[1])) if attrs.get((e[0],e[1])) is not None else np.NAN for e in edges])
+       
         if type(attr) is dict:
             vals = attr_fun(vals)
             
-        vals = (vals-vals.min())
-        range   = vals.max()
+        min_val = np.nanmin(vals)
+        vals = (vals-min_val)
+        range   = np.nanmax(vals)
 
     elif not cell_edges_only:
         vals = np.zeros((edges.shape[0],))
@@ -278,13 +349,32 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
     data =  {'edges':edges, 'edgeColor':edgeColor, 'nodePositions':visible_pos, 'edgeWidth':edgeWidth, 'nodeSize':0.0, 'nodeLabels':lbls}
 
     if gi is None:
-        gi = GLNetworkItem(parent=w, **data)
-        w.addItem(gi)
-        gi.setParent(w)
+        gi = GLNetworkItem(parent=gl_widget, **{ **data, **kw})
+        gl_widget.addItem(gi)       
+        gi.setParent(gl_widget)
+        if attr:
+            colorBar = pg.ColorBarItem(values=(min_val, min_val+range), width=15, cmap=cmap, interactive=False)
+            # colorBar.setGradient(cmap.getGradient())
+            # labels = {"wtv": v for v in np.linspace(0, 1, 4)}
+            # colorBar.setLabels(labels)
+            gview = myGraphicsView(background='w')
+            gview.setMinimumSize(QSize(80,size[1]))
+            gview.setMaximumSize(QSize(80,10000))
+            layout.addWidget(gview)
+            gview.setCentralItem(colorBar)
+            # gview.get
+            # colorBar.setParentItem(gview)
+            # win.addItem(colorBar)
+            gi.colorBar=colorBar
+            gi.gview = gview
     else:
-        gi.setData(**data)
+        gi.setData(**{ **data, **kw})
+        if not np.isnan(min_val) and not np.isnan(range):
+            if range==0.:
+                range=1.0
+            gi.colorBar.setLevels(values=(min_val, min_val+range))
 
-    gi.parent().parent().setWindowTitle(title)
+    gi.parent().parent().parent().setWindowTitle(title)
     
     if exec:
         pg.exec()

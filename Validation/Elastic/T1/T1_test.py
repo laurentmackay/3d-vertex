@@ -2,7 +2,7 @@ from asyncio.subprocess import Process
 from pathos.pools import ProcessPool as Pool
 import numpy as np
 
-from VertexTissue.vertex_3d import vertex_integrator
+from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.Tissue import T1_minimal, tissue_3d, get_outer_belt
 import VertexTissue.SG as SG
 import VertexTissue.T1 as T1
@@ -27,8 +27,6 @@ def main(dt):
         G, G_apical = tissue_3d( gen_centers=T1_minimal,  basal=True, cell_edge_attr=edge_attr, linker_attr=linker_attr, spoke_attr=spoke_attr)
         # G, G_apical = tissue_3d(  basal=True, cell_edge_attr=edge_attr, linker_attr=linker_attr, spoke_attr=spoke_attr)
 
-        belt = get_outer_belt(G_apical)
-
         # edge_view(G, exec=True)
 
 
@@ -39,22 +37,22 @@ def main(dt):
 
 
         #create integrator
-        integrate = vertex_integrator(G, G_apical, pre_callback=intercalation, player=False, viewer=True, maxwell=False, minimal=False)
+        integrate = monolayer_integrator(G, G_apical, pre_callback=intercalation, player=False, viewer=True, maxwell=False, minimal=False, blacklist=True)
         #integrates
         # try:
-        integrate(dt, 5000, 
+        integrate(dt, 4000, 
                 dt_init = 1e-3,
-                adaptive=False,
+                adaptive=True,
                 dt_min=0,
-                save_rate=dt,
+                save_rate=1,
                 length_prec=0.01,
-                save_pattern='./data/T1/adaptive_*.pickle')
+                save_pattern='./data/T1/elastic_*.pickle')
         # except:
         #     print(f'failed to integrate tau={tau}')
         #     pass
 
 
 if __name__ == '__main__':
-    main(1)
+    main(.1)
 
     print('done')

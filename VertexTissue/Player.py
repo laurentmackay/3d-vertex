@@ -1,4 +1,5 @@
-from curses import window
+
+from lib2to3.pygram import pattern_grammar
 import multiprocessing as mp
 import inspect
 import asyncio
@@ -17,7 +18,7 @@ import numpy as np
 
 import pyqtgraph as pg
 from pyqtgraph.Qt.QtGui import QLabel, QSlider, QStyleOptionSlider, QPushButton, QApplication,  QStyle, QLabel, QDockWidget, QWidget, QHBoxLayout, QVBoxLayout
-from pyqtgraph.Qt.QtCore import Qt
+from pyqtgraph.Qt.QtCore import Qt, QTimer
 
 
 
@@ -67,16 +68,31 @@ class ClickSlider(QSlider):
 
 
 
-def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=5.0, refresh_rate=60.0, parallel=False, workers=2, **kw):
+def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_time=None, speedup=5.0, refresh_rate=60.0, parallel=False, save_dict=None, pre_process=None, check_timestamp=True, **kw):
 
+    if file_list is None:
 
-    start_file = pattern.replace('*',str(start_time))
-    start_timestamp = get_creationtime( start_file, path=path)
+        single_pickle = pattern.find('*') == -1
+        start_file = pattern
+
+        if not single_pickle:
+            if start_time is None:
+                file_list=get_filenames(path=path, pattern=pattern, min_timestamp=0)
+                start_time=file_list[0][1]
+            else:
+                file_list=[]
+
+            start_file = start_file.replace('*',str(start_time))
+            start_timestamp = get_creationtime( start_file, path=path)
+        else:
+            file_list=[]
+            
+
 
     # start_file = os.path.join(path, start_file)
     refresh_interval = 1/refresh_rate
     time_bounds = [start_time, float('-inf')]
-    file_list = [(pattern.replace('*',str(start_time)), start_time)]
+    
 
     i_load=0
     i_loaded = None
@@ -94,24 +110,38 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
     window = None
 
     new = True
-    playing = True
+    playing = speedup>0
 
     view=None
     t_G=None
     G=None
-
+    keys = None
     def setPosition(a):
-        nonlocal curr_time, next_disp_time, new
-        curr_time = a/slider_ticks*(time_bounds[1]-time_bounds[0])
+        nonlocal curr_time, next_disp_time, positionLabel 
+        curr_time = time_bounds[0] + a/slider_ticks*(time_bounds[1]-time_bounds[0])
+        positionLabel.setText(f"{curr_time:4.2f}/{time_bounds[1]:4.2f}")
         next_disp_time = curr_time + refresh_interval * speedup
 
-    
+
+        
+
+    def sliderGrabbed():
+        nonlocal playButton
+        if playButton.isChecked():
+            freeze()
+
+    def sliderReleased():
+        nonlocal playButton
+        if playButton.isChecked():
+            freeze()
+
     def freeze():
         nonlocal playing
         playing = False
 
     def unfreeze():
         nonlocal playing, new
+        
         playing = True
         new = True
 
@@ -119,12 +149,22 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         nonlocal window, playButton
         nonlocal playing
         if playing:
+            playButton.setChecked(False)
             freeze()
             playButton.setIcon(window.style().standardIcon(QStyle.SP_MediaPause))
         else:
+            playButton.setChecked(True)
             unfreeze()
             playButton.setIcon(window.style().standardIcon(QStyle.SP_MediaPlay))
 
+    def syncSlider():
+        nonlocal curr_time, time_bounds, positionLabel
+        
+        timespan = time_bounds[1] - time_bounds[0]
+        if timespan:
+            idx = int(slider_ticks*(curr_time-time_bounds[0])/(timespan))
+            positionSlider.setSliderPosition(idx)
+            positionLabel.setText(f"{curr_time:4.2f}/{time_bounds[1]:4.2f}")
 
     def setup_player(win):
         nonlocal positionSlider, positionLabel, playButton, window
@@ -132,6 +172,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         window = win
         positionSlider = ClickSlider(Qt.Horizontal)
         playButton = QPushButton()
+        playButton.setCheckable(True)
 
         docker = QDockWidget(win)
         w = QWidget()
@@ -139,17 +180,20 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
 
         layout = QVBoxLayout()
         
-        
-        playButton.setEnabled(True)
-        playButton.setIcon(win.style().standardIcon(QStyle.SP_MediaPlay))
-        playButton.clicked.connect(pushPlay)
+        if playing:
+            playButton.setEnabled(True)
+            playButton.setIcon(win.style().standardIcon(QStyle.SP_MediaPlay))
+            playButton.clicked.connect(pushPlay)
+        else:
+            playButton.setEnabled(False)
+            playButton.setIcon(win.style().standardIcon(QStyle.SP_MediaPause))
 
         
         positionSlider.setRange(0, slider_ticks)
         positionSlider.sliderMoved.connect(setPosition)
         # positionSlider.sliderPressedWithValue.connect(setPosition)
-        positionSlider.sliderPressed.connect(freeze)
-        positionSlider.sliderReleased.connect(unfreeze)
+        positionSlider.sliderPressed.connect(sliderGrabbed)
+        positionSlider.sliderReleased.connect(sliderReleased)
 
         positionLabel = QLabel("/")
 
@@ -168,73 +212,113 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         win.addDockWidget(Qt.BottomDockWidgetArea, docker)
 
 
-    def syncSlider():
-        nonlocal curr_time, time_bounds, positionLabel
-        
-        timespan = time_bounds[1] - time_bounds[0]
-        if timespan:
-            idx = int(slider_ticks*(curr_time-time_bounds[0])/(timespan))
-            positionSlider.setSliderPosition(idx)
-            positionLabel.setText(f"{curr_time:4.2f}/{time_bounds[1]:4.2f}")
 
-    def check_for_newfiles():
-        nonlocal time_bounds
 
-        get_filenames(path=path, pattern=pattern, min_timestamp=start_timestamp, extend=file_list)
-        latest_timestamp = get_creationtime(os.path.join(path,file_list[-1][0]))
-        time_bounds[1]=file_list[-1][1]
+    def check_files():
+        nonlocal time_bounds, save_dict, keys, file_list
 
-        while True:     
-            sleep(0.05)
-            
+        if len(file_list)==0:
+            file_list = [(pattern.replace('*',str(start_time)), start_time)]
 
-            get_filenames(path=path, pattern=pattern, min_timestamp=latest_timestamp, extend=file_list)
+
+        if not single_pickle:
+
+            get_filenames(path=path, pattern=pattern, min_timestamp=start_timestamp if check_timestamp else 0, extend=file_list)
             latest_timestamp = get_creationtime(os.path.join(path,file_list[-1][0]))
+            time_bounds[1]=file_list[-1][1]
 
-            changed = False
-            if time_bounds[0]>file_list[0][1]:
-                time_bounds[0]=file_list[0][1]
-                changed = True
+            while True:     
+                sleep(0.05)
+                
 
-            if time_bounds[1]<file_list[-1][1]:
-                time_bounds[1]=file_list[-1][1]
-                changed = True
+                get_filenames(path=path, pattern=pattern, min_timestamp=latest_timestamp if check_timestamp else 0, extend=file_list)
+                latest_timestamp = get_creationtime(os.path.join(path,file_list[-1][0]))
 
-            if changed:
-                syncSlider()
-            
+                changed = False
+                if time_bounds[0]>file_list[0][1]:
+                    time_bounds[0]=file_list[0][1]
+                    changed = True
 
-            
+                if time_bounds[1]<file_list[-1][1]:
+                    time_bounds[1]=file_list[-1][1]
+                    changed = True
+
+
+                if changed:
+                    syncSlider()
+
+        else:
+
+                # while True:     
+                #     sleep(0.5)
+                    
+                keys = np.array(list(save_dict.keys()))
+
+                
+
+                curr_min = min(keys)
+                curr_max = max(keys)
+                if time_bounds[1]<curr_max:
+                    time_bounds[1]=curr_max
+                    changed=True
+
+
+                if time_bounds[0]>curr_min:
+                    time_bounds[0]=curr_min
+                    changed=True
+
+                if changed:
+                    syncSlider()
+
+
 
 
     
 
-
+    keys=None
 
     def loader():
-        nonlocal  i_load, i_loaded, G, t_G, new, next_disp_time   
+        nonlocal  i_load, i_loaded, G, t_G, new, next_disp_time  , keys, save_dict, file_list
 
         while True:
 
-            for i_load, e in enumerate(file_list):
-                if e[1]>=next_disp_time:
-                    break
+            if not single_pickle:
+                for i_load, e in enumerate(file_list):
+                    if e[1]>=next_disp_time:
+                        break
+            else:
+                for i_load, t in enumerate(keys):
+                    if t>=next_disp_time:
+                        break
 
             if (i_loaded is None) or i_loaded != i_load:
+            #     times = [e[1] for _, e in enumerate(file_list)]
+
                 try:
-                    file, t = file_list[i_load]
-                    with open(os.path.join(path,file), 'rb') as input:
-                        try:
-                            G=pickle.load(input)
-                            t_G = t
-                            # print(f'loading {t}')
-                            i_loaded=i_load
-                            new = True
-                        except:
-                            pass
+                    if not single_pickle:
+                        file, t = file_list[i_load]
+                        with open(os.path.join(path,file), 'rb') as input:
+                            try:
+                                if pre_process is not None:
+                                    G=pre_process(pickle.load(input))
+                                else:
+                                    G=pickle.load(input)
+                                t_G = t
+
+                                i_loaded=i_load
+                                new = True
+                            except:
+                                pass
+                    else:
+
+                        t_G=keys[i_load]
+                        G=save_dict[t_G]
+                        i_loaded=i_load
+                        new = True
+
                 except:
                     pass
-            sleep(refresh_interval/2)
+            sleep(refresh_interval/4)
 
         
 
@@ -255,9 +339,8 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
             curr_time=max(min(curr_time, time_bounds[1]),time_bounds[0])
             dt=curr_time-prev_disp_time
 
-            # print(f'current time {curr_time} {dt>=t_G-prev_disp_time}')
-
             if (not playing or dt>=t_G-prev_disp_time) and new:
+
 
                 view(G, title=f't={t_G:.2f}')
                 #update times
@@ -273,30 +356,41 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
                 next_disp_time = curr_time + refresh_interval * speedup
               
             else:
-
                 prev_counter = perf_counter()
 
-            if i_loaded is not None:
-                rem = (file_list[i_loaded][1]-curr_time)/speedup
+            if i_loaded is not None and speedup:
+                if not single_pickle:
+                    rem = (file_list[i_loaded][1]-curr_time)/speedup
+                else:
+                    rem = (keys[i_loaded]-curr_time)/speedup
             else:
                 rem = refresh_interval
 
+            # print(f'syncing slider: {curr_time}')
             syncSlider()
 
             if rem>0:
-                sleep(rem/2)
+                sleep(refresh_interval/2)
             else:
                 sleep(refresh_interval/2)
 
     def start():
-        nonlocal view, counter, prev_counter
-        with open(os.path.join(path, start_file), 'rb') as input:
-            G=pickle.load(input)
-            t_G = start_time
-        
+        nonlocal view, counter, prev_counter, save_dict, keys
+        if not single_pickle or not save_dict:
+            with open(os.path.join(path, start_file), 'rb') as input:
+                G=pickle.load(input)
+                t_G = start_time
+            if not save_dict:
+                save_dict=G
 
-        
-
+        if single_pickle:
+            keys = np.array(list(save_dict.keys()))
+            start_ind = np.argmin(np.abs(keys-start_time))
+            t_G=keys[start_ind]
+            G=save_dict[t_G]
+            
+        if pre_process is not None:
+            G=pre_process(G)
         view = edge_viewer(G, window_callback=setup_player, refresh_rate=refresh_rate, parallel=False, **kw)
 
 
@@ -304,9 +398,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         loop = asyncio.get_event_loop()
         executor = concurrent.futures.ThreadPoolExecutor()
 
-        def run():
-            while True:
-                refresh()
+
 
         def exit():
             for f in futures:
@@ -318,10 +410,16 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, start_time=0, speedup=
         counter=perf_counter()
         prev_counter=counter
 
-        futures=[ loop.run_in_executor(executor,f) for f in (check_for_newfiles, loader, run) ]
+        futures=[ loop.run_in_executor(executor,f) for f in (check_files, loader) ] #we probably dont want to this with a dict or whatever
         
         app = QApplication.instance()
         app.aboutToQuit.connect(exit) 
+
+        tmr = QTimer()
+        tmr.timeout.connect(refresh)
+
+        tmr.setInterval(500/refresh_rate)
+        tmr.start()
 
         pg.exec()
 

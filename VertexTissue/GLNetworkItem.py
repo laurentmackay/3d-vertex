@@ -11,7 +11,7 @@ import numpy as np
 
 __all__ = ['GLNetworkItem']
 
-def glut_print( xyz,  font,  text, r,  g , b , a):
+def glut_print_3D( xyz,  font,  text, r,  g , b , a):
 
     blending = False 
     if glIsEnabled(GL_BLEND) :
@@ -27,13 +27,42 @@ def glut_print( xyz,  font,  text, r,  g , b , a):
     if not blending :
         glDisable(GL_BLEND) 
 
+def glut_print_2D(  font,  text, r,  g , b , a):
+
+    blending = False 
+    if glIsEnabled(GL_BLEND) :
+        blending = True
+
+
+    glColor4f(r,g,b,a)
+    
+
+    glWindowPos2d(10.0, 10.0)
+    for ch in text :
+        glutBitmapCharacter( font , ctypes.c_int( ord(ch) ) )
+
+    # glMatrixMode(GL_PROJECTION);
+    # # glPopMatrix();
+    # glMatrixMode(GL_MODELVIEW);
+    # glPopMatrix();
+    # glMatrixMode(GL_PROJECTION);
+    # 
+    # glMatrixMode(GL_MODELVIEW);
+    
+    
+
+
+    if not blending :
+        glDisable(GL_BLEND) 
+    # glPopMatrix()
+
 class GLNetworkItem(GLGraphicsItem):
     """A GLGraphItem displays graph information as
     a set of nodes connected by lines (as in 'graph theory', not 'graphics').
     Useful for drawing networks, trees, etc.
     """
 
-    def __init__(self, draw_axes=True, **kwds):
+    def __init__(self, draw_axes=False, msg='dummy', **kwds):
         GLGraphicsItem.__init__(self)
 
         self.edges = None
@@ -43,6 +72,7 @@ class GLNetworkItem(GLGraphicsItem):
         self.nodeLabels=None
         self.draw_axes = draw_axes
         self.setData(**kwds)
+        self.msg=msg
 
     def setData(self, **kwds):
         """
@@ -108,7 +138,13 @@ class GLNetworkItem(GLGraphicsItem):
             kwds['size'] = kwds.pop('nodeSize')
         if 'nodeLabels' in kwds:
             self.nodeLabels = kwds.pop('nodeLabels')
+        if 'msg' in kwds:
+            self.msg=kwds['msg']
+
         self.pos=kwds['pos']
+
+
+
         self.update()
 
     def initializeGL(self):
@@ -154,14 +190,17 @@ class GLNetworkItem(GLGraphicsItem):
 
                 glEnd()
 
-                glut_print( xhat, GLUT_BITMAP_9_BY_15 , 'x' , 0.5 , .5 , .5 , 1.0 )
-                glut_print( yhat, GLUT_BITMAP_9_BY_15 , 'y' , 0.5 , .5 , .5 , 1.0 )
-                glut_print( zhat, GLUT_BITMAP_9_BY_15 , 'z' , 0.5 , .5 , .5 , 1.0 )
+                glut_print_3D( xhat, GLUT_BITMAP_9_BY_15 , 'x' , 0.5 , .5 , .5 , 1.0 )
+                glut_print_3D( yhat, GLUT_BITMAP_9_BY_15 , 'y' , 0.5 , .5 , .5 , 1.0 )
+                glut_print_3D( zhat, GLUT_BITMAP_9_BY_15 , 'z' , 0.5 , .5 , .5 , 1.0 )
+
+
+
 
             glEnableClientState(GL_VERTEX_ARRAY)
             if lbls is not None:
                 for pos, lbl  in zip(verts, lbls):
-                    glut_print( pos, GLUT_BITMAP_9_BY_15 , lbl , 0.5 , .5 , .5 , 1.0 )
+                    glut_print_3D( pos, GLUT_BITMAP_9_BY_15 , lbl , 0.5 , .5 , .5 , 1.0 )
 
 
             glVertexPointerf(verts)
@@ -188,6 +227,11 @@ class GLNetworkItem(GLGraphicsItem):
                     glColor4f(*self.edgeColor[i])
                     glLineWidth(self.edgeWidth[i])
                     glDrawElements(mode, 2, GL_UNSIGNED_INT, e)
+
+            if self.msg:
+                glut_print_2D(  GLUT_BITMAP_9_BY_15 , self.msg , 0.5 , .5 , .5 , 1.0 )
+
+
             # glutSwapBuffers()
         finally:
             glDisableClientState(GL_VERTEX_ARRAY)

@@ -5,7 +5,7 @@ import sys
 import numpy as np
 from pathos.pools import ProcessPool as Pool
 
-from VertexTissue.vertex_3d import vertex_integrator
+from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.Tissue import tissue_3d, get_outer_belt
 import VertexTissue.SG as SG
 
@@ -52,7 +52,7 @@ def main(args):
 
 
     #create integrator
-    integrate = vertex_integrator(G, G_apical, pre_callback=invagination, player=False, maxwell=True)
+    integrate = monolayer_integrator(G, G_apical, pre_callback=invagination, player=False, maxwell=True)
 
     #integrate
     try:
