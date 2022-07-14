@@ -42,7 +42,7 @@ def arcs_and_pit(G,arcs=(inner_arc,outer_arc), t_arcs=t_1, t_pit=t_pit, arc_stre
 
     return EventExecutor(events)
 
-def arc_pit_and_intercalation (G, belt, arcs=(inner_arc,outer_arc), inter_edges=inter_edges, basal_intercalation=False, intercalation_strength=1000, arc_strength=belt_strength, belt_strength=belt_strength, pit_strength=pit_strength, t_belt=t_belt, t_intercalate=t_intercalate):
+def arc_pit_and_intercalation (G, belt, arcs=(inner_arc,outer_arc), inter_edges=inter_edges, basal_intercalation=False, intercalation_strength=1000, arc_strength=belt_strength, belt_strength=belt_strength, pit_strength=pit_strength, t_belt=t_belt, t_intercalate=t_intercalate,t_1=t_1):
 
     events = [*[(t_1, arc_activator(G, arc, strength=arc_strength),f'Arc #{i+1} established') for i,arc in enumerate(arcs)],
             (t_intercalate,    intercalation_activator(G, inter_edges, basal=basal_intercalation, strength=intercalation_strength),"Intercalations triggered"),

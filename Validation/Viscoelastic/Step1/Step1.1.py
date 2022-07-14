@@ -48,7 +48,7 @@ def run(force, visco=False, cable=True, phi0=1.0, level=0, arcs=2):
     #
     squeeze = SG.arc_pit_and_intercalation(G, belt,
                                          arc_strength=belt_strength if cable else 0.0,
-                                         t_intercalate=375, intercalation_strength=force)
+                                         t_intercalate=0, t_1=0, intercalation_strength=force, pit_strength=0)
 
     if not visco:
         kw={}
@@ -70,7 +70,7 @@ def run(force, visco=False, cable=True, phi0=1.0, level=0, arcs=2):
                                     pre_callback=squeeze, 
                                     blacklist=True, RK=1,
                                     intercalation_callback=shrink_edges(G, L0_min=0.5),
-                                     angle_tol=.03, length_rel_tol=0.05,
+                                     angle_tol=2, length_rel_tol=0.01,
                                      maxwell=True, maxwell_nonlin=extension_remodeller(),
                                     player=False, viewer={'button_callback':terminate, 'nodeLabels': None} if viewable else False, minimal=False, **kw)
 
@@ -80,10 +80,10 @@ def run(force, visco=False, cable=True, phi0=1.0, level=0, arcs=2):
     # pattern=None
     print(f'starting f={force}')
 
-    integrate(20, 3000, 
+    integrate(0.5, 3000, 
             dt_init = 1e-3,
             adaptive=True,
-            dt_min=1e-1,
+            dt_min=1e-2,
             save_rate=50,
             verbose=True,
             save_pattern=pattern)
