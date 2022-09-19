@@ -8,7 +8,7 @@ import VertexTissue.SG as SG
 import VertexTissue.T1 as T1
 
 
-from VertexTissue.globals import default_ab_linker, default_edge, l_apical, basal_offset, inter_edges
+from VertexTissue.globals import default_ab_linker, default_edge, l_apical, basal_offset, inter_edges_middle
 import VertexTissue.globals as const
 from VertexTissue.PyQtViz import edge_view
 

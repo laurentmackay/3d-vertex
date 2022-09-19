@@ -30,8 +30,8 @@ except:
     viewable=False
     base_path = '/scratch/st-jjfeng-1/lmackay/data/SAC+127/'
 
-from VertexTissue.util import last_item
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.util import last_dict_value
+from VertexTissue.Geometry import euclidean_distance
 
 
 phi0s=[0.3,  .4, .5,  0.6, .7, .8, .9]

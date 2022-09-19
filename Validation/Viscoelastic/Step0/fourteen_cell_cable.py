@@ -30,8 +30,8 @@ except:
     viewable=False
     base_path = '/scratch/st-jjfeng-1/lmackay/data/SAC/'
 
-from VertexTissue.util import last_item
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.util import last_dict_value
+from VertexTissue.Geometry import euclidean_distance
 
 
 def is_subprocess():
@@ -119,7 +119,7 @@ def run(force, visco=False, cable=True, phi0=1.0, ndim=3):
 
 
 def final_length(d):
-    G = last_item(d)
+    G = last_dict_value(d)
     # edge_view(G)
     a = G.nodes[8]['pos']
     b = G.nodes[41]['pos']

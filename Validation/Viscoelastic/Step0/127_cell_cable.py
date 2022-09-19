@@ -1,6 +1,8 @@
 import os
 
 from matplotlib import colors
+
+from VertexTissue.visco_funcs import crumple
 print('this is some basic output')
 
 from doctest import FAIL_FAST
@@ -30,8 +32,8 @@ except:
     viewable=False
     base_path = '/scratch/st-jjfeng-1/lmackay/data/SAC_127/'
 
-from VertexTissue.util import last_item
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.util import last_dict_value
+from VertexTissue.Geometry import euclidean_distance
 
 
 def is_subprocess():
@@ -45,8 +47,8 @@ dt=0.1
 taus = np.logspace(6,1,5)
 lvl=0
 inter_edges = ((174,163),(83,94), (82,69), (2,8))
-
-def run(force, visco=False,  phi0=1.0, level=0, arcs=2):
+arcs=0
+def run(force, visco=False,  phi0=1.0, level=0, arcs=arcs, prefix=None):
 
     #
     G, G_apical = tissue_3d( hex=7,  basal=True)
@@ -84,7 +86,7 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=2):
     if not visco:
         kw={}
     else:
-        kw={'rest_length_func':l_rest}
+        kw={'rest_length_func':crumple(phi0=phi0)}
 
     done=False
     def terminate(*args):
@@ -115,21 +117,17 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=2):
     if level != 0:
         pattern = f'lvl_{level}_'+ pattern
 
-    if arcs==1:
-        pattern='outer_'+pattern
-    
-    if arcs==0:
-        pattern='peripheral_'+pattern
 
-    pattern=base_path+pattern
+
+    pattern=base_path+prefix+pattern
 
     # pattern=None
     print(f'starting f={force}')
     integrate(20, 6000, 
             dt_init = 1e-3,
             adaptive=True,
-            dt_min=1e-3,
-            save_rate=50,
+            dt_min=1e-4,
+            save_rate=100,
             save_pattern=pattern)
     # except:
     #     print(f'failed to integrate tau={tau}')
@@ -139,7 +137,7 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=2):
 
 
 def final_length(d):
-    G = last_item(d)
+    G = last_dict_value(d)
     # edge_view(G)
     a = G.nodes[174]['pos']
     b = G.nodes[163]['pos']
@@ -252,7 +250,7 @@ def visco_runner(phi0, **kw):
 def visco_no_cable_runner(phi0, **kw):
     return lambda f: run(f, visco=True, cable=False, phi0=phi0, **kw)
 
-phi0s=[ .3,  .4, .5,  0.6, .7, .8, .9]
+phi0s=[ .3,  .4, .5,  .6, .7, .8, .9]
 colors=['r','g','b','y','m','c','orange','k']
 def main():
     forces=np.array([ *np.linspace(0,850,40), *np.linspace(850,1200,20)[1:]])
@@ -261,14 +259,25 @@ def main():
 
 
 
-    visco_funcs=[ *[visco_runner(phi, level=lvl) for phi in phi0s],
+
+
+    if arcs==1:
+        prefix='outer_'
+    
+    if arcs==0:
+        prefix='peripheral_'
+
+    if arcs==2:
+        prefix='peripheral_outer_'
+
+    if arcs==3:
+        prefix='triple_'
+    
+    visco_funcs=[ *[visco_runner(phi, level=lvl, prefix=prefix) for phi in phi0s],
                     ]
 
-    prefix=''
-    
 
-    elastic_func=run
-    funcs=[lambda f: run(f, level=lvl), *visco_funcs]
+    funcs=[lambda f: run(f, level=lvl, prefix=prefix), *visco_funcs]
     if lvl==0:
         savepaths = [
             [base_path+f'{prefix}elastic_edges_{force}.pickle',
@@ -300,7 +309,7 @@ def main():
                                   
         plot_results(forces, results)
     else:
-        parameter_sweep(forces, funcs, savepaths=savepaths, overwrite=False)
+        parameter_sweep(forces, funcs, savepaths=savepaths, overwrite=False, cache=True)
     # run(forces[-2], visco=True, phi0=0.3)
     print('done')
 

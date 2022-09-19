@@ -6,7 +6,7 @@ from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.Tissue import T1_minimal, tissue_3d, get_outer_belt
 import VertexTissue.SG as SG
 import VertexTissue.T1 as T1
-from VertexTissue.funcs import unit_vector, unit_vector_2D
+from VertexTissue.Geometry import unit_vector, unit_vector_2D
 
 from VertexTissue.globals import default_ab_linker, default_edge, basal_offset, myo_beta, belt_strength
 

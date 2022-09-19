@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathos.pools import ProcessPool as Pool
 
-from VertexTissue.funcs import euclidean_distance, get_pos, get_points, convex_hull_volume_bis
+from VertexTissue.Geometry import euclidean_distance, get_pos, get_points, convex_hull_volume
 import VertexTissue.globals as const
 from VertexTissue.Analysis import *
 from VertexTissue.util import *
@@ -21,7 +21,7 @@ def cell_volumes(G,t, inds=None):
     if inds:
         centers=centers[inds]
     pos = get_pos(G)
-    return tuple(convex_hull_volume_bis(get_points(G, c, pos)) for c in centers)
+    return tuple(convex_hull_volume(get_points(G, c, pos)) for c in centers)
 
 
 

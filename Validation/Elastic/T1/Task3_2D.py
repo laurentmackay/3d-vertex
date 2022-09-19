@@ -10,7 +10,7 @@ from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.Tissue import hex_hex_grid, square_grid_2d, tissue_3d, T1_minimal
 from VertexTissue.T1 import simple_T1
 import VertexTissue.SG as SG
-from VertexTissue.funcs import unit_vector, unit_vector_2D
+from VertexTissue.Geometry import unit_vector, unit_vector_2D
 import VertexTissue.globals as const
 from VertexTissue.PyQtViz import edge_view
 

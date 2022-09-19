@@ -1,19 +1,14 @@
-
-from lib2to3.pygram import pattern_grammar
-import multiprocessing as mp
-import inspect
 import asyncio
 import concurrent
-import math
-import itertools
+
 import os
 
 from time import perf_counter, sleep
-from collections import deque
+
 
 import pickle
-import time 
-import networkx as nx
+
+
 import numpy as np
 
 import pyqtgraph as pg
@@ -23,7 +18,9 @@ from pyqtgraph.Qt.QtCore import Qt, QTimer
 
 
 from .PyQtViz import edge_viewer
-from .util import mkprocess, get_creationtime, get_filenames
+from .Multiprocessing import Process
+from .Iterable import first_item
+from .Filesystem import get_creationtime, get_filenames
 from .globals import save_pattern
 
 # class ClickSlider(QSlider):
@@ -75,9 +72,12 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
         single_pickle = pattern.find('*') == -1
         start_file = pattern
 
-        if not single_pickle:
+        if not (single_pickle or save_dict is not None):
             if start_time is None:
                 file_list=get_filenames(path=path, pattern=pattern, min_timestamp=0)
+                if len(file_list)==0:
+                    print(f'No file mathcing the pattern {pattern} was found in {path}' )
+                    return 
                 start_time=file_list[0][1]
             else:
                 file_list=[]
@@ -87,7 +87,8 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
         else:
             file_list=[]
             
-
+    if save_dict is not None:
+        start_time = save_dict.keys().__iter__().__next__()
 
     # start_file = os.path.join(path, start_file)
     refresh_interval = 1/refresh_rate
@@ -221,7 +222,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
             file_list = [(pattern.replace('*',str(start_time)), start_time)]
 
 
-        if not single_pickle:
+        if not (single_pickle or save_dict):
 
             get_filenames(path=path, pattern=pattern, min_timestamp=start_timestamp if check_timestamp else 0, extend=file_list)
             latest_timestamp = get_creationtime(os.path.join(path,file_list[-1][0]))
@@ -282,7 +283,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
 
         while True:
 
-            if not single_pickle:
+            if not  (single_pickle or save_dict):
                 for i_load, e in enumerate(file_list):
                     if e[1]>=next_disp_time:
                         break
@@ -295,7 +296,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
             #     times = [e[1] for _, e in enumerate(file_list)]
 
                 try:
-                    if not single_pickle:
+                    if not (single_pickle or save_dict):
                         file, t = file_list[i_load]
                         with open(os.path.join(path,file), 'rb') as input:
                             try:
@@ -359,7 +360,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
                 prev_counter = perf_counter()
 
             if i_loaded is not None and speedup:
-                if not single_pickle:
+                if not (single_pickle or save_dict):
                     rem = (file_list[i_loaded][1]-curr_time)/speedup
                 else:
                     rem = (keys[i_loaded]-curr_time)/speedup
@@ -375,20 +376,32 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
                 sleep(refresh_interval/2)
 
     def start():
-        nonlocal view, counter, prev_counter, save_dict, keys
-        if not single_pickle or not save_dict:
+        nonlocal view, counter, prev_counter, save_dict, keys, start_time, prev_disp_time, next_disp_time, curr_time, time_bounds
+        if not single_pickle :
             with open(os.path.join(path, start_file), 'rb') as input:
                 G=pickle.load(input)
                 t_G = start_time
-            if not save_dict:
-                save_dict=G
+            # if not save_dict:
+            #     save_dict=G
 
-        if single_pickle:
+        else:
+            if not save_dict:
+                with open(os.path.join(path, start_file), 'rb') as input:
+                    save_dict=pickle.load(input)
+
+            if start_time is None:
+                start_time = first_item(save_dict)
+                prev_disp_time = start_time
+                next_disp_time = start_time
+                curr_time = start_time
+                time_bounds = [start_time, float('-inf')]
+
             keys = np.array(list(save_dict.keys()))
             start_ind = np.argmin(np.abs(keys-start_time))
             t_G=keys[start_ind]
             G=save_dict[t_G]
             
+
         if pre_process is not None:
             G=pre_process(G)
         view = edge_viewer(G, window_callback=setup_player, refresh_rate=refresh_rate, parallel=False, **kw)
@@ -418,13 +431,13 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
         tmr = QTimer()
         tmr.timeout.connect(refresh)
 
-        tmr.setInterval(500/refresh_rate)
+        tmr.setInterval(int(500/refresh_rate))
         tmr.start()
 
         pg.exec()
 
     if parallel:
-        proc=mkprocess(start)
+        proc=Process(start, daemon=True)
         proc.start()
     else:
         start()

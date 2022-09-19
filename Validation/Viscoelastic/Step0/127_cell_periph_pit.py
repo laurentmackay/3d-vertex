@@ -18,7 +18,7 @@ import VertexTissue.T1 as T1
 
 from VertexTissue.Analysis import parameter_sweep, parameter_sweep_analyzer
 
-from VertexTissue.globals import default_ab_linker, default_edge, belt_strength, outer_arc, inner_arc
+from VertexTissue.globals import default_ab_linker, default_edge, belt_strength, outer_arc, inner_arc, pit_centers
 import VertexTissue.globals as const
 
 from VertexTissue.util import first, imin, shortest_edge_length_and_time, shortest_edge_network_and_time
@@ -32,8 +32,8 @@ except:
     viewable=False
     base_path = '/scratch/st-jjfeng-1/lmackay/data/SAC_pit/'
 
-from VertexTissue.util import last_item
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.util import last_dict_value
+from VertexTissue.Geometry import euclidean_distance
 
 
 def is_subprocess():
@@ -47,6 +47,7 @@ dt=0.1
 taus = np.logspace(6,1,5)
 lvl=0
 inter_edges = ((174,163),(83,94), (82,69), (2,8))
+arcs=0
 
 def run(force, visco=False,  phi0=1.0, level=0, arcs=0):
 
@@ -131,16 +132,16 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=0):
     if arcs==3:
         pattern='triple_'+pattern
 
-    pattern=base_path+pattern
+    pattern=base_path + pattern
 
     # pattern=None
     print(f'starting f={force}')
     integrate(20, 6000, 
             dt_init = 1e-3,
             adaptive=True,
-            dt_min=1e-5,
+            dt_min=1e-4,
             save_rate=100,
-            verbose=True,
+            verbose=False,
             save_pattern=pattern)
     # except:
     #     print(f'failed to integrate tau={tau}')
@@ -150,7 +151,7 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=0):
 
 
 def final_length(d):
-    G = last_item(d)
+    G = last_dict_value(d)
     # edge_view(G)
     a = G.nodes[174]['pos']
     b = G.nodes[163]['pos']
@@ -275,10 +276,19 @@ def main():
     visco_funcs=[ *[visco_runner(phi, level=lvl) for phi in phi0s],
                     ]
 
-    prefix='peripheral_'
+    if arcs==1:
+        prefix='outer_'
+    
+    if arcs==0:
+        prefix='peripheral_'
+
+    if arcs==2:
+        prefix='peripheral_outer_'
+
+    if arcs==3:
+        prefix='triple_'
     
 
-    elastic_func=run
     funcs=[lambda f: run(f, level=lvl), *visco_funcs]
     if lvl==0:
         savepaths = [
@@ -294,25 +304,24 @@ def main():
            
             ] for force in forces
         ]
-    # funcs=[elastic_func, lambda f: run(f, cable=False)]
-    # savepaths = [
-    #     [base_path+f'elastic_edges_{force}.pickle',
-    #     base_path+f'elastic_no_cable_{force}.pickle',
-    #     ] for force in forces
-    # ]
 
-    # if viewable:
-    #     results = parameter_sweep(forces, funcs,  
-    #                               pre_process=shortest_edge_length_and_time,
-    #                               savepaths=savepaths,
-    #                               overwrite=False,
-    #                               inpaint=(np.nan, np.nan),
-    #                               cache=True)
+
+    if viewable:
+        
+        G, G_apical = tissue_3d( hex=7,  basal=True)
+        nhbrs = [n  for c in pit_centers for n in list(G.neighbors(c))]
+        pre_process=lambda d: shortest_edge_length_and_time(d, excluded_nodes=nhbrs)
+        results = parameter_sweep(forces, funcs,  
+                                  pre_process=pre_process,
+                                  savepaths=savepaths,
+                                  overwrite=False,
+                                  inpaint=(np.nan, np.nan),
+                                  cache=True)
                                   
-    #     plot_results(forces, results)
-    # else:
-    #     parameter_sweep(forces, funcs, savepaths=savepaths, overwrite=False)
-    run(forces[-2], visco=True, phi0=0.3)
+        plot_results(forces, results)
+    else:
+        parameter_sweep(forces, funcs, savepaths=savepaths, overwrite=False)
+    # run(forces[-2], visco=True, phi0=0.3)
     print('done')
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@ from scipy.signal import find_peaks
 import numpy as np
 from pathos.pools import ProcessPool as Pool
 
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.Geometry import euclidean_distance
 import VertexTissue.globals as const
 from VertexTissue.Analysis import *
 from VertexTissue.util import *

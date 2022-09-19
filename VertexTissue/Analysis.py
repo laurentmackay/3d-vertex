@@ -1,14 +1,16 @@
-import pickle, os, collections, concurrent, psutil, multiprocessing, time
+
+import pickle, os, collections, psutil, multiprocessing
 # from jug import TaskGenerator
 from collections.abc import Iterable
+from itertools import product
 from pathos.pools import ProcessPool as Pool
 from pathos.pools import ThreadPool as ThreadPool
 import numpy as np
 import networkx as nx
 
 
-from .util import check_funcion_cache, get_creationtime, get_filenames, get_oldestfile, signature_string, signature_lists
-
+from .Filesystem import   get_creationtime, get_filenames, get_oldestfile
+from .Memoization import check_function_cache, signature_string
 
 def analyze_network_evolution(path='.', start_time=0, pattern=None, func=lambda G, t: G, pool=None, processes=None, indices=None):
     try:
@@ -75,7 +77,7 @@ def parameter_sweep(params, simulations, savepaths=None, overwrite=False, pool=N
 
     if cache is not None and pre_process is not None:
         if cache == True:
-            results, cache = check_funcion_cache(pre_process)
+            results, cache = check_function_cache(pre_process)
 
 
         
@@ -173,111 +175,203 @@ def parameter_sweep(params, simulations, savepaths=None, overwrite=False, pool=N
 
     return results
 
-def parameter_keyword_sweep(params, func, kw={}, savepath_prefix='.', extension='.pickle', overwrite=False, pool=None, pre_process=None, inpaint=None):
-   
-    extension=extension.strip()
-    if extension[0] != '.':
-        extension='.'+extension
-
-    if isinstance(kw, dict):
-        kw=[kw]  
-
-    results = None
-    shape=(len(params), len(kw))
-
-    if cache is not None and pre_process is not None:
-        if cache == True:
-            results, cache = check_funcion_cache(pre_process)
 
 
+# def sweep(*args, kw={}, savepath_prefix='.', extension='.pickle', overwrite=False, 
+#             pool=None, pre_process=None, pre_process_kw={}, pass_kw=False,
+#             inpaint=None, cache=False, refresh=False, verbose=True):
+#     """
+#     Perform a sweep of a function over parameter and keyword combinations, or retrieve corresponding results from local storage.
+
+#     Args:
+#         *args (function or Iterable): The function(s) and the Iterable(s) containing parameters that the function(s) are evaluated with. 
+#             If multiple parameter iterables are given, they will be expanded into a single Iterable using itertools.product. Any results
+#             that are not saved to storage by the function will be automatically saved.
+            
+#         kw (dict or Iterable): Keyword dict(s) to be fed into the function(s). If a dict is given, all keys must be strings. 
+#             If an Iterable is given, all its members must be keyword dicts.
+
+#         inpaint (Any): If not None, do not evaluate any function(s), but replace any missing results with `inpaint`. 
+#             Default is None.
+
+#         savepath_prefix (str): The base path where results are to be saved/loaded. Default is the present working directory '.'.  
+
+#         extension (str): The file extension for the serialized results. Default is '.pickle'.
+
+#         overwrite (bool): Controls whether existing results are to be overwritten. Default is False.
+
+#         pool (Mappable worker pool): The worker pool that carries out the function evaluations. If None (default), 
+#             then a mulitprocessing pool with n-1 nodes is created, where n is the number of physical cores on the machine.
+
+#         pre_process (function): A function for pre-processing results after function execution or loading from storage.
+#             Default is None.
+
+#         cache (bool): If pre_process is not None, the processed results are stored in a local cache for rapid later retrieval.
+#              Default is False.
+
+#         refresh (bool): If pre_process is not None and cache is True, ignore the current cache and overwrite it after processing. 
+#             Default is False.
         
-    if results is None or not (results.shape==shape):
-        results= np.array([ [None]*len(simulations) ]*len(params))
+#         verbose (bool): Controls whether a message is printed when files are loaded
 
+#     """
+
+#     func = get_callables(*args)
+#     params = tuple(product(*get_iterables(*args)))
+
+#     if len(func) > 1:
+#         for f in func:
+#             sweep(f, params, savepath_prefix=savepath_prefix, extension=extension, overwrite=overwrite, pool=pool, pre_process=pre_process, inpaint=inpaint, cache=cache)
+#     elif len(func) < 1:
+#         raise TypeError('No function specified')
+#     else:
+#         func = func[0]
+
+#     extension = extension.strip()
+#     if extension[0] != '.':
+#         extension = '.'+extension
+
+#     if isinstance(kw, dict):
+#         kw = [kw]
+
+#     basepath = os.path.join(savepath_prefix, function_savepath(func))
+#     results = None
+#     shape = (max(len(params), 1),  len(kw))
+
+#     if cache is not None and pre_process is not None:
+#         if cache == True:
+#             pre_hash = dict_hash([*params, *kw])
+#             results, cache = check_function_cache(pre_process, kw=pre_process_kw, load=not refresh, pre_hash=pre_hash)
+
+#     if results is None or not (results.shape == shape):
+#         results = np.array([[None]*shape[1]]*shape[0])
+
+#     if pool is None:
+#         core_count = psutil.cpu_count(logical=False)
+#         pool = Pool(nodes=core_count-1)
+
+      
+#     #setup a graceful exit
+#     signal.signal(signal.SIGTERM, lambda a,b: pool.terminate())
+
+#     results_raveled = results.ravel()
+
+#     par_names, _ = signature_lists(func)
+
+#     savepaths = multiprocessing.Manager().dict()
+
+#     def check_filesystem_and_run(k):
+
+#         i, j = np.unravel_index(k, shape)
+
+#         pars = params[i] if params else params
+
+#         if not isinstance(pars, Iterable):
+#             pars = (pars,)
+#         locals = {**{a: v for a, v in zip(par_names, pars)}, **kw[j]}
+
+#         path = os.path.join(basepath, signature_string( f=func, locals=locals) + extension)
+
+#         savepaths[k] = path
+#         missing_file = not os.path.exists(path)
+#         run = inpaint is None and (overwrite or missing_file)
+
+#         if run:
+#             result = func(*pars, **kw[j])
+#             #save the result for later, if that makes sense
+#             if result is not None and not os.path.exists(path):
+#                 with open(path, 'wb') as file:
+#                     pickle.dump(result, file)
+#         else:
+#             result = None
+
+#         return result
+
+#     to_check = np.where(results_raveled == None)[0]
+
+#     possibly_new_results = len(to_check) > 0
+
+#     # signal.pthread_sigmask(signal.SIG_BLOCK,[signal.SIGINT])
+
+
+#     results_raveled[to_check] = pool.map(check_filesystem_and_run, to_check)
+
+#     # signal.pthread_sigmask(signal.SIG_UNBLOCK,[signal.SIGINT])
+
+#     inpaint_ij = multiprocessing.Manager().list()
+#     kw_pre=pre_process_kw
     
+#     if pass_kw:
+#         pre_process_kw0 = pre_process_kw
 
-    if pool is None:
-        core_count = psutil.cpu_count(logical=False)
-        pool = Pool(nodes=core_count-1)
+#     def loader(k):
+#         nonlocal kw_pre # this nonlocal declaration shouldn't be necessary, but fixes a bug in some pyhton 3.10 versions
 
-    
-    
+#         i,j = np.unravel_index(k, shape)
+#         if results[i,j] is None:
+#             path = savepaths[k]
+#             file_exists = os.path.exists(path)
+#             if file_exists:                
+#                 with open(path, 'rb') as file:
+#                     try:
+#                         if pre_process is None:
+#                             out = pickle.load(file)
+#                         else:
+#                             if pass_kw:
+#                                 kw_pre={**pre_process_kw0, **kw[j]}
 
+#                             out =  pre_process(pickle.load(file), **kw_pre)
 
-
-    args, _ = signature_lists(func)
-
-
-
-    shape=(len(params), len(kw))
-
-    savepaths = multiprocessing.Manager().dict()
-
-    def runner(ij):
-
-        i,j=ij
-        pars=params[i]
-        if not isinstance(pars, Iterable):
-            pars=(pars,)
-        locals = {**{a:v for a,v in zip(args, pars)}, **kw[j]}
-        path = os.path.join(savepath_prefix, signature_string(f=func, locals=locals) + extension)
-        # savepaths_proxy_i = savepaths_proxy[i]
-        # savepaths_proxy_i[j] = path
-        savepaths[ij] = path
-        missing_file = not os.path.exists(path)
-        run = overwrite or (missing_file and inpaint is None)
-        
-        
-        if run:
-            result =  func(*pars, **kw[j])
-        else:
-            result = None
-
-
-        return result
-
-    results = np.reshape(pool.map(runner, np.ndindex(shape)), shape) #parallel for CPU-bound stuff
-
-    def loader(ij):
-       
-        i,j=ij
-        if results[i][j] is None:
-            path = savepaths[ij]
-            file_exists = os.path.exists(path)
-            if file_exists: #and results[i][j] is None:
-                
-                
-                with open(path, 'rb') as file:
-                    try:
-                        if pre_process is None:
-                            out = pickle.load(file)
-                        else:
-                            out =  pre_process(pickle.load(file))
-
-                        print(f'loaded[{i}][{j}]: {path}  ({os.path.getsize(path)/(1024*1024)} mb)')
+#                         if verbose:
+#                             print(f'loaded[{i}][{j}]: {path}  ({os.path.getsize(path)/(1024*1024)} mb)')
                         
-                        return out
-                    except:
-                        return inpaint
+#                         result =  out
+#                     except:
+#                         if verbose:
+#                             print(f'exception loading/processing: {path}  ({os.path.getsize(path)/(1024*1024)} mb)')
+#                         result = None
 
-            else:
-                # print(f'inpainting[{i}][{j}]:')
-                return inpaint
+#             else:
+#                 # print(f'inpainting[{i}][{j}]:')
+#                 result = None
+
+#             if result is None:
+#                 inpaint_ij.append(k)
+
+
+#             return result
 
 
   
+      
+
+#     if pre_process is None:
+#         pool = ThreadPool(nodes=psutil.cpu_count()-1) #revert to simple if we just have threading for IO-bound stuff
+        
+#     needed = np.where(results_raveled==None)[0] 
+#     results_raveled[needed] = pool.map(loader, needed) #multiprocessing for CPU-bound stuff
+
+
+#     # results = np.reshape( results, shape)
+
+#     if possibly_new_results and pre_process is not None and cache:
+#         with open(cache, 'wb') as file:
+#                 pickle.dump(results, file)
     
+#     #inpaint after we have cached
+#     if inpaint is not None:
+#         for k in inpaint_ij:
+#             results_raveled[k] = inpaint
+
+#     types=set([type(r) for r in results_raveled])
+#     is_scalar = [(not hasattr(r,'shape') ) or r.size==1 for r in results_raveled]
+#     try:
+#         if np.all(is_scalar):
+#             results=np.array(results, dtype = first_item(types))
+#     except:
+#         pass
     
-
-    if pre_process is None:
-        results = ThreadPool(nodes=psutil.cpu_count()-1).map(loader, np.ndindex(shape)) #threading for IO-bound stuff
-    else:
-        results = pool.map(loader, np.ndindex(shape))
-
-    results = np.reshape( results, shape)
-
-
-    return results
+#     return results
 
 def parameter_sweep_analyzer(params, simulations, analyzer, savepaths=None, overwrite=False, pool=None, pre_process=None, inpaint=None):
     results = parameter_sweep(params, simulations, savepaths=savepaths, overwrite=overwrite, pool=pool, pre_process=pre_process, inpaint=inpaint)
@@ -286,7 +380,7 @@ def parameter_sweep_analyzer(params, simulations, analyzer, savepaths=None, over
 
 
 def parameter_keywords_sweep_analyzer( params, simulations, analyzer, savepaths=None, overwrite=False, pool=None, pre_process=None, inpaint=None):
-    results = parameter_keyword_sweep( params, simulations, savepaths=savepaths, overwrite=overwrite, pool=pool, pre_process=pre_process, inpaint=inpaint)
+    results = sweep( params, simulations, savepaths=savepaths, overwrite=overwrite, pool=pool, pre_process=pre_process, inpaint=inpaint)
 
     analyzer(params, results)
 

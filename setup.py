@@ -10,7 +10,7 @@ def in_wsl() -> bool:
     return 'microsoft-standard' in uname().release
 
 
-install_requires=['networkx','numpy>1.10','scipy','numba>=0.54','pyqtgraph','pyopengl', 'matplotlib']
+install_requires=['networkx','numpy>1.10','scipy','numba>=0.54','pyqtgraph','pyopengl', 'matplotlib','psutil']
 dependency_links =[]
 
 

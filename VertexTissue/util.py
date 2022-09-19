@@ -1,265 +1,221 @@
-import pickle
-import sys, os, inspect, __main__
 
-from VertexTissue.funcs import euclidean_distance, unit_vector
-IS_WINDOWS = sys.platform.startswith('win')
-
-import multiprocessing as mp
-import os
-
-import fnmatch, re
-
-import networkx as nx
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
+import networkx as nx
 
-from . import globals as const
+
+
+import __main__
+
+
+from VertexTissue.Geometry import euclidean_distance, unit_vector
+from VertexTissue.Iterable import imin
 
 
 def new_graph(G=None):
     if G is None:
         G = nx.Graph()
     else:
-        G=G.copy()
-    if nx.__version__>"2.3":
-        G.node=G._node
-    
+        G = G.copy()
+    if nx.__version__ > "2.3":
+        G.node = G._node
+
     return G
 
 
+def get_points(G, q, pos):
+    # get node numbers associated with a given center
+    # inputs:   G: networkx graph
+    #           q: number of center node (apical only)
+    #           pos: position of nodes 
+    # returns:  pts: list of positions that are associated with that center 
+    basal_offset=G.graph['basal_offset']
+    api_nodes = [q] + list(G.neighbors(q))
+    basal_nodes = [q+basal_offset] + list(G.neighbors(q+basal_offset)) 
+#    basal_nodes = [api_nodes[n] + 1000 for n in range(1,7)]
+    pts = api_nodes + basal_nodes
+    pts = [pos[n] for n in pts]
 
-if IS_WINDOWS:
-    import dill
-    def run_dill(payload, args):
-        fun = dill.loads(payload)
-        return fun(*args)
-
-    def make_dill(f,a):
-        return (dill.dumps(f),(a,))
-
-def mkprocess(target, args=tuple() ,daemon=True):
-    if IS_WINDOWS:
-        proc = mp.Process(target=run_dill, args=make_dill(target, *args), daemon=daemon)
-    else:
-        proc = mp.Process(target=target, args=args, daemon=daemon)
-    return proc
-
-def get_filenames(path='.', pattern=const.save_pattern, min_timestamp=0, extend=None, include_path=False):
-    out=[]
-    pattern = fnmatch.translate(pattern)
-    pattern = pattern.replace('.*','(.*)')
-    regex = re.compile(pattern)
-    if extend is not None:
-        filenames = [ e[0] for e in extend]
-    with os.scandir(path) as iter:
-        for entry in iter:
-            name = entry.name
-            match = regex.match(name)
-
-            if  match and entry.stat().st_ctime > min_timestamp:
-                start, end = match.regs[1]
-                try:
-                    time = float(name[start:end])
-                    if include_path:
-                        name =os.path.join(path, name)
-                    if extend is None or name not in filenames:
-                        out.append((name, time))
-                except:
-                    pass
-
-
-    out.sort(key=lambda x: x[1])
-    if extend:
-        extend.extend(out)
-    return out
-
-def get_creationtime(filename, path=os.getcwd()):
-    return os.stat(os.path.join(path, filename)).st_ctime
-
-def get_oldestfile(pattern, path=os.getcwd()):
-    out=[]
-    pattern = fnmatch.translate(pattern)
-    pattern = pattern.replace('.*','(.*)')
-    regex = re.compile(pattern)
-    min_timestamp = np.inf
-    with os.scandir(path) as iter:
-        for entry in iter:
-            name = entry.name
-            # print(name)
-            match = regex.match(name)
-
-            if  match:
-                creation_time = entry.stat().st_ctime 
-                if creation_time < min_timestamp:
-                    start, end = match.regs[1]
-                    try:
-                        time = float(name[start:end])
-
-                        out=(name, time)
-                    except:
-                        pass
-
-
-
-    return out
+    return pts 
 
 def np_find(arr, x):
-    np.argwhere([ np.all(e == x)for e in arr ])
+    np.argwhere([np.all(e == x)for e in arr])
+
 
 def first(bools):
     return np.argwhere(bools)[0]
 
 
-def polygon_area(x,y):
+def polygon_area(x, y):
     # coordinate shift
     x_ = x - x.mean()
     y_ = y - y.mean()
     # everything else is the same as maxb's code
-    correction = x_[-1] * y_[0] - y_[-1]* x_[0]
+    correction = x_[-1] * y_[0] - y_[-1] * x_[0]
     main_area = np.dot(x_[:-1], y_[1:]) - np.dot(y_[:-1], x_[1:])
     return 0.5*np.abs(main_area + correction)
-    
+
+
 def rotation_matrix(theta):
     c, s = np.cos(theta), np.sin(theta)
     return np.array(((c, -s), (s, c)))
 
+
 def rectify_network_positions(G, phi=0):
-    pos_dict=nx.get_node_attributes(G,'pos')
-    pos_dict = {k:v[0:2] for k,v in pos_dict.items()}
+    pos_dict = nx.get_node_attributes(G, 'pos')
+    pos_dict = {k: v[0:2] for k, v in pos_dict.items()}
 
-    arr=np.array([*pos_dict.values()])
-    arr-=arr[0]
-    theta = np.arccos(np.dot(unit_vector(arr[0],arr[3]),(1,0) ))
+    arr = np.array([*pos_dict.values()])
+    arr -= arr[0]
+    theta = np.arccos(np.dot(unit_vector(arr[0], arr[3]), (1, 0)))
 
-    R=rotation_matrix(np.pi/2-theta+phi)
+    R = rotation_matrix(np.pi/2-theta+phi)
 
-    return {k:np.matmul(R, v) for k,v in pos_dict.items()}
-
-def last_item(d):
-    return d[next(reversed(d.keys()))]
+    return {k: np.matmul(R, v) for k, v in pos_dict.items()}
 
 
-def imin(iter):
-    return min(range(len(iter)), key=iter.__getitem__)
-
-def imax(iter):
-    return max(range(len(iter)), key=iter.__getitem__)
 
 
-def shortest_edge_network_and_time(d):
-    min_lens = []
 
-    times=list(d.keys())
-    G=d[times[1]]
+def get_cell_edges(G, basal=False, excluded_nodes=[]):
+
     centers = G.graph['centers']
-    edges = [(a,b) for a,b in G.edges if (a not in centers ) and (b not in centers) and G[a][b]['myosin']==0 ]
+    exclude=[*excluded_nodes, *centers]
+    if not basal:
+        basal_offset=G.graph['basal_offset']
+        return [(a, b) for a, b in G.edges if a<=basal_offset and b<=basal_offset and (a not in exclude) and (b not in exclude)]
+    else:
+        return  [(a, b) for a, b in G.edges if (a not in exclude) and (b not in exclude)]
+
+def get_myosin_free_cell_edges(G, basal=False, excluded_nodes=[]):
+    edges = get_cell_edges(G, basal=basal, excluded_nodes=excluded_nodes)
+    return [(a, b) for a, b in edges if G[a][b]['myosin'] == 0]
+
+def shortest_edge_network_and_time(d, excluded_nodes=[], return_length=False):
+    min_lens = []
+    
+    times = list(d.keys())
+    G = d[times[-2]]
+
+    edges = get_myosin_free_cell_edges(G, excluded_nodes=excluded_nodes)
+
     for t in times:
-        G=d[t]
-        lens = [ euclidean_distance(G.nodes[a]['pos'],G.nodes[b]['pos']) for a,b in edges]
+        G = d[t]
+        lens = [euclidean_distance(G.nodes[a]['pos'], G.nodes[b]['pos']) for a, b in edges]
         min_lens.append(min(lens))
 
-    
     # edge_view(G)
-    t_min=times[imin(min_lens)]
-    G=d[t_min]
-
-    return G, t_min
-
-def shortest_edge_length_and_time(d):
-    G, t_min = shortest_edge_network_and_time(d)
-    centers = G.graph['centers']
-    edges = [(a,b) for a,b in G.edges if (a not in centers ) and (b not in centers) and G[a][b]['myosin']==0 ]
-
-    lens = [ euclidean_distance(G.nodes[a]['pos'],G.nodes[b]['pos']) for a,b in edges]
-
-    return min(lens), t_min
-
-def signature_string(f=None, locals=None):
-
-    stack=inspect.stack()
-    if f is None or locals is None:
-        caller=stack[1]
-        if f is None:
-            f=caller.frame.f_globals[caller.function]
-        if locals is None:
-            locals=caller.frame.f_locals
-            
-    sig=inspect.signature(f)
-    
-    args, kws = signature_lists(f)
-
-    arg_strs = [str(locals[p]) for p in args]
-
-    kw_strs=[]
-    
-    for p in kws:
-        if p in locals.keys():
-                val=locals[p]
-                default = sig.parameters[p].default ;
-                if default != val:
-                    if not isinstance(default, bool):
-                        kw_strs.append(p+'='+str(locals[p]))
-                    elif default==True:
-                        kw_strs.append('no_'+p)
-                    else:
-                        kw_strs.append(p)
-
-            
-
-    out=''
-
-    if len(kw_strs):
-        out += '_'.join(kw_strs)
-    
-    if len(arg_strs):
-        new = ','.join(arg_strs)
-        if len(out):
-            out+='_'+new
-        else:
-            out=new
-    elif len(out)==0:
-        out='_'
-
-    return  out
-
-
-def signature_lists(f):
-
-    sig=inspect.signature(f)
-
-    args=[]
-    kws=[]
-    
-    for p in sig.parameters:
-        if sig.parameters[p].default is not inspect.Parameter.empty:
-            kws.append(p)          
-        else:
-            args.append(p)
-
-    
-
-    return  args, kws
-
-def check_funcion_cache(func):
-    cache_folder=os.path.join('.cache',script_name(), filename_without_extension(func.__code__.co_filename))
-    if not os.path.exists(cache_folder):
-        os.makedirs(cache_folder)
-
-
-
-    cache=os.path.join(cache_folder, func.__name__)
-
-    if os.path.exists(cache):
-        with open(cache, 'rb') as file:
-            results = pickle.load(file)
-
+    ind_min = imin(min_lens)
+    t_min = times[ind_min]
+    G = d[t_min]
+    if not return_length:
+        return G, t_min
     else:
-        results=None
+        return G, t_min, min_lens[ind_min]
 
-    return results, cache
+def shortest_edge_length_and_time(d, excluded_nodes=[]):
+    _, t_min, l_min = shortest_edge_network_and_time(d, excluded_nodes=excluded_nodes, return_length=True)
+    
+    
+    # edges = [(a, b) for a, b in G.edges if (a not in exclude)  and (b not in exclude) and G[a][b]['myosin'] == 0]
+    # nodes = G.nodes
+    # lens = [euclidean_distance(nodes[a]['pos'], nodes[b]['pos']) for a, b in edges]
+
+    return l_min, t_min
+
+def arc_to_edges(*args, sort=True):
+    edges=[[tuple((x[i-1], x[i])) for i in range(len(x))] for x in args]
+    edges = [y for x in edges for y in x]
+
+    if sort:
+        edges=[tuple(sorted(e)) for e in edges]
+
+    return edges
+        
+    
 
 
-def script_name():
-    return  filename_without_extension(sys.argv[0])
 
-def filename_without_extension(path):
-    return os.path.splitext(os.path.basename(path))[0]
+
+def get_node_attribute_dict(G, attr):
+    return nx.get_node_attributes(G, attr)
+
+
+def get_node_attribute_array(G, attr):
+    return np.array((*nx.get_node_attributes(G, attr).values(),))
+
+
+def get_edge_attribute_array(G, attr, dtype=float):
+    return np.fromiter(nx.get_edge_attributes(G, attr).values(), dtype=dtype)
+
+
+def set_node_attributes(G, attr, vals):
+    for k, v in enumerate(vals):
+        G.node[k][attr] = v
+
+
+def set_edge_attributes(G, attr, vals):
+    attr_vals = {e: v for e, v in zip(G.edges(), vals)}
+    nx.set_edge_attributes(G, attr_vals, name=attr)
+
+def inside_arc(node, arc, G):
+    if node in arc:
+        return False
+        
+    closest = np.argmin([nx.shortest_path_length(G, source=node, target=a) for a in arc])
+    return nx.shortest_path_length(G, source=0, target=node) < nx.shortest_path_length(G, source=0, target=arc[closest])
+
+
+def pcolor(X, Y, C, shading='nearest', cmap=None, tight=True, **kw):
+    plt.pcolormesh(X, Y, C, shading=shading, cmap=cmap, **kw)
+    if tight:
+        plt.xlim(X[0], X[-1])
+        plt.ylim(Y[0], Y[-1])
+
+def hatched_contour(X, Y, Z, hatches = ['\\\\\\'], color='#ff000080', upscale=1, levels = None, linewidth=0.5, alpha=0.0, hatch_alpha=0.05):
+    if upscale>1:
+        XY, Z = upsample(X, Y, Z, fold=upscale, midpoint=True)
+
+    color = matplotlib.colors.to_rgba(color)
+    if  hatch_alpha is not None:
+        color = (*color[:3], hatch_alpha)
+    color = matplotlib.colors.to_hex(color, keep_alpha=True)
+    plt.rcParams['hatch.color']=color
+    plt.rcParams['hatch.linewidth']=linewidth
+
+
+    plt.contourf(*XY, Z, levels=levels, hatches=hatches, alpha=alpha)
+    plt.contour(*XY, Z, levels =levels, colors=matplotlib.colors.to_hex(color, keep_alpha=False), linewidths=linewidth)
+
+def contour(X, Y, Z, color='r', upscale=1, levels = None, linewidth=1):
+    if upscale>1:
+        XY, Z = upsample(X, Y, Z, fold=upscale, midpoint=True)
+
+    plt.contour(*XY, Z, levels =levels, colors=color, linewidths=linewidth)
+
+def upsample(*args, fold=10, midpoint=True):
+    *coords, vals = args 
+    ndim = len(vals.shape)
+
+    for i, x in enumerate(coords):
+        Nx=len(x)
+        coords
+        x0=np.array(x)
+        if midpoint:
+            x = np.array([x0[0], *((x0[1:]+x0[:-1])/2), x0[-1]])
+            X = np.array([*np.linspace(0, 1, fold), *np.linspace(1,Nx-1,fold*(Nx-2)+2)[1:-1], *np.linspace(Nx-1,Nx,fold) ])
+        else:
+            X=np.linspace(0, Nx-1, fold*Nx)
+        coords[i] = np.interp(X, range(len(x)), x)
+
+
+    Z = vals
+    
+    for d in range(ndim):
+        Z = np.repeat(Z, fold, axis=d)
+
+
+    return coords, Z
+
+

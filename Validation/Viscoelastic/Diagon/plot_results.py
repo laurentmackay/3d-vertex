@@ -7,7 +7,7 @@ import numpy as np
 from pathos.pools import ProcessPool as Pool
 import networkx as nx
 
-from VertexTissue.funcs import euclidean_distance, get_pos_array, get_points, convex_hull_volume_bis, unit_vector
+from VertexTissue.Geometry import euclidean_distance, get_pos_array, get_points, convex_hull_volume, unit_vector
 import VertexTissue.globals as const
 from VertexTissue.Analysis import *
 from VertexTissue.util import *

@@ -16,12 +16,14 @@ from VertexTissue.Tissue import T1_minimal, T1_shell, tissue_3d, get_outer_belt
 import VertexTissue.SG as SG
 import VertexTissue.T1 as T1
 
+from VertexTissue.PyQtViz import edge_viewer
+
 from VertexTissue.Analysis import parameter_sweep, parameter_sweep_analyzer
 
 from VertexTissue.globals import default_ab_linker, default_edge, belt_strength, outer_arc, inner_arc
 import VertexTissue.globals as const
 
-from VertexTissue.util import first, imin, shortest_edge_length_and_time, shortest_edge_network_and_time
+from VertexTissue.util import first, first_item, get_myosin_free_cell_edges, imin, inside_arc, shortest_edge_length_and_time, shortest_edge_network_and_time
 
 try:
     from VertexTissue.PyQtViz import edge_view
@@ -32,8 +34,8 @@ except:
     viewable=False
     base_path = '/scratch/st-jjfeng-1/lmackay/data/SAC_127/'
 
-from VertexTissue.util import last_item
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.util import last_dict_value
+from VertexTissue.Geometry import euclidean_distance
 
 
 def is_subprocess():
@@ -97,7 +99,7 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=3):
                                     pre_callback=squeeze, 
                                     intercalation_callback=terminate, 
                                     termination_callback=wait_for_intercalation,  
-                                    blacklist=True, RK=3, length_rel_tol=0.05, angle_tol=0.1, length_abs_tol=5e-2, 
+                                    blacklist=True,
                                     player=False, viewer={'button_callback':terminate,'nodeLabels':None} if viewable else False, minimal=False, **kw)
     #{'button_callback':terminate,'nodeLabels':None} if viewable else False
     #integrates
@@ -127,9 +129,9 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=3):
     integrate(20, 6000, 
             dt_init = 1e-3,
             adaptive=True,
-            dt_min=1e-3,
+            dt_min=1e-4,
             save_rate=100,
-            verbose=True,
+            verbose=False,
             save_pattern=pattern)
     # except:
     #     print(f'failed to integrate tau={tau}')
@@ -139,7 +141,7 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=3):
 
 
 def final_length(d):
-    G = last_item(d)
+    G = last_dict_value(d)
     # edge_view(G)
     a = G.nodes[174]['pos']
     b = G.nodes[163]['pos']
@@ -215,7 +217,7 @@ def plot_results(forces,results):
     plt.legend(fontsize=14)
     plt.tight_layout()
 
-    plt.savefig(f'triple_belt_contraction_127.pdf',dpi=200)
+    plt.savefig(f'triple_belt_inner_zone_contraction_127.pdf',dpi=200)
     plt.show()
 
     plt.figure().clear()
@@ -250,8 +252,21 @@ def visco_runner(phi0, **kw):
 
 def visco_no_cable_runner(phi0, **kw):
     return lambda f: run(f, visco=True, cable=False, phi0=phi0, **kw)
+G_test, _ = tissue_3d( hex=7,  basal=True)
+belt = get_outer_belt(_)
+edges = get_myosin_free_cell_edges(G_test)
+nodes = np.unique(np.array([e for e in edges]).ravel())
+smth = [not inside_arc(n, inner_arc, G_test) for n in nodes]
+# inner_most = [inside_arc(n,outer_arc,G_test) for n in nodes]
+# smth = [inside_arc(n,outer_arc,G_test)  for n in nodes]
+bad_nodes = nodes[smth].ravel()
 
-phi0s=[ .3,  .4, .5,  0.6, .7, .8, .9]
+def foo(d):
+    _, bar , min_len= shortest_edge_network_and_time(d,excluded_nodes=bad_nodes, return_length=True)
+    return min_len, bar
+
+
+phi0s=[ .3,  .4, .5,  .6, .7, .8, .9]
 colors=['r','g','b','y','m','c','orange','k']
 def main():
     forces=np.array([ *np.linspace(0,850,40), *np.linspace(850,1200,20)[1:]])
@@ -283,25 +298,19 @@ def main():
            
             ] for force in forces
         ]
-    # funcs=[elastic_func, lambda f: run(f, cable=False)]
-    # savepaths = [
-    #     [base_path+f'elastic_edges_{force}.pickle',
-    #     base_path+f'elastic_no_cable_{force}.pickle',
-    #     ] for force in forces
-    # ]
-
-    # if viewable:
-    #     results = parameter_sweep(forces, funcs,  
-    #                               pre_process=shortest_edge_length_and_time,
-    #                               savepaths=savepaths,
-    #                               overwrite=False,
-    #                               inpaint=(np.nan, np.nan),
-    #                               cache=True)
+   
+    if viewable:
+        results = parameter_sweep(forces, funcs,  
+                                  pre_process=foo,
+                                  savepaths=savepaths,
+                                  overwrite=False,
+                                  inpaint=(np.nan, np.nan),
+                                  cache=False)
                                   
-    #     plot_results(forces, results)
-    # else:
-    #     parameter_sweep(forces, funcs, savepaths=savepaths, overwrite=False)
-    run(forces[-2], visco=True, phi0=0.95)
+        plot_results(forces, results)
+    else:
+        parameter_sweep(forces, funcs, savepaths=savepaths, overwrite=False)
+    # run(forces[-2], visco=True, phi0=0.95)
     print('done')
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from VertexTissue import globals as const
 from VertexTissue.Analysis import *
 
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.Geometry import euclidean_distance
 
 from periodic_2D import f, omega
 

@@ -5,7 +5,7 @@ from Validation.Viscoelastic.TimeseriesAnalysis import get_theo_length
 from VertexTissue import globals as const
 from VertexTissue.Analysis import *
 
-from VertexTissue.funcs import euclidean_distance, get_pos, unit_vector
+from VertexTissue.Geometry import euclidean_distance, get_pos, unit_vector
 
 
 dt = 0.1

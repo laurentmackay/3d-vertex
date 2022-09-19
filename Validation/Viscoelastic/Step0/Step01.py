@@ -8,14 +8,14 @@ from VertexTissue.Tissue import T1_minimal, tissue_3d, get_outer_belt
 import VertexTissue.SG as SG
 import VertexTissue.T1 as T1
 
-from VertexTissue.Analysis import parameter_sweep, parameter_keyword_sweep, parameter_sweep_analyzer
+from VertexTissue.Analysis import parameter_sweep, sweep, parameter_sweep_analyzer
 
 from VertexTissue.globals import default_ab_linker, default_edge
 import VertexTissue.globals as const
 
 
-from VertexTissue.util import last_item, script_name, signature_string
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.util import last_dict_value, script_name, signature_string
+from VertexTissue.Geometry import euclidean_distance
 from VertexTissue.visco_funcs import edge_crumpler
 
 
@@ -30,7 +30,7 @@ except:
 
 
 def final_length(d):
-    G = last_item(d)
+    G = last_dict_value(d)
     # edge_view(G)
     a = G.nodes[1]['pos']
     b = G.nodes[11]['pos']
@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
 
 
-    parameter_keyword_sweep(forces, run, kw=kws, savepath_prefix=base_path+script_name(), overwrite=False)
+    sweep(forces, run, kw=kws, savepath_prefix=base_path+script_name(), overwrite=False)
 
 
         

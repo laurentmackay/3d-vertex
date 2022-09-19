@@ -15,8 +15,8 @@ from VertexTissue.globals import default_ab_linker, default_edge
 import VertexTissue.globals as const
 
 
-from VertexTissue.util import last_item
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.util import last_dict_value
+from VertexTissue.Geometry import euclidean_distance
 
 
 try:
@@ -113,7 +113,7 @@ def visco_runner(phi0, **kw):
     return lambda f: run(f, visco=True, phi0=phi0,**kw)
 
 def final_length(d):
-    G = last_item(d)
+    G = last_dict_value(d)
     # edge_view(G)
     a = G.nodes[1]['pos']
     b = G.nodes[11]['pos']

@@ -8,7 +8,7 @@ from pathos.pools import ProcessPool as Pool
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.Tissue import square_grid_2d, linear_grid
 import VertexTissue.SG as SG
-from VertexTissue.funcs import unit_vector_2D
+from VertexTissue.Geometry import unit_vector_2D
 from VertexTissue.globals import default_ab_linker, default_edge
 from VertexTissue.PyQtViz import edge_view
 

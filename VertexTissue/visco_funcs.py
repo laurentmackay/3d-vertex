@@ -2,7 +2,7 @@ import numpy as np
 from numba import jit
 
 from VertexTissue.globals import l_apical
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.Geometry import euclidean_distance
 
 def edge_crumpler(G, phi0=1.0, ec=0.2):
 
@@ -19,21 +19,22 @@ def edge_crumpler(G, phi0=1.0, ec=0.2):
 
 def crumple(phi0=1.0, ec=0.2):
 
-    @jit(nopython=True, cache=True)
+    alpha = ((1.0-phi0)/(1.0-ec))
+    # @jit(nopython=True, cache=True)
     def inner(ell,L0):
 
         l_rest=L0.copy()
-        inds = (ell<(1-ec)*L0).reshape(-1,)
-        l_rest[inds] = (1-phi0)*ell[inds]/(1-ec)+ phi0*L0[inds]
+        inds = ( ell < (1-ec)*L0 )
+        l_rest[inds] = alpha*ell[inds] + phi0*L0[inds]
         return l_rest
 
     return inner
 
-def shrink_edges(G, L0_min=None, basal=True):
+def shrink_edges(G, L0=None, basal=True):
     basal_offset = G.graph['basal_offset']
-    dynamic = L0_min is None
+    dynamic = L0 is None
     
-    def inner(node,neighbour, L0_min=L0_min):
+    def inner(node,neighbour, L0_min=L0):
         
             if dynamic:
                 a=G.nodes[node]['pos']
@@ -54,12 +55,12 @@ def shrink_edges(G, L0_min=None, basal=True):
 
 def extension_remodeller(ec=.3):
     
-    @jit(nopython=True, cache=True)
+    # @jit(nopython=True, cache=True)
     def inner(ells,L0):
         out = np.zeros(L0.shape)
         for i in range(len(L0)):
-            L=L0[i,0]
-            ell=ells[i,0]
+            L=L0[i]
+            ell=ells[i]
             eps=0
             if L>0:
                     eps=(ell-L)/L

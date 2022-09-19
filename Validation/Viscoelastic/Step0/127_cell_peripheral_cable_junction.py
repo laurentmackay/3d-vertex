@@ -32,8 +32,8 @@ except:
     viewable=False
     base_path = '/scratch/st-jjfeng-1/lmackay/data/SAC+127_peripheral/'
 
-from VertexTissue.util import last_item
-from VertexTissue.funcs import euclidean_distance
+from VertexTissue.util import last_dict_value
+from VertexTissue.Geometry import euclidean_distance
 
 
 def is_subprocess():
@@ -45,7 +45,7 @@ def decrease_nice():
 
 dt=0.1
 taus = np.logspace(6,1,5)
-lvl=3
+lvl=4
 inter_edges = ((249, 260), (175,186), (174,163), (249, 186), (174,175))
 def run(force, visco=False, cable=True, phi0=1.0, level=0, arcs=1):
 
@@ -119,7 +119,7 @@ def run(force, visco=False, cable=True, phi0=1.0, level=0, arcs=1):
     integrate(20, 1000, 
             dt_init = 1e-3,
             adaptive=True,
-            dt_min=1e-2,
+            dt_min=1e-4,
             save_rate=100,
             save_pattern=pattern)
     # except:
@@ -130,7 +130,7 @@ def run(force, visco=False, cable=True, phi0=1.0, level=0, arcs=1):
 
 
 def final_length(d):
-    G = last_item(d)
+    G = last_dict_value(d)
     # edge_view(G)
     a = G.nodes[174]['pos']
     b = G.nodes[163]['pos']
@@ -220,6 +220,7 @@ def visco_no_cable_runner(phi0, **kw):
     return lambda f: run(f, visco=True, cable=False, phi0=phi0, **kw)
 
 phi0s=[0.3,  .4, .5,  0.6, .7, .8, .9]
+# phi0s = [0.5, 0.9 ]
 colors=['r','g','b','y','m','c','orange','lime']
 def main():
     forces=np.array([ *np.linspace(0,850,40), *np.linspace(850,1200,20)[1:]])

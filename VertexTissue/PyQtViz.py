@@ -7,18 +7,18 @@ import networkx as nx
 import numpy as np
 
 from pyqtgraph.Qt.QtWidgets import QMainWindow, QDockWidget, QWidget, QHBoxLayout, QVBoxLayout, QCheckBox, QFormLayout, QLineEdit, QLabel, QPushButton
-from pyqtgraph.Qt.QtGui import QDoubleValidator, QColor
-from pyqtgraph.Qt.QtCore import *
+from pyqtgraph.Qt.QtGui import QDoubleValidator
+from pyqtgraph.Qt.QtCore import QSize, Qt, QTimer
 import pyqtgraph as pg
 from pyqtgraph.opengl import GLViewWidget
 
 
-from .util import mkprocess
+from .Multiprocessing import Process
 from .GLNetworkItem import GLNetworkItem
 
 
 
-def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, button_callback=None, **kw):
+def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_callback=None, title=None, **kw):
 
     def outer(*a,**kw):
         init_callback = kw['window_callback'] if 'window_callback' in kw.keys() and callable(kw['window_callback']) else lambda win: None
@@ -185,7 +185,7 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, button_
             tmr = QTimer()
             tmr.timeout.connect(listen)
             
-            tmr.setInterval(500/refresh_rate)
+            tmr.setInterval(int(500/refresh_rate))
             tmr.start()
 
             pg.exec()
@@ -199,7 +199,7 @@ def edge_viewer(*args, refresh_rate=60, parallel=True, drop_frames=True, button_
     plot=True
     if parallel:
         a, b = mp.Pipe(duplex=True)
-        proc = mkprocess(outer(*args,**kw), args=(b,))
+        proc = Process(outer(*args,**kw), args=(b,), daemon=True)
         proc.start()
 
         timeout =  0.0 if drop_frames else 0.5/refresh_rate 
@@ -326,12 +326,11 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
         vals = (vals-min_val)
         range   = np.nanmax(vals)
 
-    elif not cell_edges_only:
-        vals = np.zeros((edges.shape[0],))
-        range=False
     else:
         vals = np.zeros((edges.shape[0],))
+        min_val=0.0
         range=False
+
 
 
     if range:
@@ -352,21 +351,21 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
         gi = GLNetworkItem(parent=gl_widget, **{ **data, **kw})
         gl_widget.addItem(gi)       
         gi.setParent(gl_widget)
-        if attr:
-            colorBar = pg.ColorBarItem(values=(min_val, min_val+range), width=15, cmap=cmap, interactive=False)
-            # colorBar.setGradient(cmap.getGradient())
-            # labels = {"wtv": v for v in np.linspace(0, 1, 4)}
-            # colorBar.setLabels(labels)
-            gview = myGraphicsView(background='w')
-            gview.setMinimumSize(QSize(80,size[1]))
-            gview.setMaximumSize(QSize(80,10000))
-            layout.addWidget(gview)
-            gview.setCentralItem(colorBar)
-            # gview.get
-            # colorBar.setParentItem(gview)
-            # win.addItem(colorBar)
-            gi.colorBar=colorBar
-            gi.gview = gview
+        # if attr:
+        colorBar = pg.ColorBarItem(values=(min_val, min_val+range), width=15, cmap=cmap, interactive=False)
+        # colorBar.setGradient(cmap.getGradient())
+        # labels = {"wtv": v for v in np.linspace(0, 1, 4)}
+        # colorBar.setLabels(labels)
+        gview = myGraphicsView(background='w')
+        gview.setMinimumSize(QSize(80,size[1]))
+        gview.setMaximumSize(QSize(80,10000))
+        layout.addWidget(gview)
+        gview.setCentralItem(colorBar)
+        # gview.get
+        # colorBar.setParentItem(gview)
+        # win.addItem(colorBar)
+        gi.colorBar=colorBar
+        gi.gview = gview
     else:
         gi.setData(**{ **data, **kw})
         if not np.isnan(min_val) and not np.isnan(range):

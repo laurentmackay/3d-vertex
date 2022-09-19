@@ -1,9 +1,9 @@
+import networkx as nx
 import numpy as np
-from numba.typed import List
-import numba
 
-from .util import new_graph, polygon_area
-from .funcs import *
+
+from .util import new_graph
+from .Geometry import *
 from . import globals as const
 
 # l_apical = const.l_apical 
@@ -322,31 +322,12 @@ def tissue_3d( gen_centers=hex_hex_grid, node_generator=hex_nodes, basal=True, s
 
     belt = get_outer_belt(G)
     triangles = get_triangles(G, pos, center_nodes, belt)
-    # triangles = []
-    # for node in G.nodes():
-    #     if node not in belt:
-    #         if node in center_nodes:
-    #             out1, out2 = sort_corners(list(G.neighbors(node)),pos[node],pos)
-    #             neighbors = [out2[k][0] for k in range(0,len(out2))]
-    #             alpha_beta = [[[node,neighbors[k-1],neighbors[k-2]],[node, neighbors[k],neighbors[k-1]]] for k in range(0,6)]
-
-    #             for entry in alpha_beta:
-    #                 triangles.append(entry)
-    #         else: # node not a center, so that I don't double count pairs, only keep those that cross a cell edge
-    #             out1, out2 = sort_corners(list(G.neighbors(node)),pos[node],pos)
-    #             neighbors = [out2[k][0] for k in range(0,len(out2))]
-	            
-    #             for k in range(0,6):
-    #                 alpha = [node,neighbors[k-1],neighbors[k-2]]
-    #                 beta = [node,neighbors[k],neighbors[k-1]]
-                    
-    #                 if set(alpha) & set(center_nodes) != set(beta) & set(center_nodes):
-    #                     triangles.append([alpha,beta])
+    G.graph['triangles']=triangles
 
     print("Apical nodes added correctly.")
     print("Number of apical nodes are", i)
-    # G.graph['triangles']=[*triangles, *[[[j + basal_offset for j in p] for p in pair ] for pair in triangles] ]
-    G.graph['triangles']=triangles
+
+    
 
     G_apical = new_graph(G)
 
@@ -354,7 +335,7 @@ def tissue_3d( gen_centers=hex_hex_grid, node_generator=hex_nodes, basal=True, s
     # Basal Nodes
  
     if basal:
-        G.graph['triangles']=[*triangles, *[[[j + (i) for j in p] for p in pair ] for pair in triangles] ]
+
 
         G.graph['basal_offset']=i
         # const.basal_offset=np.maximum(const.basal_offset, len(G))
@@ -376,8 +357,6 @@ def tissue_3d( gen_centers=hex_hex_grid, node_generator=hex_nodes, basal=True, s
 
         print("Vertical Connections made")
 
-
-    G.graph['triangles']=np.array(G.graph['triangles'])
     return G, G_apical
 
 
@@ -462,6 +441,8 @@ def get_triangles(G, pos, centers, belt):
                         
                         if set(alpha) & set(centers) != set(beta) & set(centers):
                             triangles.append([alpha, beta])
+
+        triangles = np.array(triangles)
     else:
         triangles=None
 

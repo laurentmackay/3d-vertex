@@ -8,7 +8,7 @@ import VertexTissue.SG as SG
 import VertexTissue.T1 as T1
 
 
-from VertexTissue.globals import default_ab_linker, default_edge, l_apical, basal_offset, inter_edges, arc1, arc2, arc3, arc4, arc5, arc6
+from VertexTissue.globals import default_ab_linker, default_edge, l_apical, basal_offset, inter_edges_middle, arc1, arc2, arc3, arc4, arc5, arc6
 
 from VertexTissue.PyQtViz import edge_view
 
@@ -70,7 +70,7 @@ def main(dt):
                 dt_min=1e-1,
                 save_rate=1,
                 length_prec=0.01,
-                save_pattern=f'./data/{prefix}/S{len(inter_edges)}_zero_rest_outer_*.pickle')
+                save_pattern=f'./data/{prefix}/S{len(inter_edges_middle)}_zero_rest_outer_*.pickle')
         # except:
         #     print(f'failed to integrate tau={tau}')
         #     pass

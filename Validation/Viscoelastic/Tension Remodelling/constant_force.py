@@ -3,7 +3,7 @@ import time
 
 from pathos.pools import ProcessPool as Pool
 
-from VertexTissue.funcs import unit_vector_2D
+from VertexTissue.Geometry import unit_vector_2D
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.Tissue import linear_grid
 import VertexTissue.globals as const

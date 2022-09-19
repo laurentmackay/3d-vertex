@@ -32,8 +32,8 @@ except:
     viewable=False
     base_path = '/scratch/st-jjfeng-1/lmackay/data/SAC+center/'
 
-from VertexTissue.util import last_item
-from VertexTissue.funcs import euclidean_distance, unit_vector
+from VertexTissue.util import last_dict_value
+from VertexTissue.Geometry import euclidean_distance, unit_vector
 
 
 def is_subprocess():
@@ -121,7 +121,7 @@ def run(force, visco=False, cable=True, phi0=1.0):
 
 
 def final_length(d):
-    G = last_item(d)
+    G = last_dict_value(d)
     # edge_view(G)
     a = G.nodes[8]['pos']
     b = G.nodes[41]['pos']
@@ -176,7 +176,7 @@ def collapsed_or_buckled(d):
 
 def buckled(d):
     lens = []
-    G=last_item(d)
+    G=last_dict_value(d)
     
     a = G.nodes[11]['pos']
     b = G.nodes[10]['pos']
