@@ -4,7 +4,11 @@
 /__pycache__/*
 *.lprof
 3d_vertex.egg-info/*
+*.pdf
+*.png
+*.pyc
 
 .vscode/launch.json
 /data/*
+/.cache/*
 */__pycache__/*
