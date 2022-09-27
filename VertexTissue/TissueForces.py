@@ -3,6 +3,8 @@ from numba.typed import List
 import numba
 from numba import jit
 
+from VertexTissue.funcs_orig import convex_hull_volume_bis
+
 from .Geometry import unit_vector_and_dist, triangle_areas_and_vectors, convex_hull_volume, triangle_area_vector
 from . import globals as const
 from .globals import press_alpha
@@ -57,7 +59,8 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True):
 
         for i, e in enumerate(edges):
             magnitude = mu_apical*(dists[i] - l_rest[i])
-            magnitude2 = myo_beta*myosin[i]
+            
+            magnitude2 = myo_beta * myosin[i]
         
             force=(magnitude + magnitude2)*drx[i,:ndim]
             forces[e[0]]+=force
@@ -214,7 +217,7 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True):
                 # get nodes for volume
                 pts = get_points(G, centers[n], pos) 
                 # calculate volume
-                vol = convex_hull_volume(pts)  
+                vol = convex_hull_volume_bis(pts)  
                 # calculate pressure
                 DV = vol-const.v_0
                 # if abs(DV)<1e-7:
@@ -247,8 +250,8 @@ def compute_network_indices(G):
     
     def bending_indices():
 
-        triangles = G.graph['triangles']
-        triangles = np.vstack((triangles, triangles+basal_offset))
+        triangles_apical = G.graph['triangles']
+        triangles = np.vstack((triangles_apical, triangles_apical+basal_offset))
         shared_inds = np.zeros((len(triangles),2,7),dtype=int)
         alpha_inds = np.zeros((len(triangles),7),dtype=int)
         beta_inds = np.zeros((len(triangles),7),dtype=int)

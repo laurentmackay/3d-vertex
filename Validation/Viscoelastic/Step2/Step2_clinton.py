@@ -15,14 +15,15 @@ import VertexTissue.SG as SG
 
 from VertexTissue.Tissue import get_outer_belt, tissue_3d
 from VertexTissue.Geometry import euclidean_distance, unit_vector
-from VertexTissue.globals import inter_edges_middle, inter_edges_middle_bis, inter_edges_outer, inter_edges_outer_bis, inner_arc, outer_arc, pit_strength, myo_beta, l_apical
-from VertexTissue.Dict import dict_product, dict_product_nd_shape, last_dict_value
+from VertexTissue.funcs_orig import clinton_timestepper
+from VertexTissue.globals import press_alpha, inter_edges_middle, inter_edges_middle_bis, inter_edges_outer, inter_edges_outer_bis, inner_arc, outer_arc, pit_strength, myo_beta, l_apical
+from VertexTissue.Dict import closest_dict_value, dict_product, dict_product_nd_shape, last_dict_value
 from VertexTissue.Memoization import  function_call_savepath
-from VertexTissue.util import arc_to_edges, get_myosin_free_cell_edges, inside_arc
+from VertexTissue.util import arc_to_edges, edge_index, get_myosin_free_cell_edges, inside_arc, find_first
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.visco_funcs import crumple, edge_crumpler, extension_remodeller, shrink_edges
 
-
+import VertexTissue.globals as const
 
 
 
@@ -70,8 +71,13 @@ def invagination_depth2(G):
 def final_lumen_depth(d):
         return lumen_depth(last_dict_value(d))
 
-def final_depth(d):
-        return invagination_depth(last_dict_value(d))
+def final_depth(d, t_final=None):
+        
+        if t_final is None:
+                return invagination_depth(last_dict_value(d))
+        else:
+                return  invagination_depth(closest_dict_value(d, t_final))
+
 
 def final_depth2(d):
         return invagination_depth2(last_dict_value(d))
@@ -179,7 +185,7 @@ def final_corner_angle(d, **kw):
     kw['intercalations']=min(kw['intercalations'],6)
     return angle(last_dict_value(d), **kw)  
 
-def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, intercalations=0, outer=False, double=False, viewable=viewable):
+def run(phi0, remodel=True, press_alpha=const.press_alpha, L0_T1=0.0, verbose=False, belt=True, intercalations=0, outer=False, double=False, viewable=viewable, orig_forces=False):
     
     
     pattern=os.path.join(base_path, function_call_savepath()+'.pickle')
@@ -195,6 +201,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
     # b=p03-0.3*m
     # pit_strength=m*phi0+b
 
+    const.press_alpha=press_alpha
         
 
     inter_edges = get_inter_edges(intercalations=intercalations, outer=outer, double=double)
@@ -205,7 +212,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
     alpha=1
     sigma = (alpha*ec*l_apical*(-1+phi0)+(ec-phi0)*pit_strength*myo_beta)/((-1+ec)*myo_beta)
     # sigma=pit_strength
-    t_start = 0.01 
+    t_start = 0.0
 
 
 
@@ -231,11 +238,18 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
     blacklist=arc_to_edges(belt, inner_arc, outer_arc)
 
+    clinton_timestep, uncontracted = clinton_timestepper(G, inter_edges)
+
+    
+    def label_contracted(i,j):
+        inds = edge_index(G, inter_edges)
+        uncontracted[ find_first( edge_index(G, (i,j)) == inds )] = False
+
     # b
     #create integrator
     integrate = monolayer_integrator(G, G_apical,
                                     blacklist=blacklist, RK=1,
-                                    intercalation_callback=shrink_edges(G, L0=L0_T1),
+                                    intercalation_callback=label_contracted,
                                     angle_tol=.01, length_rel_tol=0.05,
                                     player=False, viewer={'button_callback':terminate } if viewable else False, minimal=False, **kw)
 
@@ -243,14 +257,18 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
     integrate(5, 4e4,
               pre_callback=squeeze,
-              dt_init=1e-3,
+              dt_init=0.5,
               adaptive=True,
-              dt_min=1e-1*k_eff,
+        #       timestep_func=clinton_timestep,
+        #       adaptation_rate=1,
+              dt_min=1e-2*k_eff,
               save_rate=100,    
               verbose=verbose,
               save_pattern=pattern,
               resume=True,
-              save_on_interrupt=False)
+              save_on_interrupt=False,
+              orig_forces=orig_forces,
+              check_forces=True)
 
 intercalations=[0, 4, 6, 8, 12]
 
@@ -270,14 +288,16 @@ L0_T1s = [ (L0_T1s[-1])/2, L0_T1s[-1], 3*(L0_T1s[-1])/2, 4*(L0_T1s[-1])/2, l_api
 
 remodel=False
 
-clinton_middle = {'intercalations':intercalations, 'remodel':False, 'L0_T1':l_apical }
+clinton_middle_orig = {'intercalations':intercalations, 'remodel':False, 'L0_T1':l_apical, 'orig_forces':True , 'press_alpha':const.press_alpha*7}
 
+clinton_middle = {'intercalations':intercalations, 'remodel':False, 'L0_T1':l_apical }
+clinton_middle_hi_pressure = {'intercalations':intercalations, 'remodel':False, 'L0_T1':l_apical, 'press_alpha':0.046 }
 # kws = [*kws_middle, *kws_outer, *kws_double]
-kws = clinton_middle
+
 if __name__ == '__main__':
     
     def foo(*args):
         pass
-    # sweep(phi0s, run, kw=clinton_middle, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-    run(1.0, L0_T1=1, intercalations=18,   verbose=True, viewable=True, stochastic=True)
+    sweep([1.0], run, kw=clinton_middle_hi_pressure, savepath_prefix=base_path, overwrite=False, pre_process=foo)
+#     run(1.0, L0_T1=l_apical, intercalations=12,   verbose=True, viewable=True, press_alpha=0.046, orig_forces=False)
 

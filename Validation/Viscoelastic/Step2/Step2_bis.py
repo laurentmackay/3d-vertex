@@ -269,10 +269,10 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
     # b
     #create integrator
     integrate = monolayer_integrator(G, G_apical,
-                                    blacklist=blacklist, RK=1,
+                                    blacklist=blacklist, append_to_blacklist=True, RK=1,
                                     intercalation_callback=shrink_edges(G, L0=L0_T1),
                                     angle_tol=.01, length_rel_tol=0.05,
-                                    player=False, viewer={'button_callback':terminate } if viewable else False, minimal=False, **kw)
+                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, **kw)
 
 
 
@@ -332,5 +332,5 @@ if __name__ == '__main__':
     def foo(*args):
         pass
 #     sweep(phi0s, run, kw=kws, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-    run(1.0, L0_T1=0, intercalations=18,   verbose=True, viewable=True, stochastic=True)
+    run(1.0, L0_T1=0, intercalations=180,   verbose=True, viewable=True, outer=True, stochastic=True)
 

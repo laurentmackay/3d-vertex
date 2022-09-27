@@ -9,6 +9,8 @@ def SSA_choose_rx(props, waiting_time=False):
 
     cumsum = np.cumsum(props)
     prop_tot = cumsum[-1]
+    if prop_tot<=0:
+        return None
     r=np.random.rand()*prop_tot
 
     for rx, cumprop in enumerate(cumsum):
@@ -55,10 +57,16 @@ def edge_reaction_selector(G, edges=None, center=0,  excluded_nodes=None):
         dot = np.sum(dc*ab,axis=-1)
         theta = np.arccos(dot)
 
-        return (1-np.abs(np.cos(theta)))
+        props = (1-np.abs(np.cos(theta)))
+        props[[any([ G[n][e[0]]['myosin']!=0 for n in G.neighbors(e[0])]) for e in edges]]=0
+        props[[any([ G[n][e[1]]['myosin']!=0 for n in G.neighbors(e[1])]) for e in edges]]=0
+        return props
 
     def select_reaction(waiting_time=False):
         choice = SSA_choose_rx(propensities(), waiting_time=waiting_time)
+
+        if choice is None:
+            return None
 
         if waiting_time:
             return edges[choice[0]], choice[1]

@@ -46,7 +46,9 @@ def edge_activator(G, strength=intercalation_strength, basal=False):
         basal_offset=G.graph['basal_offset']
 
     def activate(edge):
-        
+        if edge is None:
+            return 
+            
         if edge[1] in G[edge[0]].keys():
             G[edge[0]][edge[1]]['myosin'] =  strength
 

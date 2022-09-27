@@ -72,7 +72,7 @@ A_0=((3/2)*np.sqrt(3)*l_apical**2)
 v_0 = A_0*l_depth
 
 l_intercalation = .1
-l_mvmt = l_intercalation/2
+l_mvmt = l_intercalation
 
 # mechanical parameters
 # strength of force on edges. Given in terms of myosin motors (Force=beta*myosin) 

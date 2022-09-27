@@ -10,12 +10,14 @@ from typing import Iterable
 import networkx as nx
 import numpy as np
 
+from VertexTissue.forces_orig import compute_forces_orig
+
 
 from .Tissue import get_triangles, get_outer_belt, new_topology
 from . TissueForces import TissueForces, compute_distances_and_directions
 from . import globals as const
 from .Geometry import *
-from .util import set_edge_attributes, get_edge_attribute_array, set_node_attributes, get_node_attribute_array, get_node_attribute_dict
+from .util import get_edges_array, set_edge_attributes, get_edge_attribute_array, set_node_attributes, get_node_attribute_array, get_node_attribute_dict
 try:
     from .Player import pickle_player
     from . PyQtViz import edge_viewer
@@ -52,8 +54,8 @@ kc=const.kc
 
 def monolayer_integrator(G, G_apical=None,
                      pre_callback=None, post_callback=None, intercalation_callback=None, termination_callback=None,
-                     ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0,
-                     maxwell=False, adaptive=False, adaptation_rate=0.1, length_rel_tol=0.01, angle_tol=0.01, length_abs_tol=5e-2, minimal=False, blacklist=False,
+                     ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, 
+                     maxwell=False, adaptive=False, adaptation_rate=0.1, length_rel_tol=0.01, angle_tol=0.01, length_abs_tol=5e-2, minimal=False, blacklist=False, append_to_blacklist=True,
                      maxwell_nonlin=None, rest_length_func=None, RK=1, AB=1):
 
     if G_apical==None:
@@ -181,10 +183,13 @@ def monolayer_integrator(G, G_apical=None,
     edges=None
 
     # @profile
-    def integrate(dt, t_final, dt_init=None, dt_min = None, t=0, verbose=False, adaptive=adaptive, adaptation_rate=adaptation_rate,
-                angle_tol=angle_tol, length_abs_tol=length_abs_tol, length_rel_tol=length_rel_tol,
+    def integrate(dt, t_final, 
+                dt_init=None, dt_min = None, t=0, adaptive=adaptive, adaptation_rate=adaptation_rate,  verbose=False,
+                angle_tol=angle_tol, length_abs_tol=length_abs_tol, length_rel_tol=length_rel_tol, append_to_blacklist=append_to_blacklist, timestep_func=None,
                 pre_callback=pre_callback, post_callback=post_callback, termination_callback=termination_callback,
-                save_pattern = save_pattern, save_rate=save_rate, resume=False, save_on_interrupt=False,  **kw):
+                save_pattern = save_pattern, save_rate=save_rate, resume=False, save_on_interrupt=False,
+                orig_forces=False, check_forces=False,
+                **kw):
                 
         nonlocal G, G_apical, centers,  force_dict, drx, dists, view, pos, edges
 
@@ -192,6 +197,7 @@ def monolayer_integrator(G, G_apical=None,
         #           INITIALIZATION
         #######################################
 
+        basal_offset = G.graph['basal_offset']
 
         if save_pattern is not None:
             save_dict=save_pattern.find('*')==-1
@@ -256,7 +262,7 @@ def monolayer_integrator(G, G_apical=None,
 
 
         @jit(nopython=True, cache=True)
-        def timestep_bound(forces, drxs, dists, edges):
+        def timestep_bound(forces, drxs, dists, edges, t):
             """
             Compute an upper bound on the timestep so that our tolerances are met
             """
@@ -281,7 +287,10 @@ def monolayer_integrator(G, G_apical=None,
 
             return max(dt_next, dt_min)
 
-        
+        if timestep_func:
+            timestep_bound = timestep_func
+
+
 
 
         def handle_AB():
@@ -330,8 +339,7 @@ def monolayer_integrator(G, G_apical=None,
 
         pos=get_node_attribute_array(G,'pos')
 
-        edges = np.array([*G.edges().keys()],dtype=int)
-
+        edges = get_edges_array(G)
 
         dists, drx  = compute_distances_and_directions(pos, edges)
         L0 = get_edge_attribute_array(G, 'l_rest')
@@ -387,7 +395,7 @@ def monolayer_integrator(G, G_apical=None,
             ############## UPDATE NETWORK OBJECT ###########################
             set_node_attributes(G,'pos',pos)
 
-            ############ PRECOMPUTE DISTANCES SO WE CAN USE Crank-Nicolson FOR LENGTH UPDATES #########
+            ############ PRECOMPUTE DISTANCES SO WE CAN USE Crank-Nicolson FOR REST LENGTH UPDATES #########
             dists_prev=dists
             dists, drx = compute_distances_and_directions(pos, edges)
 
@@ -407,7 +415,7 @@ def monolayer_integrator(G, G_apical=None,
                     set_edge_attributes(G,'l_rest', L0)
 
 
-            intercalation=check_for_intercalations(t)
+            intercalation=check_for_intercalations(t, append_to_blacklist=append_to_blacklist)
 
 
             ############ INCREMENT TIME ############
@@ -452,6 +460,12 @@ def monolayer_integrator(G, G_apical=None,
 
             if AB>1:
                 f_ab=handle_AB()
+                
+            if orig_forces:
+                force_orig=compute_forces_orig(G)
+                if check_forces:
+                    print(f'max error: {np.abs((f_eff-force_orig)).max()}')
+                f_eff = force_orig
 
             if adaptive:
                 if AB>1:
@@ -461,7 +475,7 @@ def monolayer_integrator(G, G_apical=None,
                 else:
                     f_pred=f_eff
 
-                hnew = timestep_bound(f_pred, drx, dists , edges)
+                hnew = timestep_bound(f_pred, drx, dists , edges, t)
 
 
                 if hnew>h:
@@ -471,26 +485,26 @@ def monolayer_integrator(G, G_apical=None,
 
                 if RK>1:
                     f_eff = RK_effective_force(h,pos, edges, forces, l_rest, myosin)
-                    hbound = timestep_bound(f_eff, drx, dists , edges)
+                    hbound = timestep_bound(f_eff, drx, dists , edges, t)
                     while hbound<h:
 
                         h=max(h/2, dt_min)
                         if h==dt_min:
                             break
                         f_eff = RK_effective_force(h , pos, edges, forces, l_rest, myosin)
-                        hbound = timestep_bound(f_eff, drx, dists , edges)
+                        hbound = timestep_bound(f_eff, drx, dists , edges,t)
                         
 
                 if AB>1:
                     f_ab=handle_AB()
-                    hbound = timestep_bound(f_ab, drx, dists , edges)
+                    hbound = timestep_bound(f_ab, drx, dists , edges, t)
                     while hbound<h:
 
                         h=max(h/2, dt_min)
                         if h==dt_min:
                             break
                         f_ab =handle_AB()
-                        hbound = timestep_bound(f_ab, drx, dists , edges)
+                        hbound = timestep_bound(f_ab, drx, dists , edges, t)
 
             else:
                 h=dt
@@ -521,7 +535,7 @@ def monolayer_integrator(G, G_apical=None,
     # @profile
     l_mvmt = const.l_mvmt
     blacklisting = isinstance(blacklist, collections.abc.Iterable)
-    def check_for_intercalations(t):
+    def check_for_intercalations(t, append_to_blacklist=True):
         nonlocal circum_sorted, G_apical, G_centerless, blacklist, view, dists, drx, edges, pos
 
 
@@ -632,7 +646,7 @@ def monolayer_integrator(G, G_apical=None,
 
                                     # # reset myosin on contracted edge
                                     G[node+offset][neighbor+offset]['myosin'] = 0
-                                if blacklisting:
+                                if blacklisting and append_to_blacklist:
                                     blacklist.append((min(node, neighbor), max(node, neighbor)))
                                 
                                 circum_sorted, triangles, G_apical = new_topology(G_apical, 

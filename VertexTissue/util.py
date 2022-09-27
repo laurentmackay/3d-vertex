@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
 
-
+from collections.abc import Iterable
 
 import __main__
 
@@ -39,8 +39,8 @@ def get_points(G, q, pos):
 
     return pts 
 
-def np_find(arr, x):
-    np.argwhere([np.all(e == x)for e in arr])
+def find_first(x):
+    return np.argwhere(x)[0,0]
 
 
 def first(bools):
@@ -153,6 +153,23 @@ def get_edge_attribute_array(G, attr, dtype=float):
 def set_node_attributes(G, attr, vals):
     for k, v in enumerate(vals):
         G.node[k][attr] = v
+
+def get_edges_array(G):
+    return np.array([*G.edges().keys()], dtype=int)
+
+def edge_index(G, e):
+    if len(e):
+        edges = get_edges_array(G)
+
+        def find_edge(e):
+            return np.argwhere(np.logical_or(np.all(e == edges, axis=1), np.all(e == np.fliplr(edges), axis=1)))[0,0]
+        
+        if isinstance(e[0], Iterable) and len(e[0])==2:
+            return np.array([ find_edge(_) for _ in e])
+        else:
+            return find_edge(e)
+    else:
+        return []
 
 
 def set_edge_attributes(G, attr, vals):
