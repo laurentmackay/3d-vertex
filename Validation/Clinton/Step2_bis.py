@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 from Validation.Viscoelastic.Step1.Step1 import buckle_angle_finder
-from VertexTissue.Energy import network_energy
 from VertexTissue.Stochastic import edge_reaction_selector, reaction_times
 
 
@@ -186,110 +185,27 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
     
     pattern=os.path.join(base_path, function_call_savepath()+'.pickle')
     #
-    G, G_apical = tissue_3d( hex=7,  basal=True)
+    G, G_apical = tissue_3d( hex=1,  basal=True)
     
-   
-    belt = get_outer_belt(G_apical)
-
-    # p10=pit_strength
-    # p03=pit_strength
-    # m=(p10-p03)/0.7
-    # b=p03-0.3*m
-    # pit_strength=m*phi0+b
-
-        
-
-    inter_edges = get_inter_edges(intercalations=intercalations, outer=outer, double=double)
-
-    ec=.2
-
-    k_eff = (phi0-ec)/(1-ec)
-    alpha=1
-    sigma = (alpha*ec*l_apical*(-1+phi0)+(ec-phi0)*pit_strength*myo_beta)/((-1+ec)*myo_beta)
-    # sigma=pit_strength
-    t_start = 375 
-
-    
-
-    if stochastic:
-
-        edges = get_myosin_free_cell_edges(G)
-        nodes = np.unique(np.array([e for e in edges]).ravel())
-               
-        excluded_nodes_inner = nodes[[inside_arc(n, inner_arc, G) or not inside_arc(n, outer_arc, G) or (n in belt) or  (n in outer_arc) or (n in inner_arc) for n in nodes]].ravel()
-        select_inner_edge = edge_reaction_selector(G, excluded_nodes=excluded_nodes_inner)
-
-        excluded_nodes_outer = nodes[[inside_arc(n, outer_arc, G) or (n in belt) or (n in outer_arc) for n in nodes]].ravel()
-        select_outer_edge = edge_reaction_selector(G, excluded_nodes=excluded_nodes_outer)
-
-
-        activate_edge  = SG.edge_activator(G)
-        def inner_intercalation_rxn(*args):
-                edge = select_inner_edge()
-                activate_edge(edge)
-
-        def outer_intercalation_rxn(*args):
-                edge = select_outer_edge()
-                activate_edge(edge)
-
-        T_final=4e4
-
-        Rxs_inner = tuple((t, inner_intercalation_rxn, f'Inner intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_final=T_final-2e4))
-        Rxs_outer = tuple((t, outer_intercalation_rxn, f'Outer intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_final=T_final-2e4))
-
-
-
-
-    squeeze = SG.arc_pit_and_intercalation(G, belt, t_1=t_start, inter_edges=inter_edges if not stochastic else [], t_intercalate=t_start, pit_strength=sigma)
-
-    if stochastic:
-        if outer:
-                squeeze.extend(Rxs_outer)
-                if double:
-                        squeeze.extend(Rxs_inner)
-        else:
-                squeeze.extend(Rxs_inner)
-
-    
-    kw={'rest_length_func': crumple(phi0=phi0)}
-
-    if remodel:
-        kw={**{'maxwell':True, 'maxwell_nonlin': extension_remodeller() }, **kw}
-
-    done=False
-    def terminate(*args):
-        nonlocal done
-        done=True
-
-    def wait_for_intercalation(*args):
-        nonlocal done
-        return done
-
-
-
-    blacklist=arc_to_edges(belt, inner_arc, outer_arc)
+    G.node[0]['pos'] -= np.array([0,0,1])
 
     # b
     #create integrator
     integrate = monolayer_integrator(G, G_apical,
-                                    blacklist=blacklist, append_to_blacklist=True, RK=1,
+                                    append_to_blacklist=True, RK=1,
                                     intercalation_callback=shrink_edges(G, L0=L0_T1),
                                     angle_tol=.01, length_rel_tol=0.05,
-                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, **kw)
-
-
-    print(f'effective spring constant: {k_eff}')
+                                    player=False, viewer={'nodeLabels':None } if viewable else False, minimal=False)
 
     integrate(5, 4e4,
-              pre_callback=squeeze,
               dt_init=1e-3,
               adaptive=True,
-              dt_min=5e-2*k_eff,
+              dt_min=5e-2,
               save_rate=100,    
-              verbose=True,
+              verbose=False,
               save_pattern=pattern,
               resume=True,
-              save_on_interrupt=False)
+              save_on_interrupt=False, orig_forces=True, check_forces=True)
 
 intercalations=[0, 4, 6, 8, 10, 12]
 
@@ -330,7 +246,7 @@ naught_outer_remodel = {'intercalations':intercalations, 'outer':True, 'remodel'
 naught_double_remodel = {'intercalations':intercalations, 'outer':True,'double':True, 'remodel':True, 'L0_T1':0 }
 
 # kws = [*kws_middle, *kws_outer, *kws_double]
-kws = kws_double
+kws = kws_middle
 if __name__ == '__main__':
     
     def foo(*args):

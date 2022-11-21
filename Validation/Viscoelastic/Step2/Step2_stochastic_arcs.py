@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from VertexTissue.Events import CreatePeriodicEvent
 
 
 
@@ -14,7 +15,7 @@ import VertexTissue.SG as SG
 from VertexTissue.Tissue import get_outer_belt, tissue_3d
 from VertexTissue.Geometry import euclidean_distance
 from VertexTissue.globals import inter_edges_middle, inter_edges_outer, inner_arc, outer_arc, inner_arc_discont, outer_arc_discont, l_apical, pit_strength, myo_beta
-from VertexTissue.util import arc_to_edges, get_myosin_free_cell_edges, inside_arc
+from VertexTissue.util import arc_to_edges, circumferential_arc, crossing_edges, get_myosin_free_cell_edges, inside_arc
 from VertexTissue.Memoization import function_call_savepath
 from VertexTissue.Dict import dict_product
 from VertexTissue.vertex_3d import monolayer_integrator
@@ -22,7 +23,7 @@ from VertexTissue.visco_funcs import crumple, edge_crumpler, extension_remodelle
 
 
 from VertexTissue.Stochastic import edge_reaction_selector, reaction_times
-from VertexTissue.SG import edge_activator
+from VertexTissue.SG import arc_activator, edge_activator
 
 try:
     from VertexTissue.PyQtViz import edge_view
@@ -50,7 +51,7 @@ def get_inter_edges(intercalations=0, outer=False, double=False):
 
     return inter_edges
 
-def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, intercalations=0, outer=False, double=False, rep=0.0, discont=False):
+def run(phi0, remodel=True, period=50, L0_T1=0.0, verbose=False, belt=True, intercalations=0, outer=False, double=False, rep=0.0, discont=False):
     np.random.seed(int(np.round(rep)))
      
     pattern=os.path.join(base_path, function_call_savepath()+'.pickle')
@@ -80,6 +81,8 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
 
     # if stochastic:
+    inner_arc = circumferential_arc(14, G, continuous=True)
+    
 
     edges = get_myosin_free_cell_edges(G)
     nodes = np.unique(np.array([e for e in edges]).ravel())
@@ -110,7 +113,10 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
     arcs = (inner_arc, outer_arc) if not discont else (inner_arc_discont, outer_arc_discont)
 
     squeeze = SG.arc_pit_and_intercalation(G, belt, t_1=t_start, arcs=arcs, inter_edges= [], t_intercalate=t_start, pit_strength=sigma)
+    squeeze = SG.just_pit(G)
 
+    CreatePeriodicEvent(arc_activator(G, (inner_arc, outer_arc)), period, Executor=squeeze, t=t_start)
+    CreatePeriodicEvent(arc_activator(G, (inner_arc, outer_arc), strength=0), period, Executor=squeeze, t=t_start+period/2)
     # if stochastic:
     if outer:
             squeeze.extend(Rxs_outer)
@@ -145,7 +151,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
                                     blacklist=blacklist, append_to_blacklist=False, RK=1,
                                     intercalation_callback=shrink_edges(G, L0=L0_T1),
                                     angle_tol=.01, length_rel_tol=0.05,
-                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, **kw)
+                                    player=False, viewer={'button_callback':terminate, 'nodeLabels': None } if viewable else False, minimal=False, **kw)
 
 
 
@@ -193,6 +199,6 @@ if __name__ == '__main__':
     
     def foo():
         pass
-    sweep(phi0s, run, kw=kws_double, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-    # run(1.0, L0_T1=0, intercalations=200, outer=True, double=True, verbose=True, discont=True)
+    # sweep(phi0s, run, kw=kws_double, savepath_prefix=base_path, overwrite=False, pre_process=foo)
+    run(1.0, L0_T1=l_apical, intercalations=24, outer=True, double=True, verbose=False)
 

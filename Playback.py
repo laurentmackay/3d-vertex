@@ -48,7 +48,7 @@ forces=np.linspace(0,600,80)
 
 # pickle_player(path='./data/Step2_bis/run', pattern=f'*.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False,  nodeLabels=None, pre_process=final_network_annotated)
 
-pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_outer_0.6.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+pickle_player(path='./data/Step2_stochastic_no_arches/run', pattern=f'L0_T1=3.4_intercalations=24_outer_double_ndim=2_1.0.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
 
 # pickle_player(path='./data/Step2_bis/run', pattern=f'intercalations=8_outer_0.6.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
 

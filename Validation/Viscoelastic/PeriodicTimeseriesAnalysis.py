@@ -39,12 +39,10 @@ if __name__ == '__main__':
     arg = (kappa*ke/(omega*kv**2)+omega*eta/ke)/2
     delta = -np.arctan(arg)
 
-    num = ke**2+(omega*kv)**2
-    denom = (kappa*omega*ke)**2+(kv*eta*omega**2)**2
 
 
-    denom2 = (kappa*ke)**3+kappa*ke*(omega*kv*eta)**2
 
+    
     res = analyze_network_evolution(path='./data/viscoelastic/',
                             pattern=f'periodic_transient_force_{f}_freq_{omega}_*.pickle',
                             func=square_length)
@@ -61,8 +59,14 @@ if __name__ == '__main__':
     
 
     num2 = -kv*2*A*omega*ke*eta*kv**2
+    denom2 = (kappa*ke)**3+kappa*ke*(omega*kv*eta)**2
+
     l_final = const.l_apical + 2*A/(2*omega*kv+omega*eta)
-    l_trans = -2*np.exp(-lam*t)*(num2)/denom2
+    l_trans = -2*np.exp(-lam*t)*(num2/denom2)
+
+    num = ke**2+(omega*kv)**2
+    denom = (kappa*omega*ke)**2+(kv*eta*omega**2)**2
+
     amp = 2*A*np.sqrt(num/denom)
     sol = l_final+amp*np.sin(omega*t+delta) +l_trans
 

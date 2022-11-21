@@ -273,7 +273,7 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
         circum_sorted = G.graph['circum_sorted']
         apical = np.vstack([np.array([[c[i-1],c[i]] if c[i-1]<c[i] else [c[i],c[i-1]]  for i, _ in enumerate(c)]) for c in  circum_sorted])
         
-        if apical_only:
+        if apical_only or not has_basal:
             edges = (apical,)
         else:
             basal = apical+basal_offset

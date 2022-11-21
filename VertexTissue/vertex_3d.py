@@ -14,7 +14,7 @@ from VertexTissue.forces_orig import compute_forces_orig
 
 
 from .Tissue import get_triangles, get_outer_belt, new_topology
-from . TissueForces import TissueForces, compute_distances_and_directions
+from . TissueForces import TissueForces
 from . import globals as const
 from .Geometry import *
 from .util import get_edges_array, set_edge_attributes, get_edge_attribute_array, set_node_attributes, get_node_attribute_array, get_node_attribute_dict
@@ -109,7 +109,7 @@ def monolayer_integrator(G, G_apical=None,
     
     # @jit(nopython=True, cache=True)
 
-    compute_forces = TissueForces(G, ndim=ndim, minimal=minimal)
+    compute_forces, compute_distances_and_directions = TissueForces(G, ndim=ndim, minimal=minimal)
         
 
     if rest_length_func is not None:
@@ -197,8 +197,6 @@ def monolayer_integrator(G, G_apical=None,
         #           INITIALIZATION
         #######################################
 
-        basal_offset = G.graph['basal_offset']
-
         if save_pattern is not None:
             save_dict=save_pattern.find('*')==-1
         else:
@@ -219,6 +217,7 @@ def monolayer_integrator(G, G_apical=None,
                 print(f'saving: {save_pattern}')
                 with open(save_pattern, 'wb') as file:
                     pickle.dump(save_dict, file)
+                    file.close()
                 print(f'done writing: {save_pattern}')
                 save_dict=False
 
@@ -446,7 +445,7 @@ def monolayer_integrator(G, G_apical=None,
             l_rest = get_rest_lengths(dists, L0)
             forces = compute_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=intercalation)
 
-            post_event = post_callback(t, force_dict)
+
 
 
 
@@ -508,7 +507,8 @@ def monolayer_integrator(G, G_apical=None,
 
             else:
                 h=dt
-
+                
+            post_event = post_callback(t, force_dict)
 
             if save_pattern and save_rate>=0:
                 delta_save = (t - t_last_save) - save_rate

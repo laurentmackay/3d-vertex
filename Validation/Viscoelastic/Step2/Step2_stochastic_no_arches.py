@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from VertexTissue.Events import CreatePeriodicEvent
 
 
 
@@ -14,7 +15,7 @@ import VertexTissue.SG as SG
 from VertexTissue.Tissue import get_outer_belt, tissue_3d
 from VertexTissue.Geometry import euclidean_distance
 from VertexTissue.globals import inter_edges_middle, inter_edges_outer, inner_arc, outer_arc, inner_arc_discont, outer_arc_discont, l_apical, pit_strength, myo_beta
-from VertexTissue.util import arc_to_edges, get_myosin_free_cell_edges, inside_arc
+from VertexTissue.util import arc_to_edges, circumferential_arc, crossing_edges, get_myosin_free_cell_edges, inside_arc
 from VertexTissue.Memoization import function_call_savepath
 from VertexTissue.Dict import dict_product
 from VertexTissue.vertex_3d import monolayer_integrator
@@ -22,7 +23,7 @@ from VertexTissue.visco_funcs import crumple, edge_crumpler, extension_remodelle
 
 
 from VertexTissue.Stochastic import edge_reaction_selector, reaction_times
-from VertexTissue.SG import edge_activator
+from VertexTissue.SG import arc_activator, edge_activator
 
 try:
     from VertexTissue.PyQtViz import edge_view
@@ -50,12 +51,12 @@ def get_inter_edges(intercalations=0, outer=False, double=False):
 
     return inter_edges
 
-def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, intercalations=0, outer=False, double=False, rep=0.0, discont=False):
+def run(phi0, remodel=True, period=50, L0_T1=0.0, verbose=False, belt=True, intercalations=0, outer=False, double=False, rep=0.0, discont=False, ndim=3):
     np.random.seed(int(np.round(rep)))
      
     pattern=os.path.join(base_path, function_call_savepath()+'.pickle')
     #
-    G, G_apical = tissue_3d( hex=7,  basal=True)
+    G, G_apical = tissue_3d( hex=7,  basal=(ndim==3))
     
 
     belt = get_outer_belt(G_apical)
@@ -80,6 +81,8 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
 
     # if stochastic:
+    inner_arc = circumferential_arc(14, G, continuous=True)
+    
 
     edges = get_myosin_free_cell_edges(G)
     nodes = np.unique(np.array([e for e in edges]).ravel())
@@ -102,14 +105,16 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
     T_final=4e4
 
-    Rxs_inner = tuple((t, inner_intercalation_rxn, f'Inner intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_final=T_final-5e3))
-    Rxs_outer = tuple((t, outer_intercalation_rxn, f'Outer intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_final=T_final-5e3))
+    Rxs_inner = tuple((t, inner_intercalation_rxn, f'Inner intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_init=0, T_final=T_final-5e3))
+    Rxs_outer = tuple((t, outer_intercalation_rxn, f'Outer intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_init=0,  T_final=T_final-5e3))
 
 
 
     arcs = (inner_arc, outer_arc) if not discont else (inner_arc_discont, outer_arc_discont)
 
     squeeze = SG.arc_pit_and_intercalation(G, belt, t_1=t_start, arcs=arcs, inter_edges= [], t_intercalate=t_start, pit_strength=sigma)
+    squeeze = SG.pit_and_belt(G, belt)
+    squeeze = SG.just_pit(G)
 
     # if stochastic:
     if outer:
@@ -137,7 +142,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
     if discont:
         arcs=(*arcs[0], *arcs[1])
-    blacklist=arc_to_edges(belt, *arcs)
+    blacklist=[]
 
     # b
     #create integrator
@@ -145,15 +150,15 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
                                     blacklist=blacklist, append_to_blacklist=False, RK=1,
                                     intercalation_callback=shrink_edges(G, L0=L0_T1),
                                     angle_tol=.01, length_rel_tol=0.05,
-                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, **kw)
+                                    player=False, viewer={'button_callback':terminate,'nodeLabels':None } if viewable else False, minimal=False, ndim=ndim, **kw)
 
 
 
-    integrate(5, T_final,
+    integrate(50, T_final,
               pre_callback=squeeze,
               dt_init=1e-3,
               adaptive=True,
-              dt_min=1e-2*k_eff,
+              dt_min=1e-6*k_eff,
               save_rate=100,    
               verbose=verbose,
               save_pattern=pattern,
@@ -193,6 +198,6 @@ if __name__ == '__main__':
     
     def foo():
         pass
-    sweep(phi0s, run, kw=kws_double, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-    # run(1.0, L0_T1=0, intercalations=200, outer=True, double=True, verbose=True, discont=True)
+    # sweep(phi0s, run, kw=kws_double, savepath_prefix=base_path, overwrite=False, pre_process=foo)
+    run(1.0, L0_T1=l_apical, intercalations=24, outer=True, double=True, verbose=False, ndim=2)
 

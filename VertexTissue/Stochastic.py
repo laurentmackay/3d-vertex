@@ -29,10 +29,13 @@ def SSA_choose_rx(props, waiting_time=False):
 #         times *= T_final*(1-np.mean(np.diff(taus)))/times[-1]
 #     return tuple((t,rxn_fun_gen(rx[0])) for rx, t in zip(rxns, times))
 
-def reaction_times(n=1, T_final=None, pad=True):
+def reaction_times(n=1, T_init=0, T_final=None, pad=True):
     ''' Returns an array of exponentially-spaced times, sutiable for crude stochastic reaction simulations.'''
     taus = [np.log(1/np.random.rand()) for _ in range(n)]
-    times=np.cumsum(taus)
+    times=T_init+np.cumsum(taus)
+    
+    if len(times)==0:
+        return []
 
     if T_final is not None:
         times *= T_final / times[-1]
@@ -42,7 +45,7 @@ def reaction_times(n=1, T_final=None, pad=True):
     return times
 
 
-def edge_reaction_selector(G, edges=None, center=0,  excluded_nodes=None):
+def edge_reaction_selector(G, edges=None, center=0,  excluded_nodes=None, ignore_activated=False):
     if edges is None:
         edges = get_myosin_free_cell_edges(G, excluded_nodes=excluded_nodes)
 
@@ -58,8 +61,10 @@ def edge_reaction_selector(G, edges=None, center=0,  excluded_nodes=None):
         theta = np.arccos(dot)
 
         props = (1-np.abs(np.cos(theta)))
-        props[[any([ G[n][e[0]]['myosin']!=0 for n in G.neighbors(e[0])]) for e in edges]]=0
-        props[[any([ G[n][e[1]]['myosin']!=0 for n in G.neighbors(e[1])]) for e in edges]]=0
+        if ignore_activated:
+            props[[any([ G[n][e[0]]['myosin']!=0 for n in G.neighbors(e[0])]) for e in edges]]=0
+            props[[any([ G[n][e[1]]['myosin']!=0 for n in G.neighbors(e[1])]) for e in edges]]=0
+            
         return props
 
     def select_reaction(waiting_time=False):

@@ -7,7 +7,7 @@ from .Events import TimeBasedEventExecutor
 from .globals import inner_arc, outer_arc, belt_strength, pit_strength, t_1, t_2, t_belt, t_intercalate, inter_edges_middle, pit_centers, t_pit, intercalation_strength
 
 def arc_activator(G, arc, strength=belt_strength ):
-    def f(*args):
+    def activate_arc(arc):
         if len(arc)<2:
             return
             
@@ -19,6 +19,14 @@ def arc_activator(G, arc, strength=belt_strength ):
                 G[arc[i-1]][arc[i]]['myosin'] = strength   
             else:
                 print(f'egde {arc[i-1]}:{arc[i]} not present in graph')
+
+    def f(*args):
+        if not isinstance(arc[0], Iterable):
+            activate_arc(arc)
+        else:
+            for sub_arc in arc:
+                activate_arc(sub_arc)
+ 
     return f
 
 def pit_activator(G, centers, strength=pit_strength):

@@ -17,7 +17,7 @@ from Step2_bis import  inter_arc_distance, run, phi0s,  base_path, kws, kws_base
 
 
 fontsize=14
-from Step2_bis import depth_timeline, intercalations, run, phi0s,  base_path, kws_baseline,  clinton_double, final_angle, L0_T1s, clinton_middle, clinton_outer, final_inter_arc_depth, final_depth2, final_lumen_depth
+from Step2_bis import depth_timeline, intercalations, run, phi0s,  base_path, kws_baseline,  clinton_double, final_angle, L0_T1s, clinton_middle, clinton_outer, final_inter_arc_depth, final_depth, final_lumen_depth
 from Step2_bis import naught_middle_remodel, naught_outer_remodel, naught_double_remodel, extension_timeline
 from Step2_bis import kws_baseline, kws_outer, kws_middle, kws_double
 
@@ -30,7 +30,7 @@ if __name__ == '__main__':
                 return inter_arc_distance(last_dict_value(d), outer=True)
 
         refresh=False
-        depth_func  = final_depth2
+        depth_func  = final_depth
 
         depth_baseline  = sweep(phi0s, run, kw=kws_baseline, pre_process = depth_func ,
         cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)

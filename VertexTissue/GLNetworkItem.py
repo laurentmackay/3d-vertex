@@ -1,5 +1,5 @@
 from OpenGL.GL import *
-from OpenGL.GLUT import glutBitmapCharacter, glutInit, glutSwapBuffers
+from OpenGL.GLUT import glutBitmapCharacter, glutInit, glutSwapBuffers, glutInitDisplayMode, GLUT_MULTISAMPLE
 from OpenGL.GLUT.fonts import GLUT_BITMAP_9_BY_15
 from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
 from pyqtgraph.opengl.items.GLScatterPlotItem import GLScatterPlotItem
@@ -149,9 +149,11 @@ class GLNetworkItem(GLGraphicsItem):
 
     def initializeGL(self):
         glEnable(GL_DEPTH_TEST)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        
         glEnable( GL_BLEND );
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glutInit()
+        glutInitDisplayMode(GLUT_MULTISAMPLE);
 
 
     def paint(self):
@@ -173,6 +175,7 @@ class GLNetworkItem(GLGraphicsItem):
                 yhat=(0.0, 1.0, 0.0)
                 zhat=(0.0, 0.0, 1.0)
                 origin=(0.0, 0.0, 0.0)
+
 
 
                 glBegin(GL_LINES)
@@ -207,10 +210,10 @@ class GLNetworkItem(GLGraphicsItem):
 
             multicolor = not (len(self.edgeColor.shape)==1 or 1 in  self.edgeColor.shape)
             multiwidth = isinstance(self.edgeWidth, (list, tuple, np.ndarray))
-            mode = GL_LINE_STRIP
+            mode = GL_LINES
 
 
-
+            glEnable(GL_LINE_SMOOTH)
             if not multiwidth:
                 glLineWidth(self.edgeWidth)
 

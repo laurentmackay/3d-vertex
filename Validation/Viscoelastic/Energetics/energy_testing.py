@@ -2,39 +2,43 @@ import os
 
 from matplotlib import colors
 
+import VertexTissue
+from VertexTissue.Iterable import first_item
+from VertexTissue.Memoization import function_call_savepath
+from VertexTissue.TissueForces import compute_network_indices
 from VertexTissue.visco_funcs import crumple
+
 print('this is some basic output')
 
-from doctest import FAIL_FAST
-from itertools import product
-from pathos.pools import ProcessPool as Pool
+
+
 import numpy as np
 
 
-from VertexTissue.vertex_3d import monolayer_integrator
-from VertexTissue.Tissue import T1_minimal, T1_shell, tissue_3d, get_outer_belt
-import VertexTissue.SG as SG
-import VertexTissue.T1 as T1
-
-from VertexTissue.Analysis import parameter_sweep, parameter_sweep_analyzer
-
-from VertexTissue.globals import default_ab_linker, default_edge, belt_strength, outer_arc, inner_arc
 import VertexTissue.globals as const
+import VertexTissue.SG as SG
 
-from VertexTissue.util import first, get_myosin_free_cell_edges,  inside_arc, shortest_edge_length_and_time, shortest_edge_network_and_time
 
-from VertexTissue.Iterable import first_item, imin
+from VertexTissue.globals import belt_strength, inner_arc, outer_arc
+
+from VertexTissue.Sweep import sweep
+from VertexTissue.Tissue import  get_outer_belt, tissue_3d
+from VertexTissue.util import first
+from VertexTissue.vertex_3d import monolayer_integrator
+
+from VertexTissue.Energy import get_cell_volumes, network_energy
 
 try:
-    from VertexTissue.PyQtViz import edge_view
     import matplotlib.pyplot as plt
+
+    from VertexTissue.PyQtViz import edge_view
     viewable=True
-    base_path = './data/SAC+_127/'
+    base_path = './data/'
 except:
     viewable=False
-    base_path = '/scratch/st-jjfeng-1/lmackay/data/SAC+_127/'
+    base_path = '/scratch/st-jjfeng-1/lmackay/data/'
 
-from VertexTissue.Dict import last_dict_value
+from VertexTissue.Dict import first_dict_value, last_dict_value
 from VertexTissue.Geometry import euclidean_distance
 
 
@@ -56,14 +60,10 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=3, cable=True):
     G, G_apical = tissue_3d( hex=7,  basal=True)
     
     belt = get_outer_belt(G_apical)
-# 
-    # if visco:
-    #     const.mu_apical*=phi0 
 
 
     #initialize some things for the callback
-    # intercalation = T1.simple_T1(G, strength=force)
-    # squeeze = SG.just_belt(G, belt, t=0, strength=force)
+
     
     if arcs==0:
         arc_list=(belt,)
@@ -106,32 +106,15 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=3, cable=True):
     #integrates
     # try:
     # print(belt)
-    if visco:
-        pattern = f'visco_phi0={phi0}_{force}.pickle'  if cable else f'visco_no_cable_phi0={phi0}_{force}.pickle' 
-    else:
-        pattern = f'elastic_edges_{force}.pickle'  if cable else f'elastic_no_cable_{force}.pickle' 
-
-    if level != 0:
-        pattern = f'lvl_{level}_'+ pattern
-
-    if arcs==1:
-        pattern='outer_'+pattern
-    
-    if arcs==0:
-        pattern='peripheral_'+pattern
-
-    if arcs==3:
-        pattern='triple_'+pattern
-
-    pattern=base_path+pattern
+    pattern=os.path.join(base_path, function_call_savepath()+'.pickle')
 
     # pattern=None
     print(f'starting f={force}')
-    integrate(20, 6000, 
+    integrate(1, 300, 
             dt_init = 1e-3,
             adaptive=True,
             dt_min=1e-4,
-            save_rate=100,
+            save_rate=1,
             verbose=False,
             save_pattern=pattern)
     # except:
@@ -150,13 +133,6 @@ def plot_results(forces,results):
     # times = np.reshape([e[1] for e in results.ravel()], results.shape)
     inter_len = const.l_intercalation/const.l_apical
 
-    
-    # plt.plot(forces, lens[:,1],label='Elastic')
-    # plt.plot(forces, lens[:,0],label='Elastic + Belt')
-    # plt.plot(forces, lens[:,5],label='$\phi_0=0.8$ + Belt')
-    # plt.plot(forces, lens[:,4],label='$\phi_0=0.6$ + Belt')
-    # plt.plot(forces, lens[:,3],label='$\phi_0=0.45$ + Belt')
-    # plt.plot(forces, lens[:,2],label='$\phi_0=0.3$ + Belt')
     phi = forces*const.myo_beta/const.l_apical
    
     for i in range(int(lens.shape[1]/2)):
@@ -231,55 +207,47 @@ def visco_no_cable_runner(phi0, **kw):
 #     _, bar , min_len= shortest_edge_network_and_time(d,excluded_nodes=bad_nodes, return_length=True)
 #     return min_len, bar
 
-phi0s=[ .3,  .4, .5,  .6, .7, .8, .9]
+
+
+def energy_timeseries(d,phi0=1.0,**kw):
+    G0=first_dict_value(d)
+    _, _, _, _, triangle_inds, triangles_sorted, _ = compute_network_indices(G0) 
+    triangulation= (triangle_inds, triangles_sorted)
+
+    
+    U_vec = np.array([ network_energy(G,phi0=phi0, ec=0.2, triangulation=triangulation, get_volumes=get_cell_volumes,  bending=False) for G in d.values()])
+
+    # plt.plot(U_vec, marker ='.')
+    # # plt.plot(U_vec_bis)
+    # plt.show()
+    print(U_vec[-1]-U_vec[-2], U_vec[-2])
+    return U_vec[-2]
+
+
+phi0s=list(reversed([ .22, .25, .3,  .4, .5,  .6, .7, .8, .9]))
 colors=['k','r','g','b','y','m','c','orange']
+
 def main():
     forces=np.array([ *np.linspace(0,850,40), *np.linspace(850,1200,20)[1:]])
-    forces = np.linspace(0,800,60)
-    
+    forces = np.linspace(0, 800, 60)
+    forces=[600]
     # forces=np.linspace(0,850,60)
 
 
 
-    visco_funcs=[ *[visco_runner(phi, level=lvl) for phi in phi0s],
-                    *[visco_no_cable_runner(phi, level=lvl) for phi in phi0s]]
 
-    prefix='triple_'
     
+    kws={'cable':[False,], 'level':3, 'visco':[True,], 'phi0':phi0s}
 
-    elastic_func=run
-    funcs=[lambda f: run(f, cable=True, level=lvl), lambda f: run(f, cable=False, level=lvl), *visco_funcs]
-    # if lvl==0:
-    #     savepaths = [
-    #         [base_path+f'{prefix}elastic_edges_{force}.pickle',
-    #         *[base_path+f'{prefix}visco_phi0={phi0}_{force}.pickle' for phi0 in phi0s],
-    #         ] for force in forces
-    #     ]
-    # else:
-    if lvl>0:
-        lvl_str = f'lvl_{lvl}_'
-    else:
-        lvl_str =''
+    # import pickle 
+    # with open('./data/Step0_bis/run/visco_phi0=0.7_level=3_600.pickle','rb') as file:
+    #     d=pickle.load(file)
+    # energy_timeseries(d)
+    dw=sweep(forces, run,  kw = kws, pre_process=energy_timeseries, pass_kw=True, savepath_prefix=base_path, overwrite=False, cache=True, refresh=True)
 
-    savepaths = [
-    [base_path+f'{prefix}{lvl_str}elastic_edges_{force}.pickle',
-        base_path+f'{prefix}{lvl_str}elastic_no_cable_{force}.pickle',
-    *[base_path+f'{prefix}{lvl_str}visco_phi0={phi0}_{force}.pickle' for phi0 in phi0s],
-    *[base_path+f'{prefix}{lvl_str}visco_no_cable_phi0={phi0}_{force}.pickle' for phi0 in phi0s]
+    plt.plot(phi0s,dw[0,0,0,:])
+    plt.show()
 
-    ] for force in forces
-    ]
-    if viewable:
-        results = parameter_sweep(forces, funcs,  
-                                  pre_process=shortest_length,
-                                  savepaths=savepaths,
-                                  overwrite=False,
-                                  inpaint=np.nan,
-                                  cache=False)
-                                  
-        plot_results(forces, results)
-    else:
-        parameter_sweep(forces, funcs, savepaths=savepaths, overwrite=False)
     # run(forces[-2], visco=True, phi0=0.95)
     print('done')
 

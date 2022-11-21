@@ -64,9 +64,9 @@ def invagination_depth(G):
 def invagination_depth2(G):
         basal_offset = G.graph['basal_offset']
 
-        z0 = np.mean([G.node[n]['pos'][-1]  for n in G.neighbors(0)])
+        z0 = np.mean([G.node[n]['pos'][-1]  for n in G.neighbors(basal_offset)])
 
-        return np.mean([ G.node[n+basal_offset]['pos'][-1]-z0 for n in belt])
+        return np.mean([ G.node[n]['pos'][-1]-z0 for n in belt])
 
 def final_lumen_depth(d):
         return lumen_depth(last_dict_value(d))
@@ -79,7 +79,7 @@ def final_depth(d, t_final=None):
                 return  invagination_depth(closest_dict_value(d, t_final))
 
 
-def final_depth2(d):
+def final_depth2(d,**kw):
         return invagination_depth2(last_dict_value(d))
 
 def depth_timeline(d):
@@ -251,7 +251,7 @@ def run(phi0, remodel=True, press_alpha=const.press_alpha, L0_T1=0.0, verbose=Fa
                                     blacklist=blacklist, RK=1,
                                     intercalation_callback=label_contracted,
                                     angle_tol=.01, length_rel_tol=0.05,
-                                    player=False, viewer={'button_callback':terminate } if viewable else False, minimal=False, **kw)
+                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, **kw)
 
 
 
@@ -259,9 +259,9 @@ def run(phi0, remodel=True, press_alpha=const.press_alpha, L0_T1=0.0, verbose=Fa
               pre_callback=squeeze,
               dt_init=0.5,
               adaptive=True,
-        #       timestep_func=clinton_timestep,
-        #       adaptation_rate=1,
-              dt_min=1e-2*k_eff,
+              timestep_func=clinton_timestep,
+              adaptation_rate=1,
+              dt_min=1e-1*k_eff,
               save_rate=100,    
               verbose=verbose,
               save_pattern=pattern,
@@ -272,10 +272,12 @@ def run(phi0, remodel=True, press_alpha=const.press_alpha, L0_T1=0.0, verbose=Fa
 
 intercalations=[0, 4, 6, 8, 12]
 
+intercalations=[0, 4, 6, 8, 12]
+
 def main():
     run(750,  phi0=0.3, cable=True)
 
-phi0s=np.array(list(reversed([0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])))
+phi0s=[1.0,]
 
 L0_T1s=np.linspace(0, l_apical, 10)
 L0_T1s = np.unique([*np.linspace(0,L0_T1s[2],6), *L0_T1s])
@@ -298,6 +300,6 @@ if __name__ == '__main__':
     
     def foo(*args):
         pass
-    sweep([1.0], run, kw=clinton_middle_hi_pressure, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-#     run(1.0, L0_T1=l_apical, intercalations=12,   verbose=True, viewable=True, press_alpha=0.046, orig_forces=False)
+#     sweep([1.0], run, kw=clinton_middle_orig, savepath_prefix=base_path, overwrite=True, pre_process=foo)
+    run(1.0, L0_T1=l_apical, intercalations=12,   verbose=True, viewable=True, press_alpha=0.046, orig_forces=True)
 

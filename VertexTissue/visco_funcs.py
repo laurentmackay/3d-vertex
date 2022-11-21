@@ -3,6 +3,7 @@ from numba import jit
 
 from VertexTissue.globals import l_apical
 from VertexTissue.Geometry import euclidean_distance
+from VertexTissue.util import has_basal
 
 def edge_crumpler(G, phi0=1.0, ec=0.2):
 
@@ -31,7 +32,11 @@ def crumple(phi0=1.0, ec=0.2):
     return inner
 
 def shrink_edges(G, L0=None, basal=True):
-    basal_offset = G.graph['basal_offset']
+    basal = basal and has_basal(G)
+    
+    if has_basal(G):
+        basal_offset = G.graph['basal_offset']
+
     dynamic = L0 is None
     
     def inner(node,neighbour, L0_min=L0):
