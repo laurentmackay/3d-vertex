@@ -1,9 +1,11 @@
 import numpy as np
 import VertexTissue.globals as const
-from VertexTissue.Geometry import euclidean_distance, triangle_area_vector, triangle_areas_and_vectors
+from VertexTissue.Geometry import euclidean_distance, triangle_area_vector, triangle_areas_and_vectors, unit_vector_and_dist
 import numba
 from numba import jit
 
+mu_apical = const.mu_apical
+myo_beta = const.myo_beta 
 
 @jit(nopython=True, cache=True)
 def compute_distances(pos, edges):
@@ -16,6 +18,53 @@ def compute_distances(pos, edges):
         dists[i] = dist
 
     return dists
+
+@jit(nopython=True, cache=True)
+def compute_distances_and_directions(pos, edges, ndim=3):
+    N_edges = len(edges)
+    dists = np.zeros((N_edges,),dtype=numba.float64)
+    drx = np.zeros((N_edges, ndim) ,dtype=numba.float64)
+    
+    
+    for i, e in enumerate(edges):
+        
+        direction, dist = unit_vector_and_dist(pos[e[0]][:ndim],pos[e[1]][:ndim])
+        dists[i] = dist
+        drx[i] = direction
+
+    return dists, drx
+
+@jit(nopython=True, cache=True)
+def compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, ndim=3):
+
+    for i, e in enumerate(edges):
+        magnitude = mu_apical*(dists[i] - l_rest[i])
+        
+        magnitude2 = myo_beta * myosin[i]
+    
+        force=(magnitude + magnitude2)*drx[i,:ndim]
+        forces[e[0]]+=force
+        forces[e[1]]-=force
+        
+@jit(nopython=True, cache=True)
+def compute_spring_forces(forces, l_rest, dists, drx, edges, ndim=3):
+
+    for i, e in enumerate(edges):
+        magnitude = mu_apical*(dists[i] - l_rest[i])
+            
+        force=magnitude*drx[i,:ndim]
+        forces[e[0]]+=force
+        forces[e[1]]-=force
+
+@jit(nopython=True, cache=True)
+def compute_myosin_forces(forces, myosin, drx, edges, ndim=3):
+
+    for i, e in enumerate(edges):
+        magnitude = myo_beta*myosin[i]
+            
+        force=magnitude*drx[i,:ndim]
+        forces[e[0]]+=force
+        forces[e[1]]-=force
 
 @jit(nopython=True, cache=True)
 def apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds, beta_inds):
@@ -42,7 +91,7 @@ def apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds,
         delta_beta =  pos[inds[:,6]]-pos[inds[:,5]]
 
 
-        bending_forces = const.c_ab * bending_energy(bools[0], bools[1], A_alpha_vec, A_alpha , A_beta_vec, A_beta, delta_alpha, delta_beta)
+        bending_forces = const.c_ab * compute_bending_forces(bools[0], bools[1], A_alpha_vec, A_alpha , A_beta_vec, A_beta, delta_alpha, delta_beta)
         
         for node, force in zip(nodes, bending_forces):
             forces[node] += force
@@ -51,7 +100,7 @@ def apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds,
 e_hat = np.array([[1,0,0], [0,1,0], [0,0,1]])
 
 @jit(nopython=True, cache=True)
-def bending_energy(nbhrs_alpha, nbhrs_beta, alpha_vec, A_alpha, beta_vec, A_beta, delta_alpha, delta_beta):
+def compute_bending_forces(nbhrs_alpha, nbhrs_beta, alpha_vec, A_alpha, beta_vec, A_beta, delta_alpha, delta_beta):
 
 
     shape=alpha_vec.shape

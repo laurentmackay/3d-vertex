@@ -91,7 +91,7 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
 
             checkbox_layout = QHBoxLayout()
 
-            bools={'apical_only':'Apical Only', 'cell_edges_only':'No Spokes'}
+            bools={'apical':'Apical', 'basal':'Basal', 'cell_edges_only':'No Spokes'}
             for k, v in bools.items():
                 box=QCheckBox(v)
                 box.setCheckState(2 if keyword_value(k) else 0)
@@ -239,7 +239,7 @@ class myGraphicsView(pg.GraphicsView):
         pg.GraphicsView.setRange(self, self.range, padding=(self.pixelPadding[0]/self.visibleRange().width(),-self.pixelPadding[1]/self.visibleRange().height()), disableAutoPixel=False)  ## we do this because some subclasses like to redefine setRange in an incompatible way.
         self.updateMatrix()
 
-def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=False, exec=False, attr=None, label_nodes=True, colormap='CET-D4', edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None, **kw):
+def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, basal=False, exec=False, attr=None, label_nodes=True, colormap='CET-D4', edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None, **kw):
 
     has_basal = 'basal_offset' in G.graph.keys()
     if has_basal:
@@ -271,24 +271,43 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical_only=Fals
     # if cell_edges_only:
     if 'circum_sorted' in G.graph.keys():
         circum_sorted = G.graph['circum_sorted']
-        apical = np.vstack([np.array([[c[i-1],c[i]] if c[i-1]<c[i] else [c[i],c[i-1]]  for i, _ in enumerate(c)]) for c in  circum_sorted])
+        apical_edges = np.vstack([np.array([[c[i-1],c[i]] if c[i-1]<c[i] else [c[i],c[i-1]]  for i, _ in enumerate(c)]) for c in  circum_sorted])
+
+        if apical and not basal:
+            edges = (apical_edges,)
+
+        if basal and has_basal:
+            basal_edges = apical_edges+basal_offset
+            if apical:
+                ab_edges = np.vstack([[n, n+basal_offset] for n in np.unique(apical_edges)])
+                edges = (apical_edges, basal_edges, ab_edges)
+            else:
+                edges=(basal_edges,)
         
-        if apical_only or not has_basal:
-            edges = (apical,)
-        else:
-            basal = apical+basal_offset
-            ab = np.vstack([[n, n+basal_offset] for n in np.unique(apical)])
-            edges = (apical,basal,ab)
+        # if apical and 
+
+        
+        # if apical_only or not has_basal:
+        #     edges = (apical,)
+        # else:
+        #     basal = apical+basal_offset
+            
+        #     edges = (apical,basal,ab)
+        apical_only = apical and not basal
 
         if not cell_edges_only:
             centers = G.graph['centers']
             spokes = np.vstack([np.array([[o,ci] if ci>o else [ci,o]  for ci in c]) for o, c in  zip(centers,circum_sorted)])
-            if not apical_only:
-                spokes=(spokes,spokes+basal_offset)
-            else:
+
+            if apical and basal:
+                spokes=(spokes, spokes+basal_offset)
+            elif not apical:
+                spokes=(spokes+basal_offset,)
+            elif not basal:
                 spokes=(spokes,)
 
-            edges=edges+spokes
+            if apical or basal:
+                edges=edges+spokes
     else:
         edges=G.edges()
 

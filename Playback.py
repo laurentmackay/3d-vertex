@@ -48,7 +48,20 @@ forces=np.linspace(0,600,80)
 
 # pickle_player(path='./data/Step2_bis/run', pattern=f'*.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False,  nodeLabels=None, pre_process=final_network_annotated)
 
-pickle_player(path='./data/Step2_stochastic_no_arches/run', pattern=f'L0_T1=3.4_intercalations=24_outer_double_ndim=2_1.0.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+
+# pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_intercalations=10_outer_0.4.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+
+
+# pickle_player(path='./data/energy_testing/run', pattern=f'visco_level=1_continuous_pressure_intercalations=8_t_final=800_pit_strength=300_basal_press_alpha=0.046_1000.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+
+pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_intercalations=16_0.3.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+
+pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_intercalations=16_0.4.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_intercalations=16_0.5.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+
+pickle_player(path='./data/Step4/run', pattern=f'no_remodel_L0_T1=3.4_intercalations=4_1.0.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+
+# pickle_player(path='./data/Step2_stochastic_no_arches/run', pattern=f'L0_T1=3.4_intercalations=24_outer_double_ndim=2_1.0.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
 
 # pickle_player(path='./data/Step2_bis/run', pattern=f'intercalations=8_outer_0.6.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
 

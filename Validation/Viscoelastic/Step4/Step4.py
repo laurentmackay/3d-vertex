@@ -16,7 +16,7 @@ import VertexTissue.SG as SG
 
 from VertexTissue.Tissue import get_outer_belt, tissue_3d
 from VertexTissue.Geometry import euclidean_distance, unit_vector
-from VertexTissue.funcs_orig import clinton_timestepper
+from VertexTissue.funcs_orig import clinton_timestepper, convex_hull_volume_bis, get_points
 import VertexTissue.globals as const
 from VertexTissue.globals import inter_edges_middle, inter_edges_middle_bis, inter_edges_outer, inter_edges_outer_bis, inner_arc, outer_arc, pit_strength, myo_beta, l_apical, press_alpha
 from VertexTissue.Dict import dict_product, dict_product_nd_shape, last_dict_value
@@ -63,12 +63,12 @@ def invagination_depth(G):
 
         return np.mean([ G.node[n+basal_offset]['pos'][-1]-z0 for n in belt])
 
-# def invagination_depth_inner(G):
-#         basal_offset = G.graph['basal_offset']
+def invagination_depth2(G):
+        basal_offset = G.graph['basal_offset']
 
-#         z0 = np.mean([G.node[n]['pos'][-1]  for n in G.neighbors(0)])
+        z0 = np.mean([G.node[n]['pos'][-1]  for n in G.neighbors(0)])
 
-#         return np.mean([ G.node[n+basal_offset]['pos'][-1]-z0 for n in belt])
+        return np.mean([ G.node[n+basal_offset]['pos'][-1]-z0 for n in belt])
 
 def final_lumen_depth(d):
         return lumen_depth(last_dict_value(d))
@@ -76,8 +76,8 @@ def final_lumen_depth(d):
 def final_depth(d):
         return invagination_depth(last_dict_value(d))
 
-# def final_depth_inner(d):
-#         return invagination_depth_inner(last_dict_value(d))
+def final_depth2(d):
+        return invagination_depth2(last_dict_value(d))
 
 def depth_timeline(d):
         return np.array([(t, invagination_depth(d[t])) for t in d])
@@ -174,37 +174,19 @@ def angle(G, intercalations=0, outer=False, double=False, **kw):
                 return np.nan
         else:
                 return max(angs)
-
-def extension(G, intercalations=0, outer=False, double=False, basal=False, summary=max, **kw):
-        inter_edges = get_inter_edges(intercalations=intercalations, outer=outer, double=double)
-        if basal:
-                inter_edges = np.array(inter_edges) + G.graph['basal_offset']
-        angs = [  buckle_angle_finder(G, edge=e, basal=basal)(G) for e in inter_edges]
-        lens = np.array([  euclidean_distance(G.node[e[0]]['pos'], G.node[e[1]]['pos']) for e in inter_edges])
-
-        if not angs:
-                return np.nan
-        else:
-                return summary(np.cos(angs)*lens)
-
 def final_angle(d, **kw):
     # kw['intercalations']=min(kw['intercalations'],6)
     return angle(last_dict_value(d), **kw)  
-
-def angle_timeseries(d, **kw):
-    return np.array([(t, angle(G, **kw)) for t, G in d.items()])
-
-def extension_timeseries(d, tmin=0, **kw):
-    return np.array([(t, extension(G, **kw)) for t, G in d.items() if t>=tmin])
 
 def final_corner_angle(d, **kw):
     kw['intercalations']=min(kw['intercalations'],6)
     return angle(last_dict_value(d), **kw)  
 
-def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, intercalations=0, 
-        outer=False, double=False, viewable=viewable, stochastic=False, press_alpha=press_alpha,
-         pit_strength=300, clinton_timestepping=False, dt_min=5e-2, basal=False):
+def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, 
+        intercalations=0, outer=False, double=False, viewable=viewable, 
+        stochastic=False, press_alpha=press_alpha, pit_strength=300, clinton_timestepping=False):
     
+
     
     pattern=os.path.join(base_path, function_call_savepath()+'.pickle')
     #
@@ -219,7 +201,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
     # b=p03-0.3*m
     # pit_strength=m*phi0+b
 
-    const.press_alpha=press_alpha
+    const.press_alpha = press_alpha
 
     inter_edges = get_inter_edges(intercalations=intercalations, outer=outer, double=double)
 
@@ -231,8 +213,10 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
     # sigma=pit_strength
     t_start = 375 
 
+
     if clinton_timestepping:
         clinton_timestep, uncontracted = clinton_timestepper(G, inter_edges)
+    
 
     if stochastic:
 
@@ -263,8 +247,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
 
 
-    squeeze = SG.arc_pit_and_intercalation(G, belt, t_1=t_start, inter_edges=inter_edges if not stochastic else [], 
-    t_intercalate=t_start, pit_strength=sigma, intercalation_strength=1000, basal_intercalation=basal)
+    squeeze = SG.arc_pit_and_intercalation(G, belt, t_1=t_start, inter_edges=inter_edges if not stochastic else [], t_intercalate=t_start, pit_strength=sigma)
 
     if stochastic:
         if outer:
@@ -289,21 +272,46 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
         nonlocal done
         return done
 
-    def label_contracted(i,j, **kw):
-        inds = edge_index(G, inter_edges)
-        k = find_first( edge_index(G, (i,j)) == inds )
-        uncontracted[ k ] = False
+    #create integrator
+    N_cells=len(G.graph['centers'])
+    v0=np.ones((N_cells,))*const.v_0
+    def adapt_volumes(i,j,locals=None):
+        G = locals['G']
+        centers = locals['centers']
+        pos = locals['pos']
+        four_cells = list({ k for k in G.neighbors(i) if k in centers}.union( { k for k in G.neighbors(j) if k in centers}))
+        inds = [np.argwhere(centers == c)[0,0] for c in four_cells]
+        curr_vols = [convex_hull_volume_bis(get_points(G, c, pos) ) for c in four_cells]
+        v0[inds]=curr_vols
+        print(i,j)
 
+    def constant_pressure(i,j,locals=None):
+        G = locals['G']
+        if clinton_timestepping:
+                inds = edge_index(G, inter_edges)
+                k = find_first( edge_index(G, (i,j)) == inds )
+                uncontracted[ k ] = False
+
+        
+        centers = locals['centers']
+        PI = locals['PI']
+        pos = locals['pos']
+        four_cells = list({ k for k in G.neighbors(i) if k in centers}.union( { k for k in G.neighbors(j) if k in centers}))
+        inds = [np.argwhere(centers == c)[0,0] for c in four_cells]
+        curr_vols = [convex_hull_volume_bis(get_points(G, c, pos) ) for c in four_cells]
+        v0[inds]=curr_vols+PI[inds]/const.press_alpha
+        print(i,j)
 
     blacklist=arc_to_edges(belt, inner_arc, outer_arc)
 
     # b
-    #create integrator
+
     integrate = monolayer_integrator(G, G_apical,
                                     blacklist=blacklist, append_to_blacklist=True, RK=1,
-                                    intercalation_callback=label_contracted if clinton_timestepping else None,
+                                    intercalation_callback=constant_pressure,
                                     angle_tol=.01, length_rel_tol=0.05,
-                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, **kw)
+                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, 
+                                    minimal=False, v0=v0, constant_pressure_intercalations=True, **kw)
 
 
     print(f'effective spring constant: {k_eff}')
@@ -313,20 +321,21 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
               dt_init= 0.5 if clinton_timestepping else 1e-3,
               adaptive=True,
               timestep_func=clinton_timestep if clinton_timestepping else None,
-              dt_min=dt_min*k_eff,
               adaptation_rate=1 if clinton_timestepping else 0.1,
+              dt_min=5e-2*k_eff,
               save_rate=100,    
               verbose=True,
               save_pattern=pattern,
               resume=True,
               save_on_interrupt=False)
 
-intercalations=[0,  4, 6, 8, 10, 12, 16, 18]
+intercalations=[0, 1, 4, 6, 8, 10, 12, 14, 16, 18]
+# intercalations=[1, 10, 14]
 
 def main():
     run(750,  phi0=0.3, cable=True)
 
-phi0s=np.array(list(reversed([ .25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, .95, 1.0])))
+phi0s=np.array(list(reversed([0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])))
 
 L0_T1s=np.linspace(0, l_apical, 10)
 L0_T1s = np.unique([*np.linspace(0,L0_T1s[2],6), *L0_T1s])
@@ -340,38 +349,12 @@ L0_T1s=l_apical
 remodel=False
 kws_baseline = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False}
 kws_middle = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s}
+kws_middle_strong_pit = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540}
 kws_outer = {'intercalations':intercalations, 'outer':True, 'remodel':remodel, 'L0_T1':L0_T1s}
+kws_middle_hi_pressure = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s,'press_alpha':0.046}
+kws_middle_hi_pressure_clinton = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s,'press_alpha':0.046,'clinton_timestepping':True}
 kws_double = {'intercalations':intercalations, 'outer':True,'double':True, 'remodel':remodel, 'L0_T1':L0_T1s}
 
-kws_baseline_fine = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False, 'dt_min':5e-3}
-kws_middle_fine = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'dt_min':5e-3}
-kws_outer_fine = {'intercalations':intercalations, 'outer':True, 'remodel':remodel, 'L0_T1':L0_T1s, 'dt_min':5e-3}
-kws_double_fine = {'intercalations':intercalations, 'outer':True,'double':True, 'remodel':remodel, 'L0_T1':L0_T1s, 'dt_min':5e-3}
-
-kws_middle_basal = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'basal':True}
-kws_middle_basal_hi = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'basal':True, 'press_alpha':0.046}
-kws_middle_tests = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'press_alpha':[0.046, 0.00735], 'pit_strength':[540,300], 'clinton_timestepping':[True, False]}
-
-kws_middle_clinton = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'clinton_timestepping':True}
-kws_middle_clinton_hi_pressure = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'press_alpha':0.046, 'clinton_timestepping':True}
-kws_strong_pit_middle_clinton = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540, 'clinton_timestepping':True}
-kws_middle_hi_pressure = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'press_alpha':0.046}
-kws_strong_pit_middle_clinton_hi_pressure = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540, 'clinton_timestepping':True, 'press_alpha':0.046 }
-
-
-kws_strong_pit_baseline = {'intercalations':0, 'L0_T1':0.0, 'remodel':False, 'pit_strength':540}
-kws_strong_pit_middle = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540}
-kws_strong_pit_middle_hi_pressure = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540,  'press_alpha':0.046 }
-kws_strong_pit_outer = {'intercalations':intercalations, 'outer':True, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540}
-kws_strong_pit_double = {'intercalations':intercalations, 'outer':True,'double':True, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540}
-
-# kws_strong_pit_baseline = {'intercalations':0, 'L0_T1':0.0, 'remodel':False, 'pit_strength':540}
-kws_strong_pit_middle_clinton = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540, 'clinton_timestepping':True}
-kws_strong_pit_middle_clinton_hi_pressure = {'intercalations':intercalations, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540, 'clinton_timestepping':True, 'press_alpha':0.046 }
-kws_strong_pit_outer_clinton = {'intercalations':intercalations, 'outer':True, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540, 'clinton_timestepping':True}
-kws_strong_pit_double_clinton = {'intercalations':intercalations, 'outer':True,'double':True, 'remodel':remodel, 'L0_T1':L0_T1s, 'pit_strength':540, 'clinton_timestepping':True}
-
-clinton_baseline = {'intercalations':0, 'remodel':False, 'L0_T1':l_apical, 'press_alpha':0.046 }
 clinton_middle = {'intercalations':intercalations, 'remodel':False, 'L0_T1':l_apical, 'press_alpha':0.046 }
 clinton_outer = {'intercalations':intercalations, 'outer':True, 'remodel':False, 'L0_T1':l_apical, 'press_alpha':0.046 }
 clinton_double = {'intercalations':intercalations, 'outer':True,'double':True, 'remodel':False, 'L0_T1':l_apical, 'press_alpha':0.046 }
@@ -394,7 +377,6 @@ if __name__ == '__main__':
     
     def foo(*args):
         pass
-
-    sweep(phi0s, run, kw=kws_middle_basal_hi, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-#     run(1.0, L0_T1=l_apical, intercalations=14, remodel=False,   verbose=True, viewable=True, outer=False, stochastic=False,  pit_strength=540, press_alpha=0.046, clinton_timestepping=True)
+    sweep(phi0s, run, kw=kws_outer, savepath_prefix=base_path, overwrite=False, pre_process=foo)
+#     run(1.0, L0_T1=l_apical, intercalations=12, remodel=False,   verbose=True, viewable=True, outer=False, stochastic=False, clinton_timestepping=True, press_alpha=0.046)
 

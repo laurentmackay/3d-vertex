@@ -39,7 +39,7 @@ def shrink_edges(G, L0=None, basal=True):
 
     dynamic = L0 is None
     
-    def inner(node,neighbour, L0_min=L0):
+    def inner(node,neighbour, L0_min=L0, **kw):
         
             if dynamic:
                 a=G.nodes[node]['pos']

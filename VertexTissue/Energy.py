@@ -26,46 +26,52 @@ def get_cell_volumes(G, pos, centers):
     return vols
 
 # @profile
-def network_energy(G, phi0=1.0, ec=0.2, triangulation=None, get_volumes=get_cell_volumes_bis, bending=True, spring=True):
+def network_energy(G, phi0=1.0, ec=0.2, triangulation=None, get_volumes=get_cell_volumes_bis, bending=True, spring=True, pressure=True, v0=const.v_0, press_alpha=const.press_alpha):
     
     pos = get_node_attribute_array(G,'pos')
-    L0 =  get_edge_attribute_array(G,'l_rest')
-    centers  =G.graph['centers']
-    edges = get_edges_array(G)
     
-    if triangulation is None:
-        _, _, _, _, triangle_inds, triangles_sorted, _ = compute_network_indices(G) 
-    else:
-        triangle_inds, triangles_sorted = triangulation
+    centers=G.graph['centers']
+    
+    
+    E=0
 
-    pos_side = pos[triangles_sorted.ravel()].reshape(len(triangles_sorted),3,3)
-    areas, area_vecs = triangle_areas_and_vectors(pos_side)
+    if pressure:
+        vols=get_volumes(G, pos, centers)
+        pressure_energy = press_alpha*np.sum((vols-v0)**2)
+        E+=pressure_energy
 
-    A_hat = area_vecs/areas.reshape(-1,1)
-
-    areas, area_vecs = triangle_areas_and_vectors(pos_side)
-
-
-    A_hat_alpha =A_hat[triangle_inds[:,1]]
-    A_hat_beta = A_hat[triangle_inds[:,2]]
-
-
-
-    ell = compute_distances(pos, edges)
-
-    vols=get_volumes(G, pos, centers)
-    Uspring = deformation_energies(ell,L0, phi0=phi0,ec=ec)
-
-    pressure_energy = const.press_alpha*np.sum((vols-const.v_0)**2)
-    spring_energy = np.sum(Uspring)
-    bending_energy = const.c_ab*np.sum((1-np.sum(A_hat_alpha*A_hat_beta, axis=1))**2)
-
-    E = pressure_energy
+    
     if spring:
+        edges = get_edges_array(G)
+
+        ell = compute_distances(pos, edges)
+        L0 =  get_edge_attribute_array(G,'l_rest')
+        
+        Uspring = deformation_energies(ell,L0, phi0=phi0,ec=ec)
+        spring_energy = np.sum(Uspring)
         E+=spring_energy
+   
+
 
     if bending:
+        if triangulation is None:
+            _, _, _, _, triangle_inds, triangles_sorted, _ = compute_network_indices(G) 
+        else:
+            triangle_inds, triangles_sorted = triangulation
+
+        pos_side = pos[triangles_sorted.ravel()].reshape(len(triangles_sorted),3,3)
+        areas, area_vecs = triangle_areas_and_vectors(pos_side)
+
+        A_hat = area_vecs/areas.reshape(-1,1)
+
+        areas, area_vecs = triangle_areas_and_vectors(pos_side)
+
+
+        A_hat_alpha =A_hat[triangle_inds[:,1]]
+        A_hat_beta = A_hat[triangle_inds[:,2]]
+        bending_energy = const.c_ab*np.sum((1-np.sum(A_hat_alpha*A_hat_beta, axis=1))**2)
         E+=bending_energy
+
 
     return E
 

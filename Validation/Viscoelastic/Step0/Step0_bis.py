@@ -53,7 +53,7 @@ taus = np.logspace(6,1,5)
 
 inter_edges = ((305, 248), (94,163), (69,8), (2,8))
 
-def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True):
+def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True, verbose=False):
 
     #
     G, G_apical = tissue_3d( hex=7,  basal=True)
@@ -84,7 +84,8 @@ def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True):
         kw={'rest_length_func':crumple(phi0=phi0)}
 
     done=False
-    def terminate(*args):
+
+    def terminate(*args, **kw):
         nonlocal done
         done=True
 
@@ -95,6 +96,8 @@ def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True):
     const.l_intercalation=0.1
     const.l_mvmt=0.001
     #create integrator
+    
+    
     integrate = monolayer_integrator(G, G_apical, 
                                     pre_callback=squeeze, 
                                     intercalation_callback=terminate, 
@@ -119,7 +122,7 @@ def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True):
             adaptive=True,
             dt_min=dt_min*k_eff,
             save_rate=100,
-            verbose=False,
+            verbose=verbose,
             save_pattern=pattern)
     # except:
     #     print(f'failed to integrate tau={tau}')
@@ -223,15 +226,16 @@ def main():
     kws_3={'cable':[True], 'level':3,  'phi0':phi0s}
 
 
-    kws=kws_1
+    kws=kws_3
     
+
     results = sweep(forces, run,  kw = kws,
         pre_process=shortest_length,
         savepath_prefix=base_path,
         overwrite=False,
         cache=True,
         pass_kw=True,
-        inpaint=np.nan if viewable else None, refresh=True)
+        inpaint=np.nan if viewable else None)
 
     if viewable:
         plot_results_no_cable(forces,results, level=1)

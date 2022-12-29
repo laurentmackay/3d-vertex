@@ -619,9 +619,9 @@ def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_n
 
 
 
-def clinton_timestepper(G, inter_edges):   
+def clinton_timestepper(G, inter_edges0):   
 
-    inter_edges = edge_index(G, inter_edges)
+    inter_edges = edge_index(G, inter_edges0)
     edges = get_edges_array(G)
     var_dt=True
     uncontracted = [True for e in inter_edges]
@@ -638,7 +638,7 @@ def clinton_timestepper(G, inter_edges):
                         # break
                 return 0.5
             else: 
-                if isclose(t % 1, 0, abs_tol=1e-5) == False:       
+                if isclose(abs(1-((t-0.5) % 1 + 0.5)), 0, abs_tol=1e-5) == False and len(uncontracted):       
                     return 0.1 
                 else:
                     var_dt = False 

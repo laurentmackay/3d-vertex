@@ -4,13 +4,13 @@ import numba
 from numba import jit
 
 from VertexTissue.funcs_orig import convex_hull_volume_bis
-from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D
+from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, compute_distances_and_directions, compute_myosin_forces, compute_rod_forces, compute_spring_forces
 
 from .Geometry import euclidean_distance, unit_vector_and_dist, triangle_areas_and_vectors, triangle_area_vector
 # from .Geometry  import convex_hull_volume as convex_hull_volume_bis
 from . import globals as const
 from .globals import press_alpha
-from .util import get_points, has_basal, polygon_area
+from .util import get_edge_attribute_array, get_edges_array, get_node_attribute_array, get_points, has_basal, polygon_area
 
 # l_apical = const.l_apical 
 # l_depth = const.l_depth 
@@ -19,67 +19,176 @@ from .util import get_points, has_basal, polygon_area
 # l0_basal = l_apical 
 # l0_wall = l_depth 
 
-mu_apical = const.mu_apical
+
 mu_basal = const.mu_basal          
 mu_wall = const.mu_wall          
-myo_beta = const.myo_beta 
+
 eta = const.eta 
 
 
 
+def spring_forces(G, rest_length_func=None, ndim=3):
+        '''Convenience function for computing the forces due to the edges
+        
+            Use TissueForces for a more optimized experience
+        '''
+
+        if rest_length_func is not None:
+            def get_rest_lengths(ell,L0):
+                    return rest_length_func(ell,L0)
+        else:
+            def get_rest_lengths(ell,L0):
+                    return L0
+
+        pos=get_node_attribute_array(G,'pos')
+
+        edges = get_edges_array(G)
+
+        dists, drx  = compute_distances_and_directions(pos, edges)
+        L0 = get_edge_attribute_array(G, 'l_rest')
+
+        forces = np.zeros((len(G),ndim) ,dtype=float)
+
+        l_rest = get_rest_lengths(dists, L0)
+
+        compute_spring_forces(forces, l_rest, dists, drx, edges, ndim=ndim)
+
+        return forces
+
+def myosin_forces(G, ndim=3):
+        '''Convenience function for computing the forces due to myosin on the edges
+        
+            Use TissueForces for a more optimized experience
+        '''
+
+        pos=get_node_attribute_array(G,'pos')
+
+        edges = get_edges_array(G)
+
+        _, drx  = compute_distances_and_directions(pos, edges)
+        myosin = get_edge_attribute_array(G, 'myosin')
+
+        forces = np.zeros((len(G),ndim) ,dtype=float)
+
+        # l_rest = get_rest_lengths(dists, L0)
+
+        compute_myosin_forces(forces, myosin, drx, edges, ndim=ndim)
+
+        return forces
+
+def bending_forces(G, triangulation=None, ndim=3):
+    '''Convenience function for computing the bending forces
+    
+        Use TissueForces for a more optimized experience
+    '''
+
+    pos=get_node_attribute_array(G,'pos')
+
+    forces = np.zeros((len(G),ndim) ,dtype=float)
+    
+    if triangulation is None:    
+        _, _, shared_inds, alpha_inds, beta_inds, triangles_sorted, _= compute_network_indices(G) 
+    else:
+        shared_inds, alpha_inds, beta_inds, triangles_sorted = triangulation
 
 
 
+    apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds, beta_inds)
 
 
+    return forces
+
+
+def pressure(G, pos, centers, v0=const.v_0):
+    vols = np.array([convex_hull_volume_bis(get_points(G, c, pos) ) for c in centers])
+    return const.press_alpha*(v0-vols)
+
+def pressure_forces(G, faces=None, ndim=3, v0=None):
+    '''Convenience function for computing the pressure forces
+    
+        Use TissueForces for a more optimized experience
+    '''
+
+    pos=get_node_attribute_array(G,'pos')
+
+
+
+    forces = np.zeros((len(G),ndim) ,dtype=float)
+    if ndim==3:
+        centers = G.graph['centers']
+        if faces is None:
+            ab_face_inds, side_face_inds, _, _, _, _, _ = compute_network_indices(G) 
+        else:
+            ab_face_inds, side_face_inds = faces
+
+        if v0 is None:
+            v0=const.v_0
+
+        apply_pressure_forces_3D(forces, G, pos, ab_face_inds, side_face_inds, centers, v0)
+    else:
+        if v0 is None:
+           v0=const.A_0
+
+        circum_sorted= G.graph['circum_sorted']
+        handle_pressure_2D(forces, pos, circum_sorted, v0)
+
+
+    return forces
+
+
+
+def apply_pressure_forces_3D(forces ,G, pos, ab_face_inds, side_face_inds, centers, v0=None):
+    PI=pressure(G, pos, centers, v0=v0)
+
+
+    apply_pressure_3D(forces, PI, pos, ab_face_inds, side_face_inds)
+
+
+def handle_pressure_2D(forces, pos, circum_sorted, v0=const.A_0):
+
+         for pts in circum_sorted:
+                coords=np.array([pos[i] for i in pts])
+
+                x=coords[:,0]
+                y=coords[:,1]
+
+                area = polygon_area(x,y)
+                pressure = (area-v0)
+
+                for i, pt in enumerate(pts):
+                    eps=1e-5
+                    x[i]+=eps
+                    grad[0]=(polygon_area(x,y)-area)/(eps)
+                    x[i]-=eps
+
+                    y[i]+=eps
+                    grad[1]=(polygon_area(x,y)-area)/eps
+                    y[i]-=eps
+
+                    force = -press_alpha*const.l_depth*pressure*grad
+                    forces[pt] += force
 
 def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True):
 
 
-    @jit(nopython=True, cache=True)
-    def compute_distances_and_directions(pos, edges):
-        N_edges = len(edges)
-        dists = np.zeros((N_edges,),dtype=numba.float64)
-        drx = np.zeros((N_edges, ndim) ,dtype=numba.float64)
-        
-        
-        for i, e in enumerate(edges):
-            
-            direction, dist = unit_vector_and_dist(pos[e[0]][:ndim],pos[e[1]][:ndim])
-            dists[i] = dist
-            drx[i] = direction
-
-        return dists, drx
-
-    
-    
-    mu_apical = const.mu_apical  
     press_alpha = const.press_alpha 
-    
-    @jit(nopython=True, cache=True)
-    def compute_rod_forces(forces, l_rest, dists, drx, myosin, edges):
+    centers = G.graph['centers']
 
-        for i, e in enumerate(edges):
-            magnitude = mu_apical*(dists[i] - l_rest[i])
-            
-            magnitude2 = myo_beta * myosin[i]
-        
-            force=(magnitude + magnitude2)*drx[i,:ndim]
-            forces[e[0]]+=force
-            forces[e[1]]-=force
 
         
 
     grad = np.zeros((2,))
-    def handle_pressure_2D(forces, pos, ab_face_inds, side_face_inds, circum_sorted):
-         
+    def handle_pressure_2D(forces, pos, ab_face_inds, side_face_inds, circum_sorted, v0=const.A_0):
 
          for pts in circum_sorted:
                 coords=np.array([pos[i] for i in pts])
+
                 x=coords[:,0]
                 y=coords[:,1]
+
                 area = polygon_area(x,y)
-                pressure = (area-const.A_0)
+                pressure = (area-v0)
+
                 for i, pt in enumerate(pts):
                     eps=1e-5
                     x[i]+=eps
@@ -93,46 +202,26 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True):
                     force = -press_alpha*const.l_depth*pressure*grad
                     forces[pt] += force
     #@profile
-    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds, circum_sorted):
-            PI = np.zeros(len(centers),dtype=float) 
-            # eventually move to classes?
-            for n in range(len(centers)):
-                # get nodes for volume
-                pts = get_points(G, centers[n], pos) 
-                # calculate volume
-                vol = convex_hull_volume_bis(pts)  
-                # calculate pressure
-                DV = vol-const.v_0
-                # if abs(DV)<1e-7:
-                #     DV=0
-                PI[n] = -press_alpha*DV
-
-            apply_pressure_3D(forces, PI, pos, ab_face_inds, side_face_inds)
-
-
-    
+    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds,  circum_sorted, v0=None):                
+            apply_pressure_forces_3D(forces, G, pos, ab_face_inds, side_face_inds, centers, v0)
 
 
 
-
-
-       
-    centers = G.graph['centers']
     ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted = compute_network_indices(G) 
 
     #@profile
-    def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False):
+    def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False, v0=None):
         nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted
 
         if recompute_indices:
             ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted = compute_network_indices(G) 
 
         forces = np.zeros((len(G),ndim) ,dtype=float)
-        compute_rod_forces(forces, l_rest, dists, drx, myosin, edges)
+        compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, ndim=ndim)
 
 
         if compute_pressure:
-            handle_pressure(forces, pos, ab_face_inds, side_face_inds, circum_sorted)
+            handle_pressure(forces, pos, ab_face_inds, side_face_inds, circum_sorted, v0=v0)
      
 
         if ndim==3:

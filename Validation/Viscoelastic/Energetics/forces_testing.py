@@ -26,10 +26,10 @@ from VertexTissue.globals import belt_strength, inner_arc, outer_arc
 
 from VertexTissue.Sweep import sweep
 from VertexTissue.Tissue import  get_outer_belt, tissue_3d
-from VertexTissue.util import first, get_node_attribute_array
+from VertexTissue.util import first
 from VertexTissue.vertex_3d import monolayer_integrator
 
-from VertexTissue.Energy import get_cell_volumes, get_cell_volumes_bis, network_energy
+from VertexTissue.Energy import get_cell_volumes, network_energy
 
 try:
     import matplotlib.pyplot as plt
@@ -58,7 +58,7 @@ lvl=3
 # inter_edges = ((305, 248), (94,163), (69,8), (2,8))
 
 def run(force, visco=False,  phi0=1.0, level=0, arcs=2, cable=True, continuous_pressure=False,
-        intercalations=1, t_final=600, pit_strength=540, basal=False, press_alpha=const.press_alpha):
+        intercalations=1, t_final=600, pit_strength=540):
 
     inter_edges = get_inter_edges(intercalations=intercalations, outer=False, double=False)
     G, G_apical = tissue_3d( hex=7,  basal=True)
@@ -78,10 +78,10 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=2, cable=True, continuous_p
     elif arcs==3:
         arc_list=(outer_arc, inner_arc, belt)
 
-    squeeze = SG.arc_pit_and_intercalation(G, arc_list, t_belt=3500, inter_edges=inter_edges,  t_intercalate=375 if pit_strength else 0, t_1=375  if pit_strength else 0, intercalation_strength=force,
-                                        arc_strength = belt_strength if cable else 0.0, pit_strength=pit_strength, basal_intercalation=basal)
+    squeeze = SG.arc_pit_and_intercalation(G, arc_list, t_belt=3500, inter_edges=inter_edges,  t_intercalate=375, t_1=375, intercalation_strength=force,
+                                        arc_strength = belt_strength if cable else 0.0, pit_strength=pit_strength)
 
-    const.press_alpha = press_alpha
+
     # const.press_alpha/=4
     if not visco:
         kw={}
@@ -109,9 +109,6 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=2, cable=True, continuous_p
         inds = [np.argwhere(centers == c)[0,0] for c in four_cells]
         curr_vols = [convex_hull_volume_bis(get_points(G, c, pos) ) for c in four_cells]
         v0[inds]=curr_vols+PI[inds]/const.press_alpha
-        v_new = get_cell_volumes_bis(G, get_node_attribute_array(G,'pos'),G.graph['centers'])
-        P_new = const.press_alpha*(v0-v_new)
-        print('max DP:', np.max(np.abs(P_new-PI)))
 
 
     const.l_intercalation=0.1
@@ -135,12 +132,11 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=2, cable=True, continuous_p
 
     # pattern=None
     print(f'starting f={force}')
-    dt_max= t_final/1000
-    integrate(dt_max, t_final, 
+    integrate(1, t_final, 
             dt_init = 1e-3,
             adaptive=True,
             dt_min=5e-2,
-            save_rate=dt_max,
+            save_rate=t_final/1000,
             verbose=True,
             save_pattern=pattern)
     # except:
@@ -253,7 +249,7 @@ def spring_energy_timeseries(d,phi0=1.0,**kw):
 
     return U_vec
 
-def pressure_energy_timeseries(d, summary=np.max, tmin=0, tmax=np.inf, nodes=None, press_alpha=const.press_alpha, phi0=1.0,**kw):
+def pressure_energy_timeseries(d, summary=np.max, tmin=0, tmax=np.inf, nodes=None, phi0=1.0,**kw):
     for t,G0 in d.items():
         if t>=tmin:
             print(t,t>tmin)
@@ -269,47 +265,11 @@ def pressure_energy_timeseries(d, summary=np.max, tmin=0, tmax=np.inf, nodes=Non
             break
         if 'v0' in G.graph.keys():
             # print([v0,])
-            if t>0:
-                prev_value=value
-            curr_volumes = get_cell_volumes_bis(G, get_node_attribute_array(G,'pos'),G.graph['centers'])
-            print( 'delta V:', np.max(np.abs(prev_volumes-v0)))
             v0=G.graph['v0']
             ab_face_inds, side_face_inds, _, _, _, _, _ = compute_network_indices(G) 
             # faces=(ab_face_inds, side_face_inds)
-        
-        value = network_energy(G,phi0=phi0, ec=0.2, get_volumes=get_cell_volumes_bis,  bending=False, spring=False, v0=v0, press_alpha=press_alpha)
-        if 'v0' in G.graph.keys():
-            print(f'delta E({t}):', value-prev_value, 'delta V:', np.max(np.abs(curr_volumes-v0)), v0.shape)
 
-        prev_volumes = get_cell_volumes_bis(G, get_node_attribute_array(G,'pos'),G.graph['centers'])
-        series.append((t,value))
-
-
-
-    return np.array(series)
-
-
-def bending_energy_timeseries(d, summary=np.max, tmin=0, tmax=np.inf, nodes=None, phi0=1.0,**kw):
-    for t,G0 in d.items():
-        if t>=tmin:
-            print(t,t>tmin)
-            break
-    # G0=first_dict_value(d)
-    _, _, _, _, triangle_inds, triangles_sorted, _ = compute_network_indices(G0) 
-    triangulation= (triangle_inds, triangles_sorted)
-    # p0 = pressure_forces(G0,faces=faces)
-    v0=const.v_0
-    series=[]
-    for t,G in d.items():
-        if t>tmax:
-            break
-        if 'v0' in G.graph.keys():
-            # print([v0,])
-
-            _, _, _, _, triangle_inds, triangles_sorted, _ = compute_network_indices(G) 
-            triangulation= (triangle_inds, triangles_sorted)
-
-        value = network_energy(G, phi0=phi0, ec=0.2,  pressure=False, spring=False, triangulation=triangulation)
+        value = network_energy(G,phi0=phi0, ec=0.2, get_volumes=get_cell_volumes,  bending=False, spring=False, v0=v0)
         
         series.append((t,value))
 
@@ -396,10 +356,10 @@ def main():
 
 
 
-    tf=800
+
     
-    kws={'cable':[True,], 'level':1, 'visco':[True,], 'phi0':[1.0], 'continuous_pressure':True, 'intercalations':1, 't_final':tf, 'pit_strength':300,'press_alpha':0.046}
-    kws0={'cable':[True,], 'level':1, 'visco':[True,], 'phi0':[1.0], 'continuous_pressure':True, 'intercalations':0, 't_final':tf , 'pit_strength':300,'press_alpha':0.046}
+    kws={'cable':[True,], 'level':1, 'visco':[True,], 'phi0':[1.0], 'continuous_pressure':True, 'intercalations':1, 't_final':3000, 'pit_strength':300}
+    kws0={'cable':[True,], 'level':1, 'visco':[True,], 'phi0':[1.0], 'continuous_pressure':True, 'intercalations':0, 't_final':3000 , 'pit_strength':300}
 
 
 
@@ -416,23 +376,20 @@ def main():
 
 
     nodes=[int(n) for n in np.unique(np.array(G.graph['circum_sorted'])[_])]
-    p0=sweep([0,], run,  kw = kws0, pre_process=pressure_energy_timeseries, pass_kw=True, savepath_prefix=base_path, 
+    p0=sweep(forces, run,  kw = kws0, pre_process=pressure_energy_timeseries, pass_kw=True, 
+        pre_process_kw={'summary':np.max, 'nodes':nodes}, savepath_prefix=base_path, 
         overwrite=False, cache=True, refresh=False)
 
-    r0=sweep([0,], run,  kw = kws0, pre_process=spring_energy_timeseries, pass_kw=True,  savepath_prefix=base_path, 
-        overwrite=False, cache=True, refresh=False)
-
-    b0=sweep([0,], run,  kw = kws0, pre_process=bending_energy_timeseries, pass_kw=True,  savepath_prefix=base_path, 
+    r0=sweep(forces, run,  kw = kws0, pre_process=spring_energy_timeseries, pass_kw=True, 
+        pre_process_kw={'summary':np.max, 'nodes':nodes}, savepath_prefix=base_path, 
         overwrite=False, cache=True, refresh=False)
 
     p0=p0[0][0][0][0]
     r0=r0[0][0][0][0]
-    b0=b0[0][0][0][0]
 
 
-    plt.plot(p0[:,0], p0[:,1],linestyle='-',color='y',label='pressure energy')
-    plt.plot(r0[:,0], r0[:,1],linestyle='-',color='m',label='spring energy')
-    plt.plot(b0[:,0], b0[:,1],linestyle='-',color='b',label='bending energy')
+    plt.plot(p0[:,0], p0[:,1],linestyle='-',color='y',label='pressure force')
+    plt.plot(r0[:,0], r0[:,1],linestyle='-',color='m',label='spring force')
     plt.legend(loc='lower right', fontsize=12)
     plt.ylabel(r'max force $\left(\mu \rm{N} \right)$', fontsize=14)
     plt.xlabel('time (s)', fontsize=14)
@@ -440,7 +397,7 @@ def main():
     plt.savefig(f'energy_tetrad_no_intercalations.pdf')
     plt.show()
 
-    for i,c in tuple(product((8,),(True,False))):
+    for i,c in tuple(product((4,),(True,False))):
         kws['intercalations']=i
         kws['continuous_pressure']=c
 
@@ -454,73 +411,70 @@ def main():
 
         nodes=[int(n) for n in np.unique(np.array(G.graph['circum_sorted'])[_])]
 
-        p0=sweep([0,], run,  kw = kws0, pre_process=pressure_energy_timeseries, pass_kw=True, 
-            savepath_prefix=base_path, overwrite=False, cache=True, refresh=False)
+        p0=sweep(forces, run,  kw = kws0, pre_process=pressure_energy_timeseries, pass_kw=True, 
+            pre_process_kw={'summary':np.max,  'nodes':nodes}, savepath_prefix=base_path, 
+            overwrite=False, cache=True, refresh=False)
 
-        r0=sweep([0,], run,  kw = kws0, pre_process=spring_energy_timeseries, pass_kw=True, 
-                 savepath_prefix=base_path, overwrite=False, cache=True, refresh=False)
+        r0=sweep(forces, run,  kw = kws0, pre_process=spring_energy_timeseries, pass_kw=True, 
+            pre_process_kw={'summary':np.max, 'nodes':nodes}, savepath_prefix=base_path, 
+            overwrite=False, cache=True, refresh=False)
 
         p0=p0[0][0][0][0]
         r0=r0[0][0][0][0]
 
         p=sweep(forces, run,  kw = kws, pre_process=pressure_energy_timeseries, pass_kw=True, 
-                savepath_prefix=base_path, overwrite=False, cache=True, refresh=False)
+                pre_process_kw={'summary':np.max, 'nodes':nodes, 'tmin':0}, savepath_prefix=base_path, 
+                overwrite=False, cache=True, refresh=False)
 
 
                 
         r=sweep(forces, run,  kw = kws, pre_process=spring_energy_timeseries, pass_kw=True, 
-            savepath_prefix=base_path, overwrite=False, cache=True, refresh=False)
-        
-        b=sweep(forces, run,  kw = kws, pre_process=bending_energy_timeseries, pass_kw=True, 
-             savepath_prefix=base_path, overwrite=False, cache=True, refresh=False)
+            pre_process_kw={'summary':np.max,  'nodes':nodes}, savepath_prefix=base_path, 
+            overwrite=False, cache=True, refresh=False)
 
 
         p=p[0][0][0][0]
         r=r[0][0][0][0]
-        b=b[0][0][0][0]
         pmax = p[:,1].max()
-        jump = False
+        jump = pmax>10
         f, axs = plt.subplots(2 if jump else 1, 1, sharex=True,  gridspec_kw={'height_ratios': [1, 3] if jump else [1,]})
 
-        # if jump:
-        #     axs=axs.flatten()
-        # else:
-        axs=[axs]
+        if jump:
+            axs=axs.flatten()
+        else:
+            axs=[axs]
 
         axs[-1].plot(p0[:,0], p0[:,1],linestyle='--',color='y')
         axs[-1].plot(r0[:,0], r0[:,1],linestyle='--',color='m')
 
-        # if jump:
-        #     axs[0].set_ylim(.8*pmax, 1.1*pmax,) 
-        #     axs[-1].set_ylim(0,1.05*max(r0[:,1].max(),r[:,1].max()))
+        if jump:
+            axs[0].set_ylim(.8*pmax, 1.1*pmax,) 
+            axs[-1].set_ylim(0,1.05*max(r0[:,1].max(),r[:,1].max()))
 
         for ax in axs:
-            ax.plot(p[:,0], p[:,1],linestyle='-',color='y',label='pressure energy')
-            ax.plot(r[:,0], r[:,1],linestyle='-',color='m',label='spring energy')
-            ax.plot(b[:,0], b[:,1],linestyle='-',color='b',label='bending energy')
-            ax.plot(p[:,0], p[:,1]+r[:,1]+b[:,1],linestyle='-',color='g',label='sum energy')
+            ax.plot(p[:,0], p[:,1],linestyle='-',color='y',label='pressure force')
+            ax.plot(r[:,0], r[:,1],linestyle='-',color='m',label='spring force')
 
-        # if jump:
-        #     axs[0].spines['bottom'].set_visible(False)
-        #     axs[-1].spines['top'].set_visible(False)
-        #     axs[0].xaxis.tick_top()
-        #     axs[0].tick_params(labeltop=False)  # don't put tick labels at the top
-        #     axs[-1].xaxis.tick_bottom()
+        if jump:
+            axs[0].spines['bottom'].set_visible(False)
+            axs[-1].spines['top'].set_visible(False)
+            axs[0].xaxis.tick_top()
+            axs[0].tick_params(labeltop=False)  # don't put tick labels at the top
+            axs[-1].xaxis.tick_bottom()
 
-        #     d = .015  # how big to make the diagonal lines in axes coordinates
-        #     # arguments to pass to plot, just so we don't keep repeating them
-        #     kwargs = dict(transform=axs[0].transAxes, color='k', clip_on=False)
-        #     axs[0].plot((-d, +d), (-d, +d), **kwargs)        # top-left diagonal
-        #     axs[0].plot((1 - d, 1 + d), (-d, +d), **kwargs)  # top-right diagonal
+            d = .015  # how big to make the diagonal lines in axes coordinates
+            # arguments to pass to plot, just so we don't keep repeating them
+            kwargs = dict(transform=axs[0].transAxes, color='k', clip_on=False)
+            axs[0].plot((-d, +d), (-d, +d), **kwargs)        # top-left diagonal
+            axs[0].plot((1 - d, 1 + d), (-d, +d), **kwargs)  # top-right diagonal
 
-        #     kwargs.update(transform=axs[-1].transAxes)  # switch to the bottom axes
-        #     axs[-1].plot((-d, +d), (1 - d, 1 + d), **kwargs)  # bottom-left diagonal
-        #     axs[-1].plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)  # bottom-right diagonal
+            kwargs.update(transform=axs[-1].transAxes)  # switch to the bottom axes
+            axs[-1].plot((-d, +d), (1 - d, 1 + d), **kwargs)  # bottom-left diagonal
+            axs[-1].plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)  # bottom-right diagonal
         
         axs[0].legend(loc='upper right', fontsize=12)
         plt.ylabel(r'max force $\left(\mu \rm{N} \right)$', fontsize=14)
         plt.xlabel('time (s)', fontsize=14)
-        plt.xlim((350,tf))
 
         plt.savefig(f'energy_tetrad_intercalations_{i}_continuous_pressure_{c}.pdf')
         plt.show()

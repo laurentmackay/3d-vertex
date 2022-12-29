@@ -212,7 +212,7 @@ def run(phi0, remodel=True, press_alpha=const.press_alpha, L0_T1=0.0, verbose=Fa
     alpha=1
     sigma = (alpha*ec*l_apical*(-1+phi0)+(ec-phi0)*pit_strength*myo_beta)/((-1+ec)*myo_beta)
     # sigma=pit_strength
-    t_start = 0.0
+    t_start = 375
 
 
 

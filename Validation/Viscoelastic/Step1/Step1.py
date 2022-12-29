@@ -65,34 +65,52 @@ outer_edge = [364, 363]
 
 #         return np.arccos(np.dot(ab,bc))
 
-def buckle_angle_finder(G, edge=None):
-    centers=set(G.graph['centers'])
+def buckle_angle_finder(G, edge=None, basal=False):
+    centers=G.graph['centers']
+
+    if basal:
+        centers = centers + G.graph['basal_offset']
+        
+    centers=set(centers)
+    # node_dists = [euclidean_distance(G.node[n]['pos'], G.node[0]['pos']) for n in edge]
+
     n0 = set(G.neighbors(edge[0]))
     n1 = set(G.neighbors(edge[1]))
-    center=list(set.difference(set.intersection(n1, centers),set.intersection(n0, centers) ))[0] # center of a neighbouring cell
-    nhbrs = np.sort(list(G.neighbors(center)))
-    nhbrs = np.array([n for n in nhbrs if n not in edge])
-    lr = nhbrs[[np.sum([nn in nhbrs for  nn in G.neighbors(n)])==1 for n in nhbrs]]
+    center_nhbrs = list(set.union(set.difference(set.intersection(n1, centers),set.intersection(n0, centers) ), set.difference(set.intersection(n0, centers),set.intersection(n1, centers) )))
+    
+    # center_dists = [euclidean_distance(G.node[c]['pos'], G.node[e0]['pos']) for c in center_nhbrs]
+    c0 = center_nhbrs[0]
+    c1 = center_nhbrs[1]
+
+    e0=[e for e in edge if e in G.neighbors(c0)][0]
+    e1=[e for e in edge if e in G.neighbors(c1)][0]
+    # nhbrs = np.sort(list(G.neighbors(c1)))
+    # nhbrs = np.array([n for n in nhbrs if n not in edge])
+    # lr = nhbrs[[np.sum([nn in nhbrs for  nn in G.neighbors(n)])==1 for n in nhbrs]]
 
 
     def inner(G):
 
-        a=G.node[center]['pos']
-        b=G.node[edge[1]]['pos']
-        c=G.node[edge[0]]['pos']
-        d=G.node[lr[0]]['pos']
-        e=G.node[lr[1]]['pos']
+        a=G.node[c1]['pos']
+        b=G.node[e1]['pos']
+        c=G.node[e0]['pos']
+        d=G.node[c0]['pos']
+        # d=G.node[lr[0]]['pos']
+        # e=G.node[lr[1]]['pos']
 
         ab=unit_vector(a,b)
         bc=unit_vector(b,c)
-        bd=unit_vector(b,d)
-        be=unit_vector(b,e)
-        normal = (np.cross(ab,bd)+np.cross(be,ab))/2
+        cd=unit_vector(c,d)
+        straight = (ab+cd)/np.linalg.norm(ab+cd)
+        return np.arccos(np.dot(bc, straight))
+        # bd=unit_vector(b,d)
+        # be=unit_vector(b,e)
+        # normal = (np.cross(ab,bd)+np.cross(be,ab))/2
 
-        bc = bc-np.dot(bc, normal)*normal
-        bc /= np.linalg.norm(bc)
+        # bc = bc-np.dot(bc, normal)*normal
+        # bc /= np.linalg.norm(bc)
 
-        return np.arccos(np.dot(ab,bc))
+        # return np.arccos(np.dot(ab,bc))
         
     return inner
 

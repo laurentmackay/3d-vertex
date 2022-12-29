@@ -14,7 +14,7 @@ from VertexTissue.forces_orig import compute_forces_orig
 
 
 from .Tissue import get_triangles, get_outer_belt, new_topology
-from . TissueForces import TissueForces
+from . TissueForces import TissueForces, pressure
 from . import globals as const
 from .Geometry import *
 from .util import get_edges_array, set_edge_attributes, get_edge_attribute_array, set_node_attributes, get_node_attribute_array, get_node_attribute_dict
@@ -56,7 +56,8 @@ def monolayer_integrator(G, G_apical=None,
                      pre_callback=None, post_callback=None, intercalation_callback=None, termination_callback=None,
                      ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, 
                      maxwell=False, adaptive=False, adaptation_rate=0.1, length_rel_tol=0.01, angle_tol=0.01, length_abs_tol=5e-2, minimal=False, blacklist=False, append_to_blacklist=True,
-                     maxwell_nonlin=None, rest_length_func=None, RK=1, AB=1):
+                     maxwell_nonlin=None, rest_length_func=None, RK=1, AB=1,
+                     v0=const.v_0, constant_pressure_intercalations=False):
 
     if G_apical==None:
         G_apical=G
@@ -68,7 +69,7 @@ def monolayer_integrator(G, G_apical=None,
         post_callback = lambda t, f : None
 
     if intercalation_callback is None or not callable(intercalation_callback):
-        intercalation_callback = lambda t, f : None
+        intercalation_callback = lambda t, f, **kw : None
 
     force_dict = {node: np.zeros(ndim ,dtype=float) for node in G.nodes()} 
     dists = {node: 0 for node in G.edges()} 
@@ -137,20 +138,20 @@ def monolayer_integrator(G, G_apical=None,
             pos_2 = pos + two_thirds*k1
             dists_2, drx_2  = compute_distances_and_directions(pos_2, edges)
             l_rest_2 = get_rest_lengths(dists_2, l_rest)
-            forces_2 = compute_forces(l_rest, dists_2, drx_2, myosin, edges, pos_2)
+            forces_2 = compute_forces(l_rest, dists_2, drx_2, myosin, edges, pos_2, v0=v0)
             return one_quarter*forces + three_quarters*forces_2
 
         if RK==3:
             pos_2 = pos + 0.5*k1
             dists_2, drx_2  = compute_distances_and_directions(pos_2, edges)
             l_rest_2 = get_rest_lengths(dists_2, l_rest)
-            forces_12 = compute_forces(l_rest_2, dists_2, drx_2, myosin, edges, pos_2)
+            forces_12 = compute_forces(l_rest_2, dists_2, drx_2, myosin, edges, pos_2, v0=v0)
             k2 = (h/const.eta)*forces_12
 
             pos_3 = pos - k1 + 2*k2
             dists_3, drx_3  = compute_distances_and_directions(pos_3, edges)
             l_rest_3 = get_rest_lengths(dists_3, l_rest)
-            forces_3 = compute_forces(l_rest_3, dists_3, drx_3, myosin, edges, pos_3)
+            forces_3 = compute_forces(l_rest_3, dists_3, drx_3, myosin, edges, pos_3, v0=v0)
 
             return one_sixth*(forces+4*forces_12+forces_3)
 
@@ -158,19 +159,19 @@ def monolayer_integrator(G, G_apical=None,
             pos_2 = pos + .4*k1
             dists_2, drx_2  = compute_distances_and_directions(pos_2, edges)
             l_rest_2 = get_rest_lengths(dists_2, l_rest)
-            forces_2 = compute_forces(l_rest_2, dists_2, drx_2, myosin, edges, pos_2)
+            forces_2 = compute_forces(l_rest_2, dists_2, drx_2, myosin, edges, pos_2, v0=v0)
             k2 = (h/const.eta)*forces_2
 
             pos_3 = pos + .29697761*k1 + .15875964*k2
             dists_3, drx_3  = compute_distances_and_directions(pos_3, edges)
             l_rest_3 = get_rest_lengths(dists_3, l_rest)
-            forces_3 = compute_forces(l_rest_3, dists_3, drx_3, myosin, edges, pos_3)
+            forces_3 = compute_forces(l_rest_3, dists_3, drx_3, myosin, edges, pos_3, v0=v0)
             k3 = (h/const.eta)*forces_3
 
             pos_4 = pos + .21810040*k1  - 3.05096516*k2  + 3.83286476*k3
             dists_4, drx_4  = compute_distances_and_directions(pos_4, edges)
             l_rest_4 = get_rest_lengths(dists_4, l_rest)
-            forces_4 = compute_forces(l_rest_4, dists_4, drx_4, myosin, edges, pos_4)
+            forces_4 = compute_forces(l_rest_4, dists_4, drx_4, myosin, edges, pos_4, v0=v0)
   
 
             return .17476028*forces  - .55148066*forces_2 + 1.20553560*forces_3 + .17118478*forces_4
@@ -188,7 +189,7 @@ def monolayer_integrator(G, G_apical=None,
                 angle_tol=angle_tol, length_abs_tol=length_abs_tol, length_rel_tol=length_rel_tol, append_to_blacklist=append_to_blacklist, timestep_func=None,
                 pre_callback=pre_callback, post_callback=post_callback, termination_callback=termination_callback,
                 save_pattern = save_pattern, save_rate=save_rate, resume=False, save_on_interrupt=False,
-                orig_forces=False, check_forces=False,
+                orig_forces=False, check_forces=False, v0=v0,
                 **kw):
                 
         nonlocal G, G_apical, centers,  force_dict, drx, dists, view, pos, edges
@@ -237,7 +238,7 @@ def monolayer_integrator(G, G_apical=None,
             signal.signal(signal.SIGTERM, handle_interrupt)
             signal.signal(signal.SIGINT,handle_interrupt)
 
-        def save():
+        def save(**data):
             if not viewer:
                 set_edge_attributes(G,'l_rest', L0)
             if save_dict is False:
@@ -245,7 +246,10 @@ def monolayer_integrator(G, G_apical=None,
                 with open(file_name, 'wb') as file:
                     pickle.dump(G, file)
             else:
-                save_dict[t]=copy.deepcopy(G)
+                G_copy=copy.deepcopy(G)
+                for k,v in data.items():
+                    G_copy.graph[k]=v
+                save_dict[t]=G_copy
 
         if dt_init is None:
             h=dt
@@ -340,7 +344,7 @@ def monolayer_integrator(G, G_apical=None,
 
         edges = get_edges_array(G)
 
-        dists, drx  = compute_distances_and_directions(pos, edges)
+        dists, drx  = compute_distances_and_directions(pos, edges, ndim=ndim)
         L0 = get_edge_attribute_array(G, 'l_rest')
         
         l_rest = get_rest_lengths(dists, L0)
@@ -350,7 +354,7 @@ def monolayer_integrator(G, G_apical=None,
             tau = get_edge_attribute_array(G, 'tau')
             dynamic_L0 = np.isfinite(tau)
 
-        forces = compute_forces(l_rest, dists, drx, myosin, edges, pos)
+        forces = compute_forces(l_rest, dists, drx, myosin, edges, pos, v0=v0)
 
 
         if RK>1:
@@ -396,7 +400,7 @@ def monolayer_integrator(G, G_apical=None,
 
             ############ PRECOMPUTE DISTANCES SO WE CAN USE Crank-Nicolson FOR REST LENGTH UPDATES #########
             dists_prev=dists
-            dists, drx = compute_distances_and_directions(pos, edges)
+            dists, drx = compute_distances_and_directions(pos, edges, ndim=ndim)
 
             ################### UPDATE L0 ##############################
             if maxwell or maxwell_nonlin:
@@ -443,7 +447,7 @@ def monolayer_integrator(G, G_apical=None,
                 myosin = get_edge_attribute_array(G, 'myosin')
 
             l_rest = get_rest_lengths(dists, L0)
-            forces = compute_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=intercalation)
+            forces = compute_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=intercalation, v0=v0)
 
 
 
@@ -514,7 +518,11 @@ def monolayer_integrator(G, G_apical=None,
                 delta_save = (t - t_last_save) - save_rate
                 if intercalation or (delta_save >= 0 or abs(delta_save)  <= h/2): 
                     t_last_save = t
-                    save()
+                    if intercalation:
+                        data={'v0':copy.deepcopy(v0)}
+                    else:
+                        data={}
+                    save(**data)
 
             if viewer:
                 view(G, title = f't={t}')
@@ -549,7 +557,7 @@ def monolayer_integrator(G, G_apical=None,
         num_api_nodes = len(nodes)
         # print('checking')
         i=0
-        
+        first=True
         while i<num_api_nodes:
             node=nodes[i]
         # for node in range(0,num_api_nodes):
@@ -559,6 +567,10 @@ def monolayer_integrator(G, G_apical=None,
                 while j<len(nhbrs):
                     neighbor=nhbrs[j] #and (neighbor not in belt) 
                     if (not blacklisting or (min(neighbor,node), max(neighbor,node)) not in blacklist): 
+
+                        if first and constant_pressure_intercalations:
+                            PI=pressure(G, pos, centers, v0=v0)
+                            first=False
                     
                         a = pos_dict[node]
                         b = pos_dict[neighbor]
@@ -637,8 +649,8 @@ def monolayer_integrator(G, G_apical=None,
                                     
                                     # # add new connections
                                     # new edges 
-                                    G.add_edge(*new_rods[0],**old_attrs[3])
-                                    G.add_edge(*new_rods[1],**old_attrs[1])
+                                    G.add_edge(*new_rods[0], **old_attrs[3])
+                                    G.add_edge(*new_rods[1], **old_attrs[1])
                                     # new spokes
                                     G.add_edge(*new_rods[2], **G[node+offset][ii+offset])
                                     if len(jj):
@@ -646,6 +658,8 @@ def monolayer_integrator(G, G_apical=None,
 
                                     # # reset myosin on contracted edge
                                     G[node+offset][neighbor+offset]['myosin'] = 0
+
+
                                 if blacklisting and append_to_blacklist:
                                     blacklist.append((min(node, neighbor), max(node, neighbor)))
                                 
@@ -670,7 +684,7 @@ def monolayer_integrator(G, G_apical=None,
                                 pos = get_node_attribute_array(G,'pos')
 
                                 dists, drx = compute_distances_and_directions(pos, edges)
-                                intercalation_callback(node, neighbor)
+                                intercalation_callback(node, neighbor, locals=locals())
                                 i-=1
                                 if viewer:
                                     view(G, title = f'freshly resolved intercalation t={t}')
@@ -680,5 +694,7 @@ def monolayer_integrator(G, G_apical=None,
 
             i +=1
         return intercal
+
+
     return integrate
 
