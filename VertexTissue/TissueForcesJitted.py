@@ -4,7 +4,6 @@ from VertexTissue.Geometry import euclidean_distance, triangle_area_vector, tria
 import numba
 from numba import jit
 
-mu_apical = const.mu_apical
 myo_beta = const.myo_beta 
 
 @jit(nopython=True, cache=True)
@@ -35,7 +34,7 @@ def compute_distances_and_directions(pos, edges, ndim=3):
     return dists, drx
 
 @jit(nopython=True, cache=True)
-def compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, ndim=3):
+def compute_rod_forces(forces, l_rest, dists, drx, myosin, edges,  mu_apical, ndim=3):
 
     for i, e in enumerate(edges):
         magnitude = mu_apical*(dists[i] - l_rest[i])
@@ -45,12 +44,24 @@ def compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, ndim=3):
         force=(magnitude + magnitude2)*drx[i,:ndim]
         forces[e[0]]+=force
         forces[e[1]]-=force
+
+@jit(nopython=True, cache=True)
+def compute_SLS_forces(forces, l1, l2, dists, drx, myosin, edges,  mu_apical, alpha, ndim=3):
+    beta=1-alpha
+    for i, e in enumerate(edges):
+        magnitude = mu_apical*(dists[i] - alpha*l1[i] - beta*l2[i])
+        
+        magnitude2 = myo_beta * myosin[i]
+    
+        force=(magnitude + magnitude2)*drx[i,:ndim]
+        forces[e[0]]+=force
+        forces[e[1]]-=force
         
 @jit(nopython=True, cache=True)
-def compute_spring_forces(forces, l_rest, dists, drx, edges, ndim=3):
+def compute_spring_forces(forces, l_rest, dists, drx, edges,  mu_apical, ndim=3):
 
     for i, e in enumerate(edges):
-        magnitude = mu_apical*(dists[i] - l_rest[i])
+        magnitude = (dists[i] - l_rest[i])
             
         force=magnitude*drx[i,:ndim]
         forces[e[0]]+=force

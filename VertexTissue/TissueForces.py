@@ -4,7 +4,7 @@ import numba
 from numba import jit
 
 from VertexTissue.funcs_orig import convex_hull_volume_bis
-from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, compute_distances_and_directions, compute_myosin_forces, compute_rod_forces, compute_spring_forces
+from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, compute_SLS_forces, compute_distances_and_directions, compute_myosin_forces, compute_rod_forces, compute_spring_forces
 
 from .Geometry import euclidean_distance, unit_vector_and_dist, triangle_areas_and_vectors, triangle_area_vector
 # from .Geometry  import convex_hull_volume as convex_hull_volume_bis
@@ -51,7 +51,7 @@ def spring_forces(G, rest_length_func=None, ndim=3):
 
         l_rest = get_rest_lengths(dists, L0)
 
-        compute_spring_forces(forces, l_rest, dists, drx, edges, ndim=ndim)
+        compute_spring_forces(forces, l_rest, dists, drx, edges, const.mu_apical, ndim=ndim)
 
         return forces
 
@@ -98,7 +98,7 @@ def bending_forces(G, triangulation=None, ndim=3):
 
     return forces
 
-
+#@profile
 def pressure(G, pos, centers, v0=const.v_0):
     vols = np.array([convex_hull_volume_bis(get_points(G, c, pos) ) for c in centers])
     return const.press_alpha*(v0-vols)
@@ -136,10 +136,10 @@ def pressure_forces(G, faces=None, ndim=3, v0=None):
     return forces
 
 
-
+#@profile
 def apply_pressure_forces_3D(forces ,G, pos, ab_face_inds, side_face_inds, centers, v0=None):
     PI=pressure(G, pos, centers, v0=v0)
-
+    #PI = np.zeros(centers.shape)
 
     apply_pressure_3D(forces, PI, pos, ab_face_inds, side_face_inds)
 
@@ -168,7 +168,7 @@ def handle_pressure_2D(forces, pos, circum_sorted, v0=const.A_0):
                     force = -press_alpha*const.l_depth*pressure*grad
                     forces[pt] += force
 
-def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True):
+def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False):
 
 
     press_alpha = const.press_alpha 
@@ -217,8 +217,10 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True):
             ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted = compute_network_indices(G) 
 
         forces = np.zeros((len(G),ndim) ,dtype=float)
-        compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, ndim=ndim)
-
+        if SLS is False:
+            compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
+        else:
+            compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
 
         if compute_pressure:
             handle_pressure(forces, pos, ab_face_inds, side_face_inds, circum_sorted, v0=v0)

@@ -14,7 +14,7 @@ from VertexTissue.Memoization import get_caller_locals
 from VertexTissue.Tissue import tissue_3d, get_outer_belt
 from VertexTissue.util import pcolor
 
-from Validation.Viscoelastic.Step4.Step4 import  inter_arc_distance, run, phi0s,  base_path, kws, kws_baseline, kws_middle, kws_outer, kws_double, get_inter_edges, L0_T1s
+from Validation.Viscoelastic.Step4.Step4 import  inter_arc_distance, run, phi0s,  base_path, kws, kws_baseline, kws_middle, kws_outer, kws_double, get_inter_edges, L0_T1s, kws_baseline_smolpit, kws_middle_smolpit, kws_outer_smolpit
 
 
 fontsize=14
@@ -60,15 +60,15 @@ if __name__ == '__main__':
         refresh=False
         depth_func  = final_depth
 
-        depth_baseline  = sweep(phi0s, run, kw=kws_baseline, pre_process = depth_func ,
+        depth_baseline  = sweep(phi0s, run, kw=kws_baseline_smolpit, pre_process = depth_func ,
         cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)
         
-        depth_middle  = sweep(phi0s, run, kw=kws_middle, pre_process = depth_func ,
+        depth_middle  = sweep(phi0s, run, kw=kws_middle_smolpit, pre_process = depth_func ,
         cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)
 
 
 
-        depth_outer  = sweep(phi0s, run, kw=kws_outer, pre_process = depth_func ,
+        depth_outer  = sweep(phi0s, run, kw=kws_outer_smolpit, pre_process = depth_func ,
         cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)
 
         

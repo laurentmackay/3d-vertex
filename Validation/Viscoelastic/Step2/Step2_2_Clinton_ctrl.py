@@ -241,7 +241,7 @@ if __name__ == '__main__':
         plt.savefig(f'clinton_invagination_depth_vs_intercalations.pdf')
         plt.show()
 
-        intercalations=[0,4,6,8,12, 14, 16, 18]
+        intercalations=[0,4,6,8,10,12, 14, 16, 18]
 
         kws_strong_pit_middle_hi_pressure['intercalations']=intercalations
         depth_middle_strong_pit_hi_pressure = sweep(phi0s, run_LM, 
@@ -270,7 +270,7 @@ if __name__ == '__main__':
                               cache=True,
                               savepath_prefix=base_path,
                               inpaint=np.nan,
-                              refresh=True,
+                              refresh=False,
                               pre_process_kw={'t_final':T_final})
 
         kws_middle_hi_pressure['intercalations']=intercalations

@@ -48,18 +48,19 @@ if __name__ == '__main__':
         adv_no_cable=np.load(f'viscoelastic_advantange_triple_127_level_{lvl}.npy')
 
         
-        plt.plot(phi0s, adv_no_cable, label=r'position '+str(lvl+1), linestyle='-', color=c)
-        plt.plot(phi0s,adv,  linestyle='--', color=c)
+        plt.plot([ *phi0s, 1.0], [*(adv_no_cable), 0.0] , label=r'position '+str(lvl+1), linestyle='-', color=c)
+        plt.plot([ *phi0s, 1.0],[*(adv), adv[-1]],  linestyle='--', color=c)
         # plt.plot(phi0s,adv+adv_no_cable,  linestyle='-.', color=c)
+    # plt.plot([ *phi0s, 1.0], [*(1-np.array(phi0s)), 0.0] , label=r'best case scenario', linestyle='--', color='k')
 
-    plt.xlabel('$\phi_0$', fontsize=16)
-    plt.ylabel(r'$\alpha$', fontsize=16)
-
+    plt.xlabel('$\delta$', fontsize=16)
+    plt.ylabel(r'reduction in contraction force (non-dim)', fontsize=14)
+    plt.ylim(0,1.05)
 
 
     plt.legend(loc='upper right')
     plt.tight_layout()
-    # plt.savefig(f'viscoelastic_triple_advantanges_127.pdf',dpi=200)
+    plt.savefig(f'viscoelastic_triple_contraction_forces_127.png',dpi=200)
     plt.show()
     
 

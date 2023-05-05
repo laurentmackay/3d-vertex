@@ -333,3 +333,14 @@ def collate_pickles(path='.',pattern='*', step=1):
             obj = pickle.load(file)
             d[t]=obj
     return d
+
+def finder(a, b):
+    dup = np.searchsorted(a, b)
+    uni = np.unique(dup)
+    uni = uni[uni < a.shape[0]]
+    ret_b = np.zeros(uni.shape[0])
+    for idx, val in enumerate(uni):
+        bw = np.argmin(np.abs(a[val]-b[dup == val]))
+        tt = dup == val
+        ret_b[idx] = np.where(tt == True)[0][bw]
+    return np.column_stack((uni, ret_b))

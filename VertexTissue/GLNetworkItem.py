@@ -62,7 +62,7 @@ class GLNetworkItem(GLGraphicsItem):
     Useful for drawing networks, trees, etc.
     """
 
-    def __init__(self, draw_axes=False, msg='dummy', **kwds):
+    def __init__(self, draw_axes=False, msg='', **kwds):
         GLGraphicsItem.__init__(self)
 
         self.edges = None

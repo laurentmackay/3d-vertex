@@ -80,7 +80,7 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
             layout = QVBoxLayout()
 
 
-            argspec=inspect.getargspec(edge_view)
+            argspec=inspect.getfullargspec(edge_view)
             args=argspec.args
             defs=argspec.defaults
             ind_delta = len(args)-len(defs)
@@ -239,7 +239,7 @@ class myGraphicsView(pg.GraphicsView):
         pg.GraphicsView.setRange(self, self.range, padding=(self.pixelPadding[0]/self.visibleRange().width(),-self.pixelPadding[1]/self.visibleRange().height()), disableAutoPixel=False)  ## we do this because some subclasses like to redefine setRange in an incompatible way.
         self.updateMatrix()
 
-def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, basal=False, exec=False, attr=None, label_nodes=True, colormap='CET-D4', edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None, **kw):
+def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, basal=False, exec=False, attr=None, label_nodes=True, colormap='CET-D8', vmin=None, vmax=None, edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None, **kw):
 
     has_basal = 'basal_offset' in G.graph.keys()
     if has_basal:
@@ -326,7 +326,7 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, bas
 
     cmap = pg.colormap.get(colormap)
     
-    edgeColor=pg.glColor(edgeColor)
+    # edgeColor=pg.glColor(edgeColor)
 
     if attr:
         if type(attr) is dict:
@@ -340,9 +340,19 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, bas
        
         if type(attr) is dict:
             vals = attr_fun(vals)
-            
-        min_val = np.nanmin(vals)
+        
+        
+        if vmin is not None:
+            min_val=vmin
+        else:
+            min_val = np.nanmin(vals)
+
         vals = (vals-min_val)
+
+        if vmin is not None:
+            vals[vals<0]=0
+        
+
         range   = np.nanmax(vals)
 
     else:
@@ -354,6 +364,13 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, bas
 
     if range:
         vals = vals/range
+    # stops, colors = cmap.getStops()
+    # max_val = min_val + range
+    # mid=int(np.floor(len(stops)/2))
+    # zero=-min_val/range
+    # stops=np.array([*np.linspace(0,zero,mid), *(np.linspace(zero,1.0,len(stops)-mid+1)[1:])])
+
+    # cmap=pg.colormap.ColorMap(stops, colors)
 
     edgeColor = cmap.mapToFloat(vals)
     edgeWidth = edgeWidth*(1+vals*edgeWidthMultiplier)
@@ -391,6 +408,7 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, bas
             if range==0.:
                 range=1.0
             gi.colorBar.setLevels(values=(min_val, min_val+range))
+            # gi.colorBar.setColorMap(cmap)
 
     gi.parent().parent().parent().setWindowTitle(title)
     

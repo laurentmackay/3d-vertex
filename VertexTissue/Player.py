@@ -12,8 +12,10 @@ import pickle
 import numpy as np
 
 import pyqtgraph as pg
-from pyqtgraph.Qt.QtGui import QLabel, QSlider, QStyleOptionSlider, QPushButton, QApplication,  QStyle, QLabel, QDockWidget, QWidget, QHBoxLayout, QVBoxLayout
+from pyqtgraph.Qt.QtWidgets import  QLabel, QSlider, QStyleOptionSlider, QPushButton, QApplication,  QStyle,  QDockWidget, QWidget, QHBoxLayout, QVBoxLayout
 from pyqtgraph.Qt.QtCore import Qt, QTimer
+
+from VertexTissue.util import finder
 
 
 
@@ -65,14 +67,15 @@ class ClickSlider(QSlider):
 
 
 
+
 def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_time=None, speedup=5.0, refresh_rate=60.0, parallel=False, save_dict=None, pre_process=None, check_timestamp=True, **kw):
 
     if file_list is None:
 
-        single_pickle = pattern.find('*') == -1
+        single_pickle = pattern.find('*') == -1 or save_dict is not None
         start_file = pattern
 
-        if not (single_pickle or save_dict is not None):
+        if not (single_pickle):
             if start_time is None:
                 file_list=get_filenames(path=path, pattern=pattern, min_timestamp=0)
                 if len(file_list)==0:
@@ -314,6 +317,8 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
 
                         t_G=keys[i_load]
                         G=save_dict[t_G]
+                        if pre_process is not None:
+                            G=pre_process(G)
                         i_loaded=i_load
                         new = True
 
@@ -377,7 +382,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
 
     def start():
         nonlocal view, counter, prev_counter, save_dict, keys, start_time, prev_disp_time, next_disp_time, curr_time, time_bounds
-        if not single_pickle :
+        if not single_pickle:
             with open(os.path.join(path, start_file), 'rb') as input:
                 G=pickle.load(input)
                 t_G = start_time

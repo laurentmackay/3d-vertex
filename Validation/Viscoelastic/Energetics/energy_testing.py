@@ -396,10 +396,10 @@ def main():
 
 
 
-    tf=800
+    tf=600
     
-    kws={'cable':[True,], 'level':1, 'visco':[True,], 'phi0':[1.0], 'continuous_pressure':True, 'intercalations':1, 't_final':tf, 'pit_strength':300,'press_alpha':0.046}
-    kws0={'cable':[True,], 'level':1, 'visco':[True,], 'phi0':[1.0], 'continuous_pressure':True, 'intercalations':0, 't_final':tf , 'pit_strength':300,'press_alpha':0.046}
+    kws={'cable':[True,], 'level':1, 'visco':[True,], 'phi0':[1.0], 'continuous_pressure':True, 'intercalations':1, 't_final':tf, 'pit_strength':300}
+    kws0={'cable':[True,], 'level':1, 'visco':[True,], 'phi0':[1.0], 'continuous_pressure':True, 'intercalations':0, 't_final':tf , 'pit_strength':300}
 
 
 
@@ -498,7 +498,7 @@ def main():
             ax.plot(p[:,0], p[:,1],linestyle='-',color='y',label='pressure energy')
             ax.plot(r[:,0], r[:,1],linestyle='-',color='m',label='spring energy')
             ax.plot(b[:,0], b[:,1],linestyle='-',color='b',label='bending energy')
-            ax.plot(p[:,0], p[:,1]+r[:,1]+b[:,1],linestyle='-',color='g',label='sum energy')
+            # ax.plot(p[:,0], p[:,1]+r[:,1]+b[:,1],linestyle='-',color='g',label='sum energy')
 
         # if jump:
         #     axs[0].spines['bottom'].set_visible(False)
@@ -518,11 +518,12 @@ def main():
         #     axs[-1].plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)  # bottom-right diagonal
         
         axs[0].legend(loc='upper right', fontsize=12)
-        plt.ylabel(r'max force $\left(\mu \rm{N} \right)$', fontsize=14)
+        plt.ylabel(r'energy', fontsize=14)
         plt.xlabel('time (s)', fontsize=14)
         plt.xlim((350,tf))
+        plt.ylim((-5,350))
 
-        plt.savefig(f'energy_tetrad_intercalations_{i}_continuous_pressure_{c}.pdf')
+        plt.savefig(f'energy_intercalations_{i}_continuous_pressure_{c}.pdf')
         plt.show()
 
     # run(forces[-2], visco=True, phi0=0.95)
