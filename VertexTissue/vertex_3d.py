@@ -19,8 +19,8 @@ from . import globals as const
 from .Geometry import *
 from .util import get_edges_array, set_edge_attributes, get_edge_attribute_array, set_node_attributes, get_node_attribute_array, get_node_attribute_dict
 try:
-    from .Player import pickle_player
-    from . PyQtViz import edge_viewer
+    from VertexTissue.Player import pickle_player
+    from VertexTissue.PyQtViz import edge_viewer
 except:
     pass
 
@@ -55,9 +55,11 @@ kc=const.kc
 def monolayer_integrator(G, G_apical=None,
                      pre_callback=None, post_callback=None, intercalation_callback=None, termination_callback=None,
                      ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, 
-                     maxwell=False, adaptive=False, adaptation_rate=0.1, length_rel_tol=0.01, angle_tol=0.01, length_abs_tol=5e-2, minimal=False, blacklist=False, append_to_blacklist=True,
+                     adaptive=False, adaptation_rate=0.1, length_rel_tol=0.01, angle_tol=0.01, length_abs_tol=5e-2, 
+                     maxwell=False, SLS=False,
+                     minimal=False, blacklist=False, append_to_blacklist=True,
                      maxwell_nonlin=None, rest_length_func=None, RK=1, AB=1,
-                     v0=const.v_0, constant_pressure_intercalations=False):
+                     v0=const.v_0, constant_pressure_intercalations=False, T1=True):
 
     if G_apical==None:
         G_apical=G
@@ -92,6 +94,8 @@ def monolayer_integrator(G, G_apical=None,
     else:
         circum_sorted = None
 
+    if SLS is not False:
+        L0 = get_edge_attribute_array(G, 'l_rest')
     
     if 'centers' in G.graph.keys():
         centers = G.graph['centers']
@@ -110,7 +114,7 @@ def monolayer_integrator(G, G_apical=None,
     
     # @jit(nopython=True, cache=True)
 
-    compute_forces, compute_distances_and_directions = TissueForces(G, ndim=ndim, minimal=minimal)
+    compute_forces, compute_distances_and_directions = TissueForces(G, ndim=ndim, minimal=minimal, SLS=SLS)
         
 
     if rest_length_func is not None:
@@ -183,13 +187,13 @@ def monolayer_integrator(G, G_apical=None,
 
     edges=None
 
-    # @profile
+    @profile
     def integrate(dt, t_final, 
                 dt_init=None, dt_min = None, t=0, adaptive=adaptive, adaptation_rate=adaptation_rate,  verbose=False,
                 angle_tol=angle_tol, length_abs_tol=length_abs_tol, length_rel_tol=length_rel_tol, append_to_blacklist=append_to_blacklist, timestep_func=None,
                 pre_callback=pre_callback, post_callback=post_callback, termination_callback=termination_callback,
                 save_pattern = save_pattern, save_rate=save_rate, resume=False, save_on_interrupt=False,
-                orig_forces=False, check_forces=False, v0=v0,
+                orig_forces=False, check_forces=False, v0=v0, T1=T1,
                 **kw):
                 
         nonlocal G, G_apical, centers,  force_dict, drx, dists, view, pos, edges
@@ -345,12 +349,22 @@ def monolayer_integrator(G, G_apical=None,
         edges = get_edges_array(G)
 
         dists, drx  = compute_distances_and_directions(pos, edges, ndim=ndim)
-        L0 = get_edge_attribute_array(G, 'l_rest')
-        
-        l_rest = get_rest_lengths(dists, L0)
+        if SLS is not False:
+            nonlocal L0
+        else:
+            L0 = get_edge_attribute_array(G, 'l_rest')
+            
+
+        if SLS is False:
+            l_rest = get_rest_lengths(dists, L0)
+        else:
+            L1=L0.copy()
+            set_edge_attributes(G,'l_rest_1',L1)
+            l_rest = (L1, L0)
+
         myosin = get_edge_attribute_array(G, 'myosin')
 
-        if maxwell:
+        if maxwell or SLS is not False:
             tau = get_edge_attribute_array(G, 'tau')
             dynamic_L0 = np.isfinite(tau)
 
@@ -403,7 +417,7 @@ def monolayer_integrator(G, G_apical=None,
             dists, drx = compute_distances_and_directions(pos, edges, ndim=ndim)
 
             ################### UPDATE L0 ##############################
-            if maxwell or maxwell_nonlin:
+            if maxwell or maxwell_nonlin or SLS is not False:
                 
                 
                 
@@ -412,14 +426,15 @@ def monolayer_integrator(G, G_apical=None,
                     r = h/(tau*2)
                     L0[dynamic_L0] = ((L0*(1-r)+r*(dists+dists_prev))/(1+r))[dynamic_L0]
                 else:
-                    L0[dynamic_L0] += (h/2)*((maxwell_nonlin(dists, L0)+maxwell_nonlin(dists_prev,L0))/tau)[dynamic_L0]
+                    L0[dynamic_L0] += (h/2)*( ( maxwell_nonlin(dists, L0, L1) + maxwell_nonlin(dists_prev,L0, L1) )/tau )[dynamic_L0]
 
                 if viewer:
                     set_edge_attributes(G,'l_rest', L0)
 
-
-            intercalation=check_for_intercalations(t, append_to_blacklist=append_to_blacklist)
-
+            if T1:
+                intercalation=check_for_intercalations(t, append_to_blacklist=append_to_blacklist)
+            else:
+                intercalation=False
 
             ############ INCREMENT TIME ############
             t = t + h
@@ -443,10 +458,17 @@ def monolayer_integrator(G, G_apical=None,
                 f_prev = f_eff
 
             if pre_event or post_event or intercalation:
+                # if SLS is False:
                 L0 = get_edge_attribute_array(G, 'l_rest')
+                if not (SLS is False):
+                    L1 = get_edge_attribute_array(G, 'l_rest_1')
+                    l_rest = (L1, L0)
+
                 myosin = get_edge_attribute_array(G, 'myosin')
 
-            l_rest = get_rest_lengths(dists, L0)
+            if SLS is False:
+                l_rest = get_rest_lengths(dists, L0)
+
             forces = compute_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=intercalation, v0=v0)
 
 
@@ -567,9 +589,12 @@ def monolayer_integrator(G, G_apical=None,
                 while j<len(nhbrs):
                     neighbor=nhbrs[j] #and (neighbor not in belt) 
                     if (not blacklisting or (min(neighbor,node), max(neighbor,node)) not in blacklist): 
+                        if not (SLS is False):
+                            nonlocal L0
 
                         if first and constant_pressure_intercalations:
                             PI=pressure(G, pos, centers, v0=v0)
+                            
                             first=False
                     
                         a = pos_dict[node]

@@ -31,6 +31,50 @@ def crumple(phi0=1.0, ec=0.2):
 
     return inner
 
+def fluid_element(phi0=1.0, ec=0.2, extend=False, contract=True):
+
+    alpha = ((1.0-phi0)/(1.0-ec))
+    beta = (ec*(phi0-2)+phi0)/(1.0-ec)
+    # @jit(nopython=True, cache=True)
+    def inner(ell,L0):
+
+        l_rest=L0.copy()
+        
+        if contract:
+            inds =  ell < (1-ec)*L0 
+            l_rest[inds] = alpha*ell[inds] + phi0*L0[inds]
+        
+        if extend:
+            inds =  ell > (1+ec)*L0 
+            l_rest[inds] = alpha*ell[inds] + beta*L0[inds]
+
+        return l_rest
+
+    return inner
+
+def SLS_nonlin(ec=0.0, contract=True, extend=True):
+
+    def inner(ell, L, L0):
+            eps=np.zeros(L.shape)
+            dLdt=np.zeros(L.shape)
+
+            inds = L>0
+
+            eps[inds]=(ell[inds]-L0[inds])/L0[inds]
+
+            inds = np.logical_and( L<=0, ell>0)
+            if contract:
+                    inds = np.logical_or(np.logical_or(inds ,  eps<-ec),  np.logical_and(ell>L, L0>L))
+
+            if extend:
+                    inds = np.logical_or(np.logical_or(inds ,  eps>ec),   np.logical_and(ell<L, L0<L))
+
+            dLdt[inds] = (ell[inds]-L[inds])
+
+            return dLdt
+    
+    return inner
+
 def shrink_edges(G, L0=None, basal=True):
     basal = basal and has_basal(G)
     

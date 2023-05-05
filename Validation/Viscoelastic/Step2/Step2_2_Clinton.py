@@ -9,12 +9,12 @@ from VertexTissue.Sweep import sweep
 
 from VertexTissue.Dict import  dict_product, last_dict_key, last_dict_value, take_dicts, dict_mask
 
-from Step2_bis import angle_timeseries, depth_timeline, extension_timeseries, final_arc_ratio, final_depth, final_inter_arc_distance, final_width, inter_arc_distance_timeline, intercalations, run, phi0s,  base_path, kws_baseline,   final_angle, L0_T1s, final_inter_arc_depth, final_lumen_depth
+from Step2_bis import angle_timeseries, depth_timeline, extension_timeseries, final_arc_ratio, final_depth, final_inter_arc_distance, final_width, inter_arc_distance_timeline, intercalations, run, phi0s, phi0_SLS,  base_path, kws_baseline,   final_angle, L0_T1s, final_inter_arc_depth, final_lumen_depth
 from Step2_bis import naught_middle_remodel, naught_outer_remodel, naught_double_remodel, extension_timeline
 
-from Step2_bis import kws_strong_pit_middle, kws_strong_pit_double, kws_strong_pit_outer, kws_strong_pit_baseline, kws_middle, kws_double, kws_outer
-from Step2_bis import clinton_baseline, clinton_double, clinton_outer, clinton_middle
-
+from Step2_bis import kws_strong_pit_middle, kws_strong_pit_double, kws_strong_pit_outer, kws_strong_pit_baseline, kws_middle, kws_double, kws_outer, kws_middle_basal, kws_middle_basal_hi, kws_middle_fine, kws_middle_no_scale, kws_baseline_no_scale, kws_outer_no_scale, kws_middle_smolpit, kws_outer_smolpit, kws_baseline_smolpit
+from Step2_bis import clinton_baseline, clinton_double, clinton_outer, clinton_middle, kws_inter_thresh_no_scale, kws_inter_thresh_no_scale_ext, kws_inter_thresh_no_scale_sym, kws_baseline_thresh_no_scale_slice, kws_baseline_thresh_no_scale_slice_sym, kws_baseline_thresh_no_scale_slice_ext
+from Step2_bis import kws_SLS_baseline, kws_SLS_middle, kws_SLS_outer, kws_SLS_baseline_ext, kws_SLS_middle_ext, kws_SLS_outer_ext, kws_SLS_baseline_con, kws_SLS_middle_con, kws_SLS_outer_con
 fontsize=14
 
 
@@ -47,6 +47,7 @@ if __name__ == '__main__':
 
         angle_middle  = sweep(phi0s, run, kw=kws_middle_slice, pre_process = angle_timeseries, pass_kw=True, pre_process_kw={'basal': False, 'summary':np.mean},
         cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)
+        
         angle_outer  = sweep(phi0s, run, kw=kws_outer_slice, pre_process = angle_timeseries, pass_kw=True, pre_process_kw={'basal': False, 'summary':np.mean},
         cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)
 
@@ -91,13 +92,13 @@ if __name__ == '__main__':
                 plt.xlabel('$\phi_0$')
                 plt.xlim(min(phi0s), max(phi0s))
 
-        def plot(y):
+        def plot(y, label=True):
                 N=len(phi0s) 
                 colors = plt.cm.nipy_spectral(np.linspace(0,.85,N))
                 plt.rcParams["axes.prop_cycle"] = plt.cycler("color", colors )
 
                 for j in range(len(phi0s)):
-                        plt.plot(intercalations, y[j,:], label=f'$\phi_0={phi0s[j]}$', color=colors[j])      
+                        plt.plot(intercalations, y[j,:], label=f'$\delta={phi0s[j]}$' if label else None, color=colors[j])      
                 plt.xlabel('# of intercalations')
                 plt.xlim(min(intercalations), max(intercalations))
 
@@ -221,12 +222,70 @@ if __name__ == '__main__':
         depth_func = final_depth
 
         refresh=False
+        overwrite=False
+        # phi0s=phi0s[phi0s>=0.5]
+        # kws_baseline = kws_SLS_baseline
 
-        depth_baseline  = sweep(phi0s, run, kw=kws_baseline, pre_process = depth_func,
-        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)
+        # kws_middle = kws_SLS_middle
+        # kws_outer = kws_SLS_outer
+        phi0s=phi0_SLS
+
+        fig, axs = plt.subplots(3,2)
+        fig.set_size_inches(9.5, 8)
+        axs=axs.ravel()
+
+        for i, kws in enumerate(((kws_SLS_baseline_con, kws_SLS_middle_con, kws_SLS_outer_con),
+                                (kws_SLS_baseline_ext,kws_SLS_middle_ext, kws_SLS_outer_ext),
+                                (kws_SLS_baseline,kws_SLS_middle, kws_SLS_outer))):
+                
+                kws_baseline, kws_middle, kws_outer  = kws
+                
+                depth_baseline  = sweep(phi0s, run, kw=kws_baseline, pre_process = depth_func,
+                                        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh, overwrite=overwrite)
+
         
-        depth_middle  = sweep(phi0s, run, kw=kws_middle, pre_process = depth_func,
-        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=False)
+                depth_middle  = sweep(phi0s, run, kw=kws_middle, pre_process = depth_func,
+                                        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)
+                
+
+                depth_outer  = sweep(phi0s, run, kw=kws_outer, pre_process = depth_func,
+                        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh, overwrite=overwrite)
+                
+                base=depth_baseline.reshape((-1,1))
+                mid = depth_middle
+                outer = depth_outer
+
+
+                plt.sca(axs[i*2])
+                plt.title('Middle Region')
+                plt.plot([0,18],[0,0],linestyle='--', color='k')
+                plot(mid-base, label=False)
+                plt.ylabel('$\Delta\;depth\;(\mu $m)')
+                plt.xticks(ticks=[0,5,10,15])
+
+                plt.sca(axs[(i)*2+1])
+                plt.title('Outer Region')
+                # plt.plot(intercalations, (depth_outer_step3-depth_baseline[0]).T, linestyle='--',color=[0,0,0])
+                plt.plot([0,18],[0,0],linestyle='--', color='k')
+                plot(outer-base, label=i==2)
+                # plt.ylim((0,2.85))
+                plt.xticks(ticks=[0,5,10,15])
+
+                
+        lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+        lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+
+        plt.tight_layout() 
+        fig.legend(lines, labels,   loc='outside center right', bbox_to_anchor=(1.05, 0.5),
+           bbox_transform = plt.gcf().transFigure)
+          
+        # plt.savefig('invagination_depth_vs_intercalations.pdf')
+        plt.savefig('invagination_depth_vs_intercalations.png',dpi=200)
+        plt.show()
+
+        # phi0s=phi0s[phi0s>0.1]
+
+
 
         from Validation.Viscoelastic.Step4.Step4 import run as run_step3, kws_middle as kws_middle_step3, intercalations as inter3, kws_outer as kws_outer_step3
         
@@ -234,10 +293,11 @@ if __name__ == '__main__':
         depth_middle_step3  = sweep([1.0,], run_step3, kw=kws_middle_step3, pre_process = depth_func ,
         cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)
 
+        # depth_middle_basal  = sweep([1.0,], run, kw=kws_middle_fine, pre_process = depth_func ,
+        # cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=True)
 
 
-        depth_outer  = sweep(phi0s, run, kw=kws_outer, pre_process = depth_func,
-        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=False)
+
 
         kws_outer_step3['intercalations']=intercalations
         depth_outer_step3  = sweep([1.0,], run_step3, kw=kws_outer_step3, pre_process = depth_func ,
@@ -260,10 +320,10 @@ if __name__ == '__main__':
         # cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh)
 
         # plt.plot(phi0s, depth_baseline, label='baseline')
-        base=depth_baseline.reshape((-1,1))
+        
+
         # base[:]=0;
-        mid = depth_middle
-        outer = depth_outer
+
         # double = depth_double
 
         # mid_remodel = depth_middle_remodel
@@ -271,30 +331,33 @@ if __name__ == '__main__':
         # double_remodel = depth_double_remodel
 
 
+        plt.plot(phi0s, base)
 
 
-        fig, axs = plt.subplots(1,2)
-        fig.set_size_inches(9.5, 4)
+
         # plt.get_current_fig_manager().canvas.set_window_title('Middle')
-        axs=axs.ravel()
+        
         # for i in range(mid.shape[-1]):
                 # plt.sca(axs[i])
-        plt.get_current_fig_manager().canvas.set_window_title('Depth (Basal)')
+        plt.get_current_fig_manager().canvas.setWindowTitle('Depth (Basal)')
 
-        plt.sca(axs[0])
-        plt.title('Middle Region')
-        plt.plot(intercalations, (depth_middle_step3-depth_baseline[0]).T, linestyle='--',color=[0,0,0])
-        plot(mid-base)
-        plt.ylabel('$\Delta\;depth\;(\mu $m)')
-        plt.ylim((0,2.85))
-        plt.xticks(ticks=[0,5,10,15])
+        # plt.sca(axs[0])
+        # N=len(intercalations) 
+        # colors = plt.cm.nipy_spectral(np.linspace(0,.85,N))
+        # plt.rcParams["axes.prop_cycle"] = plt.cycler("color", colors )
 
-        plt.sca(axs[1])
-        plt.title('Outer Region')
-        plt.plot(intercalations, (depth_outer_step3-depth_baseline[0]).T, linestyle='--',color=[0,0,0])
-        plot(outer-base)
-        # plt.ylim((0,2.85))
-        plt.xticks(ticks=[0,5,10,15])
+        # for j in range(len(intercalations)):
+        #         plt.plot(phi0s, depth_middle[:,j], label=f'$\intercalations={intercalations[j]}$', color=colors[j])   
+        # # plt.plot(phi0s, )
+        # plt.ylabel('$depth\;(\mu $m)')
+        # # plt.xlabel(r'$\phi_0$')
+
+
+        
+
+
+
+
         #plt.ylabel('$\Delta\;depth\;(\mu $m)')
 
         # plt.sca(axs[2])
@@ -312,10 +375,7 @@ if __name__ == '__main__':
                 # plt.colorbar()
                 # plt.show()
                             
-        plt.legend(loc='upper left', bbox_to_anchor=(1.05, .975))
-        plt.tight_layout()   
-        plt.savefig('invagination_depth_vs_intercalations.pdf')
-        plt.show()
+
 
 
 

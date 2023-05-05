@@ -25,10 +25,10 @@ from VertexTissue.globals import belt_strength, inner_arc, outer_arc
 
 from VertexTissue.Sweep import sweep
 from VertexTissue.Tissue import  get_outer_belt, tissue_3d
-from VertexTissue.util import first
+from VertexTissue.util import first, get_node_attribute_array
 from VertexTissue.vertex_3d import monolayer_integrator
 
-from VertexTissue.Energy import get_cell_volumes, network_energy
+from VertexTissue.Energy import get_cell_volumes, get_cell_volumes_bis, network_energy
 
 from Validation.Viscoelastic.Step2.Step2_bis import kws_middle, run as run_step2, kws_strong_pit_middle, intercalations, kws_outer
 from Validation.Viscoelastic.Step4.Step4 import run as run_step4
@@ -246,23 +246,49 @@ def energy_timeseries(d,phi0=1.0,**kw):
 
     return U_vec
 
-def rod_energy_timeseries(d,phi0=1.0,**kw):
+def spring_energy_timeseries(d,phi0=1.0,**kw):
     G0=first_dict_value(d)
 
     
-    U_vec = np.array([ network_energy(G,phi0=phi0, ec=0.2,  get_volumes=get_cell_volumes,  bending=False, pressure=False) for G in d.values()])
+    U_vec = np.array([ (t,network_energy(G,phi0=phi0, ec=0.2,  get_volumes=get_cell_volumes,  bending=False, pressure=False)) for t,G in d.items()])
 
 
     return U_vec
 
-def pressure_energy_timeseries(d,phi0=1.0,**kw):
-    G0=first_dict_value(d)
+def pressure_energy_timeseries(d, summary=np.max, tmin=0, tmax=np.inf, nodes=None, press_alpha=const.press_alpha, phi0=1.0,**kw):
+    for t,G0 in d.items():
+        if t>=tmin:
+            print(t,t>tmin)
+            break
+    # G0=first_dict_value(d)
+    ab_face_inds, side_face_inds, _, _, _, _, _ = compute_network_indices(G0) 
+    faces=(ab_face_inds, side_face_inds)
+    # p0 = pressure_forces(G0,faces=faces)
+    v0=const.v_0
+    series=[]
+    for t,G in d.items():
+        if t>tmax:
+            break
+        if 'v0' in G.graph.keys():
+            # print([v0,])
+            if t>0:
+                prev_value=value
+            curr_volumes = get_cell_volumes_bis(G, get_node_attribute_array(G,'pos'),G.graph['centers'])
+            print( 'delta V:', np.max(np.abs(prev_volumes-v0)))
+            v0=G.graph['v0']
+            ab_face_inds, side_face_inds, _, _, _, _, _ = compute_network_indices(G) 
+            # faces=(ab_face_inds, side_face_inds)
+        
+        value = network_energy(G,phi0=phi0, ec=0.2, get_volumes=get_cell_volumes_bis,  bending=False, spring=False, v0=v0, press_alpha=press_alpha)
+        if 'v0' in G.graph.keys():
+            print(f'delta E({t}):', value-prev_value, 'delta V:', np.max(np.abs(curr_volumes-v0)), v0.shape)
 
-    
-    U_vec = np.array([ network_energy(G,phi0=phi0, ec=0.2, get_volumes=get_cell_volumes,  bending=False, spring=False) for G in d.values()])
+        prev_volumes = get_cell_volumes_bis(G, get_node_attribute_array(G,'pos'),G.graph['centers'])
+        series.append((t,value))
 
 
-    return U_vec
+
+    return np.array(series)
 
 
 def myosin_force_timeseries(d,phi0=1.0, summary=np.max, tmax=np.inf ,nodes=None ,**kw):
@@ -484,13 +510,13 @@ def main():
 
 
 
-            p=sweep([phi0,], func,  kw = kws, pre_process=pressure_force_timeseries, pass_kw=True, 
+            p=sweep([phi0,], func,  kw = kws, pre_process=pressure_energy_timeseries, pass_kw=True, 
                     pre_process_kw={'summary':np.max, 'nodes':nodes, 'tmin':750}, savepath_prefix=base_path, 
                     overwrite=False, cache=True, refresh=False)[0]
 
 
                     
-            r=sweep([phi0,], func,  kw = kws, pre_process=spring_force_timeseries, pass_kw=True, 
+            r=sweep([phi0,], func,  kw = kws, pre_process=spring_energy_timeseries, pass_kw=True, 
                 pre_process_kw={'summary':np.max, 'nodes':nodes}, savepath_prefix=base_path, 
                 overwrite=False, cache=True, refresh=False)[0]
 
@@ -508,7 +534,7 @@ def main():
             
             # print(pressure,spring)
             # exit()
-        plt.plot(intercalations,pressure, color='y',label='pressure force' if step==2 else None, linewidth=3, linestyle=style)
+        # plt.plot(intercalations,pressure, color='y',label='pressure force' if step==2 else None, linewidth=3, linestyle=style)
         plt.plot(intercalations, spring, color='m', label='spring force' if step==2 else None, linewidth=3, linestyle=style)
         # plt.plot(intercalations, myosin, color='g', label='bending force', linewidth=2, linestyle='-.')
 

@@ -29,19 +29,40 @@ def arc_activator(G, arc, strength=belt_strength ):
  
     return f
 
-def pit_activator(G, centers, strength=pit_strength):
+def pit_activator(G, centers, strength=pit_strength, edge_ratio=0):
     zippable=isinstance(strength,Iterable) and len(strength)==len(centers)
 
     def f(*args):
+        if edge_ratio:
+            cirucm_sorted = G.graph['circum_sorted']
         for node in centers: 
             for neighbor in G.neighbors(node):
                 if neighbor in G[node].keys():
                     G[node][neighbor]['myosin'] = strength
+
+            if edge_ratio:
+                c=np.argwhere(G.graph['centers']==node)[0,0]
+                i = cirucm_sorted[c][0]
+                for j in [*cirucm_sorted[c][1:], i]:
+                    G[i][j]['myosin'] = strength*edge_ratio
+                    i=j
+
+                
     def fzip(*args):
+        if edge_ratio:
+            cirucm_sorted = G.graph['circum_sorted']
+
         for node, s in zip(centers,strength): 
             for neighbor in G.neighbors(node):
                 if neighbor in G[node].keys():
                     G[node][neighbor]['myosin'] = s
+
+            if edge_ratio:
+                c=np.argwhere(G.graph['centers']==node)[0,0]
+                i = cirucm_sorted[c][0]
+                for j in [*cirucm_sorted[c][1:], i]:
+                    G[i][j]['myosin'] = s*edge_ratio
+                    i=j
     
     if zippable:
         return fzip
@@ -86,12 +107,12 @@ def arcs_and_pit(G,arcs=(inner_arc,outer_arc), t_arcs=t_1, t_pit=t_pit, arc_stre
 
     return TimeBasedEventExecutor(events)
 
-def arc_pit_and_intercalation (G, belt, arcs=(inner_arc,outer_arc), inter_edges=inter_edges_middle, basal_intercalation=False, intercalation_strength=1000, arc_strength=belt_strength, belt_strength=belt_strength, pit_strength=pit_strength, t_belt=t_belt, t_intercalate=t_intercalate,t_1=t_1, pit_centers=pit_centers):
+def arc_pit_and_intercalation (G, belt, arcs=(inner_arc,outer_arc), inter_edges=inter_edges_middle, basal_intercalation=False, intercalation_strength=1000, arc_strength=belt_strength, belt_strength=belt_strength, pit_strength=pit_strength, t_belt=t_belt, t_intercalate=t_intercalate,t_1=t_1, pit_centers=pit_centers, edge_ratio=0):
 
     events = [*[(t_1, arc_activator(G, arc, strength=arc_strength),f'Arc #{i+1} established') for i,arc in enumerate(arcs)],
             (t_intercalate,    intercalation_activator(G, inter_edges, basal=basal_intercalation, strength=intercalation_strength),"Intercalations triggered"),
             (t_belt, arc_activator(G, belt, strength=belt_strength),"Belt established"),
-            (t_pit,  pit_activator(G, pit_centers, strength=pit_strength),"Pit activated")
+            (t_pit,  pit_activator(G, pit_centers, strength=pit_strength, edge_ratio=edge_ratio),"Pit activated")
             ]
 
     return TimeBasedEventExecutor(events)
