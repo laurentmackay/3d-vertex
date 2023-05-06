@@ -4,7 +4,7 @@ import numba
 from numba import jit
 
 from VertexTissue.funcs_orig import convex_hull_volume_bis
-from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, compute_SLS_forces, compute_distances_and_directions, compute_myosin_forces, compute_rod_forces, compute_spring_forces
+from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, compute_SLS_forces, compute_distances_and_directions, compute_myosin_forces, compute_rod_forces, compute_spring_forces, triangular_polyhedorn_volume
 
 from .Geometry import euclidean_distance, unit_vector_and_dist, triangle_areas_and_vectors, triangle_area_vector
 # from .Geometry  import convex_hull_volume as convex_hull_volume_bis
@@ -137,9 +137,16 @@ def pressure_forces(G, faces=None, ndim=3, v0=None):
 
 
 #@profile
-def apply_pressure_forces_3D(forces ,G, pos, ab_face_inds, side_face_inds, centers, v0=None):
-    PI=pressure(G, pos, centers, v0=v0)
-    #PI = np.zeros(centers.shape)
+@jit(nopython=True, cache=True)
+def apply_pressure_forces_3D(forces , pos, ab_face_inds, side_face_inds, centers, ab_pair_face_inds, v0=None):
+    # PI=pressure(G, pos, centers, v0=v0)
+    PI = np.zeros(centers.shape)
+    for i,cell_inds in enumerate(ab_pair_face_inds):
+        vol=0
+        for a,b,c,ap,bp,cp in cell_inds:
+            vol+=triangular_polyhedorn_volume(pos[a],pos[b],pos[c],pos[ap],pos[bp],pos[cp])
+        PI[i] = const.press_alpha*(v0-vol)
+        # print(const.press_alpha*(v0-vol)- PI[i])
 
     apply_pressure_3D(forces, PI, pos, ab_face_inds, side_face_inds)
 
@@ -178,7 +185,7 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
         
 
     grad = np.zeros((2,))
-    def handle_pressure_2D(forces, pos, ab_face_inds, side_face_inds, circum_sorted, v0=const.A_0):
+    def handle_pressure_2D(forces, pos, ab_face_inds, side_face_inds, circum_sorted, ab_pair_face_inds=None, v0=const.A_0):
 
          for pts in circum_sorted:
                 coords=np.array([pos[i] for i in pts])
@@ -202,19 +209,19 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
                     force = -press_alpha*const.l_depth*pressure*grad
                     forces[pt] += force
     #@profile
-    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds,  circum_sorted, v0=None):                
-            apply_pressure_forces_3D(forces, G, pos, ab_face_inds, side_face_inds, centers, v0)
+    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds,  circum_sorted, ab_pair_face_inds, v0=None):                
+            apply_pressure_forces_3D(forces, pos, ab_face_inds, side_face_inds, centers, ab_pair_face_inds, v0)
 
 
 
-    ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted = compute_network_indices(G) 
+    ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds = compute_network_indices(G) 
 
-    #@profile
+    @profile
     def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False, v0=None):
-        nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted
+        nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds
 
         if recompute_indices:
-            ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted = compute_network_indices(G) 
+            ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds = compute_network_indices(G) 
 
         forces = np.zeros((len(G),ndim) ,dtype=float)
         if SLS is False:
@@ -223,7 +230,7 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
             compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
 
         if compute_pressure:
-            handle_pressure(forces, pos, ab_face_inds, side_face_inds, circum_sorted, v0=v0)
+            handle_pressure(forces, pos, ab_face_inds, side_face_inds, circum_sorted, ab_pair_face_inds, v0=v0)
      
 
         if ndim==3:
@@ -310,21 +317,27 @@ def compute_network_indices(G):
         #pressure for apical and basal faces
 
     ab_face_inds=[]
+    ab_pair_face_inds=[]
     for center, pts in zip(centers, circum_sorted):  
         face_inds = []
+        face_pair_inds = []
         for i in range(len(pts)):
             a=(center, pts[i], pts[i-1])
             if is_basal:
                 b=(center+basal_offset, pts[i-1]+basal_offset, pts[i]+basal_offset)
                 face_inds.extend((a,b))
+                face_pair_inds.append((*a,*b))
             else:
                 face_inds.append(a)
 
 
         ab_face_inds.append(np.array(face_inds))
+        if is_basal:
+             ab_pair_face_inds.append(np.array(face_pair_inds))
 
 
     ab_face_inds=List(ab_face_inds)
+    ab_pair_face_inds=List(ab_pair_face_inds)
 
     side_face_inds = []
     if is_basal:
@@ -337,7 +350,7 @@ def compute_network_indices(G):
 
     shared_inds, alpha_inds, beta_inds, triangles_sorted = bending_indices()
 
-    return  ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted
+    return  ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds
 
 
 

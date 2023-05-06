@@ -151,6 +151,15 @@ def compute_bending_forces(nbhrs_alpha, nbhrs_beta, alpha_vec, A_alpha, beta_vec
     elif nbhrs_beta:
         return (1.0/(A_alpha*A_beta))*(sums1) \
         + (-sums2/(A_alpha*A_beta)**2)*((A_alpha/A_beta)*sums3)
+    
+@jit(nopython=True, cache=True)
+def triangular_polyhedorn_volume(a,b,c,ap,bp,cp):
+
+    V1 = abs(np.dot(np.cross(cp-ap,bp-ap), a-ap))
+    V2 = abs(np.dot(np.cross(a-c,b-c), cp-c))
+    V3 = abs(np.dot(np.cross(cp-b,a-bp), b-bp))
+
+    return (V1+V2+V3)/6.0
 
 @jit(nopython=True, cache=True)
 def apply_pressure_3D(forces, PI, pos, face_inds,  side_face_inds):
