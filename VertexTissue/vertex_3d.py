@@ -187,7 +187,7 @@ def monolayer_integrator(G, G_apical=None,
 
     edges=None
 
-    @profile
+    #@profile
     def integrate(dt, t_final, 
                 dt_init=None, dt_min = None, t=0, adaptive=adaptive, adaptation_rate=adaptation_rate,  verbose=False,
                 angle_tol=angle_tol, length_abs_tol=length_abs_tol, length_rel_tol=length_rel_tol, append_to_blacklist=append_to_blacklist, timestep_func=None,
