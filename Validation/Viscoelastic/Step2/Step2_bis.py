@@ -570,5 +570,5 @@ if __name__ == '__main__':
         pass
 
 #     sweep(phi0_SLS, run, kw=kws_SLS_baseline_thresh_all, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-    run(1.0, ec=0.0, L0_T1=l_apical, intercalations=4, remodel=False,   verbose=True, viewable=True, outer=False, stochastic=False,  pit_strength=300, scale_pit=False, basal=False, dt_min=0.05, extend=True, no_pit_T1s=True, SLS=True, SLS_no_extend=True)
+    run(0.3, ec=0.0, L0_T1=l_apical, intercalations=4, remodel=False,   verbose=True, viewable=True, outer=False, stochastic=False,  pit_strength=300, scale_pit=False, basal=False, dt_min=0.05, extend=True, no_pit_T1s=True, SLS=True, SLS_no_extend=True)
 

@@ -45,7 +45,7 @@ def compute_rod_forces(forces, l_rest, dists, drx, myosin, edges,  mu_apical, nd
         forces[e[0]]+=force
         forces[e[1]]-=force
 
-@jit(nopython=True, cache=True, inline='always')
+@jit(nopython=True, cache=True, inline='never')
 def compute_SLS_forces(forces, l1, l2, dists, drx, myosin, edges,  mu_apical, alpha, ndim=3):
     beta=1-alpha
     for i, e in enumerate(edges):
@@ -139,7 +139,7 @@ def apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds,
 
 #def pressure_and_bending_forces( triangles_sorted, shared_inds, alpha_inds, beta_inds, ab_pair_tri_inds, side_face_inds):
 
-@jit(nopython=True, cache=True, inline=inl)
+@jit(nopython=True, cache=True, inline='never')
 def apply_pressure_and_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds, beta_inds, ab_pair_tri_inds, side_face_inds, v0=const.v_0):
     # Implement bending energy
     
@@ -165,6 +165,7 @@ def apply_pressure_and_bending_forces(forces, triangles_sorted, pos, shared_inds
 
             vol+=V1+V2+V3
 
+        vol/=6
         vols[i] = vol
         PI=const.press_alpha*(v0-vol)
         for i_a, i_b in cell_tri_inds:

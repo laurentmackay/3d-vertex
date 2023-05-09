@@ -175,7 +175,7 @@ def handle_pressure_2D(forces, pos, circum_sorted, v0=const.A_0):
                     force = -press_alpha*const.l_depth*pressure*grad
                     forces[pt] += force
 
-def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False):
+def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=1.0):
 
     press_alpha = const.press_alpha 
     centers = G.graph['centers']
@@ -211,63 +211,56 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
     def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds,  circum_sorted, ab_pair_face_inds, v0=None):                
             apply_pressure_forces_3D(forces, pos, ab_face_inds, side_face_inds,  ab_pair_face_inds, v0)
 
-    # @jit(nopython=True, cache=True, inline='never')
-    # def computer (SLS, compute_pressure, ndim, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds):
 
-
-    #@jit(nopython=True, cache=True, inline='never')
-    def compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=None):
-
-        forces = np.zeros(pos.shape ,dtype=float)
-
-        if SLS is False:
-            compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
-        else:
-            compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
-
-        if compute_pressure:
-            apply_pressure_forces_3D(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=v0)
-    
-
-        if ndim==3:
-            apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds, beta_inds)
-
-        return forces
-    
-   
-    
-    ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, _, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
-    # edges = get_edges_array(G)
-    # compute = computer(SLS, compute_pressure, ndim, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds)
-    #@profile
-    def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False, v0=None):
-        nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, ab_pair_tri_inds, compute
-
-        if recompute_indices:
-            # edges = get_edges_array(G)
-            ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, _, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
-            # compute2 = computer( edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds)
-
-        return compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=v0)
-        # return compute(pos, l_rest, dists, drx, myosin, edges, side_face_inds,  shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_tri_inds, v0=v0)
-
-
-    #
-    
-    # @jit(nopython=True, cache=True, inline='always')
-    # def compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_tri_inds, v0=None):
+    # #@jit(nopython=True, cache=True, inline='never')
+    # def compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=None):
 
     #     forces = np.zeros(pos.shape ,dtype=float)
+
     #     if SLS is False:
     #         compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
     #     else:
     #         compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
 
+    #     if compute_pressure:
+    #         apply_pressure_forces_3D(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=v0)
+    
 
     #     if ndim==3:
-    #         apply_pressure_and_bending_forces(forces, triangles_sorted,  pos, shared_inds, alpha_inds, beta_inds, ab_pair_tri_inds, side_face_inds, v0=v0)
+    #         apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds, beta_inds)
 
     #     return forces
+
+   
+    
+    ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, _, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
+
+    def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False, v0=None):
+        nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, ab_pair_tri_inds
+
+        if recompute_indices:
+            ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, _, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
+
+
+        return compute(pos, l_rest, dists, drx, myosin, edges, side_face_inds,  shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_tri_inds, v0=v0)
+
+
+
+    #
+    
+    #@jit(nopython=True, cache=True, inline='always')
+    def compute(pos, l_rest, dists, drx, myosin, edges, side_face_inds,  shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_tri_inds, v0=None):
+        forces = np.zeros(pos.shape ,dtype=float)
+        if SLS==1.0:
+            compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
+        else:
+            compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
+
+
+        if ndim==3:
+            apply_pressure_and_bending_forces(forces, triangles_sorted,  pos, shared_inds, alpha_inds, beta_inds, ab_pair_tri_inds, side_face_inds, v0=v0)
+
+        return forces
 
     if minimal:
          compute_forces=compute_rod_forces
@@ -373,6 +366,9 @@ def compute_network_indices(G):
     ab_face_inds=List(ab_face_inds)
     ab_pair_face_inds=List(ab_pair_face_inds)
     ab_pair_tri_inds=List(ab_pair_tri_inds)
+
+    ab_pair_face_inds._make_immutable()
+    ab_pair_tri_inds._make_immutable()
 
     side_face_inds = []
     if is_basal:

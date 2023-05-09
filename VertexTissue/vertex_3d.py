@@ -94,7 +94,7 @@ def monolayer_integrator(G, G_apical=None,
     else:
         circum_sorted = None
 
-    if SLS is not False:
+    if SLS < 1.0:
         L0 = get_edge_attribute_array(G, 'l_rest')
     
     if 'centers' in G.graph.keys():
@@ -349,13 +349,13 @@ def monolayer_integrator(G, G_apical=None,
         edges = get_edges_array(G)
 
         dists, drx  = compute_distances_and_directions(pos, edges, ndim=ndim)
-        if SLS is not False:
+        if SLS < 1.0:
             nonlocal L0
         else:
             L0 = get_edge_attribute_array(G, 'l_rest')
             
 
-        if SLS is False:
+        if SLS == 1.0:
             l_rest = get_rest_lengths(dists, L0)
         else:
             L1=L0.copy()
@@ -364,7 +364,7 @@ def monolayer_integrator(G, G_apical=None,
 
         myosin = get_edge_attribute_array(G, 'myosin')
 
-        if maxwell or SLS is not False:
+        if maxwell or SLS < 1.0:
             tau = get_edge_attribute_array(G, 'tau')
             dynamic_L0 = np.isfinite(tau)
 
@@ -417,7 +417,7 @@ def monolayer_integrator(G, G_apical=None,
             dists, drx = compute_distances_and_directions(pos, edges, ndim=ndim)
 
             ################### UPDATE L0 ##############################
-            if maxwell or maxwell_nonlin or SLS is not False:
+            if maxwell or maxwell_nonlin or SLS < 1.0:
                 
                 
                 
@@ -460,13 +460,13 @@ def monolayer_integrator(G, G_apical=None,
             if pre_event or post_event or intercalation:
                 # if SLS is False:
                 L0 = get_edge_attribute_array(G, 'l_rest')
-                if not (SLS is False):
+                if SLS<1.0:
                     L1 = get_edge_attribute_array(G, 'l_rest_1')
                     l_rest = (L1, L0)
 
                 myosin = get_edge_attribute_array(G, 'myosin')
 
-            if SLS is False:
+            if SLS==1.0:
                 l_rest = get_rest_lengths(dists, L0)
 
             forces = compute_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=intercalation, v0=v0)
@@ -589,7 +589,7 @@ def monolayer_integrator(G, G_apical=None,
                 while j<len(nhbrs):
                     neighbor=nhbrs[j] #and (neighbor not in belt) 
                     if (not blacklisting or (min(neighbor,node), max(neighbor,node)) not in blacklist): 
-                        if not (SLS is False):
+                        if SLS<1.0:
                             nonlocal L0
 
                         if first and constant_pressure_intercalations:
