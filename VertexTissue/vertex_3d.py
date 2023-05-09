@@ -56,7 +56,7 @@ def monolayer_integrator(G, G_apical=None,
                      pre_callback=None, post_callback=None, intercalation_callback=None, termination_callback=None,
                      ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, 
                      adaptive=False, adaptation_rate=0.1, length_rel_tol=0.01, angle_tol=0.01, length_abs_tol=5e-2, 
-                     maxwell=False, SLS=False,
+                     maxwell=False, SLS=1.0,
                      minimal=False, blacklist=False, append_to_blacklist=True,
                      maxwell_nonlin=None, rest_length_func=None, RK=1, AB=1,
                      v0=const.v_0, constant_pressure_intercalations=False, T1=True):
