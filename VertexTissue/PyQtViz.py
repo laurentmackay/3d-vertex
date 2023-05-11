@@ -174,7 +174,7 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
                 nonlocal G
 
                 if b.poll():
-                    while b.poll(): #empty the pipe if there has been some accumulatio
+                    while b.poll(): #empty the pipe if there has been some accumulation
                         (G,kw2)=b.recv()
                         received = True
                         
@@ -214,6 +214,8 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
                         # print(msg)
                         if len(msg)>0  and  msg=='run callback':
                             button_callback()
+                    else:
+                        print(f'not ready {timeout}')
                 except:
                     print('plotting is no longer an option')
                     plot=False
