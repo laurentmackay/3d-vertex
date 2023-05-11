@@ -148,31 +148,31 @@ def apply_pressure_forces_3D(forces ,G, pos, ab_face_inds, side_face_inds, cente
     apply_pressure_3D(forces, PI, pos, ab_face_inds, side_face_inds)
 
 
-def handle_pressure_2D(forces, pos, circum_sorted, v0=const.A_0):
+# def handle_pressure_2D(forces, pos, circum_sorted, v0=const.A_0):
 
-         for pts in circum_sorted:
-                coords=np.array([pos[i] for i in pts])
+#          for pts in circum_sorted:
+#                 coords=np.array([pos[i] for i in pts])
 
-                x=coords[:,0]
-                y=coords[:,1]
+#                 x=coords[:,0]
+#                 y=coords[:,1]
 
-                area = polygon_area(x,y)
-                pressure = (area-v0)
+#                 area = polygon_area(x,y)
+#                 pressure = (area-v0)
 
-                for i, pt in enumerate(pts):
-                    eps=1e-5
-                    x[i]+=eps
-                    grad[0]=(polygon_area(x,y)-area)/(eps)
-                    x[i]-=eps
+#                 for i, pt in enumerate(pts):
+#                     eps=1e-5
+#                     x[i]+=eps
+#                     grad[0]=(polygon_area(x,y)-area)/(eps)
+#                     x[i]-=eps
 
-                    y[i]+=eps
-                    grad[1]=(polygon_area(x,y)-area)/eps
-                    y[i]-=eps
+#                     y[i]+=eps
+#                     grad[1]=(polygon_area(x,y)-area)/eps
+#                     y[i]-=eps
 
-                    force = -press_alpha*const.l_depth*pressure*grad
-                    forces[pt] += force
+#                     force = -press_alpha*const.l_depth*pressure*grad
+#                     forces[pt] += force
 
-def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False):
+def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False, fastvol=False):
 
 
     press_alpha = const.press_alpha 
@@ -182,7 +182,7 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
         
 
     grad = np.zeros((2,))
-    def handle_pressure_2D(forces, pos, ab_face_inds, side_face_inds, circum_sorted, ab_pair_face_inds, v0=const.A_0):
+    def handle_pressure_2D(forces, pos, ab_face_inds, side_face_inds, circum_sorted, ab_pair_face_inds=None, v0=const.A_0):
 
          for pts in circum_sorted:
                 coords=np.array([pos[i] for i in pts])
@@ -206,8 +206,8 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
                     force = -press_alpha*const.l_depth*pressure*grad
                     forces[pt] += force
     #@profile
-    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds,  circum_sorted, ab_pair_face_inds, v0=None):                
-            apply_pressure_forces_3D(forces, pos, ab_face_inds, side_face_inds,  ab_pair_face_inds, v0)
+    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds,  circum_sorted, ab_pair_face_inds, v0=None):      
+            apply_pressure_forces_3D(forces, G, pos, ab_face_inds, side_face_inds,  centers, v0=v0, ab_pair_face_inds=ab_pair_face_inds, fastvol=fastvol)
 
 
     # #@jit(nopython=True, cache=True, inline='never')
@@ -231,13 +231,13 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
 
    
     
-    ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, _, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
+    ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
 
     def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False, v0=None):
-        nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, ab_pair_tri_inds
+        nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds
 
         if recompute_indices:
-            ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted = compute_network_indices(G) 
+            ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
 
         forces = np.zeros((len(G),ndim) ,dtype=float)
 
