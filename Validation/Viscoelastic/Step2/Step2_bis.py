@@ -220,7 +220,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
         outer=False, double=False, viewable=viewable, stochastic=False, press_alpha=press_alpha,
         pit_strength=300, clinton_timestepping=False, dt_min=5e-2, basal=False, scale_pit=True, mu_apical=const.mu_apical, ec=0.2,
         extend=False, contract=True, T1=True, edge_ratio=0, no_pit_T1s=False, SLS=False,SLS_no_extend=False, SLS_no_contract=False,
-        constant_pressure_intercalations=False):
+        constant_pressure_intercalations=False, fastvol=False):
     
     if (contract==False and extend==False) or (SLS_no_contract and SLS_no_extend):
         return
@@ -404,7 +404,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
                                     intercalation_callback=label_contracted if clinton_timestepping else (contract_maxwell if SLS else None),
                                     angle_tol=.01, length_rel_tol=0.05, SLS = False if not SLS else phi0 ,
                                     maxwell_nonlin= maxwell_nonlin,
-                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, T1=T1, **kw)
+                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, T1=T1, fastvol=fastvol, **kw)
 
 
     print(f'effective spring constant: {k_eff}')
@@ -416,7 +416,8 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
               timestep_func=clinton_timestep if clinton_timestepping else None,
               dt_min=max(dt_min*k_eff, 0.2*dt_min),
               adaptation_rate=1 if clinton_timestepping else 0.1,
-              save_rate=100,    
+              save_rate=100, 
+              view_rate=5,   
               verbose=True,
               save_pattern=pattern,
               resume=True,
@@ -465,19 +466,19 @@ kws_inter_thresh_no_scale_mid={'intercalations':intercalations, 'L0_T1':L0_T1s, 
 
 
 
-kws_SLS_baseline_thresh = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':ecs}
-kws_SLS_baseline_thresh_ext = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True, 'ec':ecs}
-kws_SLS_baseline_thresh_con = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True, 'ec':ecs}
+kws_SLS_baseline_thresh = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':ecs,'fastvol':True}
+kws_SLS_baseline_thresh_ext = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True, 'ec':ecs,'fastvol':True}
+kws_SLS_baseline_thresh_con = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True, 'ec':ecs,'fastvol':True}
 
-kws_SLS_baseline_thresh_all = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':[True, False], 'SLS_no_extend':[True, False], 'ec':ecs}
+kws_SLS_baseline_thresh_all = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':[True, False], 'SLS_no_extend':[True, False], 'ec':ecs, 'fastvol': [True, False]}
 
 
 kws_SLS_baseline = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0}
 kws_SLS_middle = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0}
 kws_SLS_outer = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'outer':True, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0}
 
-kws_SLS_middle_all = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':[True, False], 'SLS_no_contract':[True, False], 'ec':0.0}
-kws_SLS_outer_all = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':[True, False], 'SLS_no_contract':[True, False], 'outer':True, 'ec':0.0}
+kws_SLS_middle_all = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':[True, False], 'SLS_no_contract':[True, False], 'ec':0.0, 'fastvol': [True, False]}
+kws_SLS_outer_all = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':[True, False], 'SLS_no_contract':[True, False], 'outer':True, 'ec':0.0, 'fastvol': [True, False]}
 
 kws_SLS_middle_sym = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0}
 kws_SLS_outer_sym = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'outer':True, 'ec':0.0}
@@ -569,6 +570,6 @@ if __name__ == '__main__':
     def foo(*args):
         pass
 
-#     sweep(phi0_SLS, run, kw=kws_SLS_baseline_thresh_all, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-    run(0.3, ec=0.0, L0_T1=l_apical, intercalations=4, remodel=False,   verbose=True, viewable=True, outer=False, stochastic=False,  pit_strength=300, scale_pit=False, basal=False, dt_min=0.05, extend=True, no_pit_T1s=True, SLS=True, SLS_no_extend=True)
+    sweep(phi0_SLS, run, kw=kws_SLS_baseline_thresh_all, savepath_prefix=base_path, overwrite=False, pre_process=foo)
+#     run(0.3, ec=0.0, L0_T1=l_apical, intercalations=12, remodel=False,   verbose=True, viewable=True, outer=False, stochastic=False,  pit_strength=300, scale_pit=False, basal=False, dt_min=0.05, extend=True, no_pit_T1s=True, SLS=True, SLS_no_extend=True, fastvol=True)
 

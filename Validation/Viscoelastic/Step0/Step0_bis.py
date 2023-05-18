@@ -56,7 +56,7 @@ taus = np.logspace(6,1,5)
 inter_edges = ((305, 248), (94,163), (69,8), (2,8))
 
 def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True, verbose=False, ec=0.2, contract=True, extend=False,
-        SLS=False,SLS_no_extend=False, SLS_no_contract=False):
+        SLS=False,SLS_no_extend=False, SLS_no_contract=False, fastvol=False):
 
     if SLS is False:
         k_eff = (phi0-ec)/(1-ec)
@@ -142,7 +142,7 @@ def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True, verbose=False
                                     intercalation_callback=terminate, 
                                     termination_callback=wait_for_intercalation,  
                                     blacklist=True, length_abs_tol=1e-2,
-                                    maxwell_nonlin=maxwell_nonlin,
+                                    maxwell_nonlin=maxwell_nonlin, fastvol=fastvol,
                                     player=False, viewer={'button_callback':terminate} if viewable else False, minimal=False, **kw)
     #{'button_callback':terminate,'nodeLabels':None} if viewable else False
     #integrates
@@ -157,13 +157,14 @@ def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True, verbose=False
     else:
         k_eff=phi0
 
-    dt_min = 1e-4 if not cable else 1e-5
+    dt_min = 1e-3 if not cable else 1e-4
 
     integrate(5, 8000, 
             dt_init = 1e-4,
             adaptive=True,
             dt_min=max(dt_min*k_eff,0.2*dt_min),
             save_rate=-1,
+            view_rate=20,
             verbose=verbose,
             save_pattern=pattern)
     
@@ -308,9 +309,9 @@ def main():
     kws_SLS_thresh_con={'cable':[False,True], 'level':1,  'phi0':np.flip(phi0s), 'ec':ecs,'SLS':True, 'SLS_no_extend':True}
     kws_SLS_thresh_ext={'cable':[False,True], 'level':1,  'phi0':np.flip(phi0s), 'ec':ecs, 'SLS':True, 'SLS_no_contract':True}
 
-    kws_SLS_thresh_sym={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs, 'SLS':True}
-    kws_SLS_thresh_con={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs,'SLS':True, 'SLS_no_extend':True}
-    kws_SLS_thresh_ext={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs, 'SLS':True, 'SLS_no_contract':True}
+    kws_SLS_thresh_sym={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs, 'SLS':True, 'fastvol':[False,True]}
+    kws_SLS_thresh_con={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs,'SLS':True, 'SLS_no_extend':True, 'fastvol':[False,True]}
+    kws_SLS_thresh_ext={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs, 'SLS':True, 'SLS_no_contract':True, 'fastvol':[False,True]}
 
 
     kws_no_cable_0={'cable':[False], 'level':0,  'phi0':phi0s}
@@ -327,7 +328,7 @@ def main():
     kws=kws_3
     
 
-    # viewable=False
+    viewable=False
     if viewable:
         refresh=False
         overwrite=False
@@ -449,7 +450,7 @@ def main():
 
     else:
         results = sweep(np.flip(forces), run,
-        kw = kws_SLS_thresh_con,
+        kw = kws_SLS_thresh_ext,
         pre_process=shortest_length,
         savepath_prefix=base_path,
         overwrite=False,

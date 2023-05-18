@@ -4,13 +4,13 @@ import numba
 from numba import jit
 
 from VertexTissue.funcs_orig import convex_hull_volume_bis
-from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, cell_volumes, compute_SLS_forces, compute_distances_and_directions, compute_myosin_forces, compute_rod_forces, compute_spring_forces
+from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, cell_volumes, compute_SLS_forces, compute_distances_and_directions, compute_jitted, compute_myosin_forces, compute_rod_forces, compute_spring_forces, handle_pressure_3D_fast
 
 from .Geometry import euclidean_distance, unit_vector_and_dist, triangle_areas_and_vectors, triangle_area_vector
 # from .Geometry  import convex_hull_volume as convex_hull_volume_bis
 from . import globals as const
 from .globals import press_alpha
-from .util import get_edge_attribute_array, get_edges_array, get_node_attribute_array, get_points, has_basal, polygon_area
+from .util import conditional_decorator, get_edge_attribute_array, get_edges_array, get_node_attribute_array, get_points, has_basal, polygon_area
 
 # l_apical = const.l_apical 
 # l_depth = const.l_depth 
@@ -141,6 +141,7 @@ def pressure_forces(G, faces=None, ndim=3, v0=None):
 
 
 #@profile
+# @jit(nopython=True, cache=True, inline='never')
 def apply_pressure_forces_3D(forces ,G, pos, ab_face_inds, side_face_inds, centers, v0=None, fastvol=False, ab_pair_face_inds=None):
     PI=pressure(G, pos, centers, v0=v0, fastvol=fastvol, ab_pair_face_inds=ab_pair_face_inds)
     #PI = np.zeros(centers.shape)
@@ -182,7 +183,7 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
         
 
     grad = np.zeros((2,))
-    def handle_pressure_2D(forces, pos, ab_face_inds, side_face_inds, circum_sorted, ab_pair_face_inds=None, v0=const.A_0):
+    def handle_pressure_2D(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=const.A_0):
 
          for pts in circum_sorted:
                 coords=np.array([pos[i] for i in pts])
@@ -206,80 +207,70 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
                     force = -press_alpha*const.l_depth*pressure*grad
                     forces[pt] += force
     #@profile
-    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds,  circum_sorted, ab_pair_face_inds, v0=None):      
+    
+    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=None):      
             apply_pressure_forces_3D(forces, G, pos, ab_face_inds, side_face_inds,  centers, v0=v0, ab_pair_face_inds=ab_pair_face_inds, fastvol=fastvol)
 
 
-    # #@jit(nopython=True, cache=True, inline='never')
-    # def compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=None):
+                
+                
 
-    #     forces = np.zeros(pos.shape ,dtype=float)
-
-    #     if SLS is False:
-    #         compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
-    #     else:
-    #         compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
-
-    #     if compute_pressure:
-    #         apply_pressure_forces_3D(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=v0)
     
+    def compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=None):
 
-    #     if ndim==3:
-    #         apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds, beta_inds)
+        forces = compute_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, v0=v0)
 
-    #     return forces
+        if compute_pressure and not fastvol:
+            handle_pressure(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=v0)
 
+
+        return forces
+    
+    # if fastvol:
+    #     compute = compute_jitted
+
+
+        
    
     
     ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
 
+    # @jit(nopython=True, cache=True, inline='never')
     def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False, v0=None):
         nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds
 
         if recompute_indices:
             ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
 
-        forces = np.zeros((len(G),ndim) ,dtype=float)
-
-        if SLS is False:
-            compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
-        else:
-            compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
-
-        if compute_pressure:
-            handle_pressure(forces, pos, ab_face_inds, side_face_inds,  circum_sorted, ab_pair_face_inds, v0=v0)
-
-        if ndim==3:
-             apply_bending_forces(forces, triangles_sorted,  pos, shared_inds, alpha_inds, beta_inds)
-
-        return forces
+        return compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=v0)
 
 
-
-    #
+    # #
     
-    #@jit(nopython=True, cache=True, inline='always')
-    def compute(pos, l_rest, dists, drx, myosin, edges, side_face_inds,  shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_tri_inds, v0=None):
-        forces = np.zeros(pos.shape ,dtype=float)
-        if SLS==1.0:
-            compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
-        else:
-            compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
+    # #@jit(nopython=True, cache=True, inline='always')
+    # def compute(pos, l_rest, dists, drx, myosin, edges, side_face_inds,  shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_tri_inds, v0=None):
+    #     forces = np.zeros(pos.shape ,dtype=float)
+    #     if SLS==1.0:
+    #         compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
+    #     else:
+    #         compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
 
+    #     if compute_pressure:
+    #         handle_pressure_3D_fast(forces, pos, ab_face_inds, side_face_inds,   ab_pair_face_inds, v0=v0)
 
-        if ndim==3:
-            apply_pressure_and_bending_forces(forces, triangles_sorted,  pos, shared_inds, alpha_inds, beta_inds, ab_pair_tri_inds, side_face_inds, v0=v0)
+    #     if ndim==3:
+    #         apply_bending_forces(forces, triangles_sorted,  pos, shared_inds, alpha_inds, beta_inds, ab_pair_tri_inds, side_face_inds, v0=v0)
 
-        return forces
+    #     return forces
 
     if minimal:
          compute_forces=compute_rod_forces
     else:
         compute_forces=compute_tissue_forces
         if ndim==3:
-            handle_pressure=handle_pressure_3D
+            handle_pressure = handle_pressure_3D_fast if fastvol else handle_pressure_3D
         elif ndim == 2:
-            handle_pressure=handle_pressure_2D
+            handle_pressure = handle_pressure_2D
 
 
     return compute_forces, compute_distances_and_directions
@@ -360,7 +351,7 @@ def compute_network_indices(G):
             if is_basal:
                 b=(center+basal_offset, pts[i-1]+basal_offset, pts[i]+basal_offset)
                 face_inds.extend((a,b))
-                face_pair_inds.append((*a,*b))
+                face_pair_inds.append((*a,*(center+basal_offset, pts[i]+basal_offset, pts[i-1]+basal_offset)))
                 i_b = np.argwhere(np.all( (b[0],b[2],b[1]) == triangles_sorted, axis = 1))[0][0]
                 tri_pair_inds.append((i_a,i_b))
             else:

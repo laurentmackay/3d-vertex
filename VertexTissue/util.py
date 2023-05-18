@@ -1,6 +1,7 @@
 
 from audioop import cross
 from cmath import pi
+from functools import partial
 import pickle
 import matplotlib
 import matplotlib.pyplot as plt
@@ -344,3 +345,23 @@ def finder(a, b):
         tt = dup == val
         ret_b[idx] = np.where(tt == True)[0][bw]
     return np.column_stack((uni, ret_b))
+
+class conditional_decorator(object):
+    def __init__(self, dec, condition, **kw):
+        self.decorator = dec
+        self.condition = condition
+        self.kw = kw
+
+    def __call__(self, func):
+        if not self.condition:
+            # Return the function unchanged, not decorated.
+            return func
+        return self.decorator(func, **self.kw)
+# def conditional_decorator(dec, condition, **kw):
+#     def decorator(func):
+#         if not condition:
+#             # Return the function unchanged, not decorated.
+#             return func
+#         return partial(dec, **kw)(func)
+#     return decorator
+

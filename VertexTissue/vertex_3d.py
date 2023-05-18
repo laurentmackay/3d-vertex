@@ -54,12 +54,13 @@ kc=const.kc
 
 def monolayer_integrator(G, G_apical=None,
                      pre_callback=None, post_callback=None, intercalation_callback=None, termination_callback=None,
-                     ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, 
+                     ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, view_rate=0.0,
                      adaptive=False, adaptation_rate=0.1, length_rel_tol=0.01, angle_tol=0.01, length_abs_tol=5e-2, 
                      maxwell=False, SLS=False,
                      minimal=False, blacklist=False, append_to_blacklist=True,
                      maxwell_nonlin=None, rest_length_func=None, RK=1, AB=1,
-                     v0=const.v_0, constant_pressure_intercalations=False, T1=True):
+                     v0=const.v_0, constant_pressure_intercalations=False, T1=True,
+                     fastvol=False):
 
     if G_apical==None:
         G_apical=G
@@ -114,7 +115,7 @@ def monolayer_integrator(G, G_apical=None,
     
     # @jit(nopython=True, cache=True)
 
-    compute_forces, compute_distances_and_directions = TissueForces(G, ndim=ndim, minimal=minimal, SLS=SLS)
+    compute_forces, compute_distances_and_directions = TissueForces(G, ndim=ndim, minimal=minimal, SLS=SLS, fastvol=fastvol)
         
 
     if rest_length_func is not None:
@@ -192,7 +193,7 @@ def monolayer_integrator(G, G_apical=None,
                 dt_init=None, dt_min = None, t=0, adaptive=adaptive, adaptation_rate=adaptation_rate,  verbose=False,
                 angle_tol=angle_tol, length_abs_tol=length_abs_tol, length_rel_tol=length_rel_tol, append_to_blacklist=append_to_blacklist, timestep_func=None,
                 pre_callback=pre_callback, post_callback=post_callback, termination_callback=termination_callback,
-                save_pattern = save_pattern, save_rate=save_rate, resume=False, save_on_interrupt=False,
+                save_pattern = save_pattern, save_rate=save_rate, view_rate=view_rate, resume=False, save_on_interrupt=False,
                 orig_forces=False, check_forces=False, v0=v0, T1=T1,
                 **kw):
                 
@@ -395,6 +396,9 @@ def monolayer_integrator(G, G_apical=None,
             print(f'saving at t={t}, in file {save_pattern}')
             t_last_save = t
             save()
+
+        if viewer:
+            t_last_view=t
         #######################################
         #              MAIN LOOP
         #######################################
@@ -547,7 +551,10 @@ def monolayer_integrator(G, G_apical=None,
                     save(**data)
 
             if viewer:
-                view(G, title = f't={t}')
+                delta_view = (t - t_last_view) - view_rate
+                if intercalation or (delta_view >= 0 or abs(delta_view)  <= h/2): 
+                    t_last_view = t
+                    view(G, title = f't={t}')
 
             if termination_callback is not None:
                 terminate=termination_callback(t)

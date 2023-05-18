@@ -106,7 +106,7 @@ def apply_pressure_and_bending_forces(forces, triangles_sorted, pos, shared_inds
         
         for node, force in zip(nodes, bending_forces):
             forces[node] += force
-inl = 'never'
+inl = 'always'
 @jit(nopython=True, cache=True, inline=inl)
 def apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds, beta_inds):
     # Implement bending energy
@@ -279,14 +279,21 @@ def cell_volumes(pos, ab_pair_face_inds):
     vols = np.zeros((len(ab_pair_face_inds)))
     for i, cell_inds in enumerate(ab_pair_face_inds):
         vol=0
-        
+
         for a,b,c,ap,bp,cp in cell_inds:
-            vol+=triangular_polyhedorn_volume(pos[a],pos[b],pos[c],pos[ap],pos[bp],pos[cp])
+            vol+=triangular_polyhedorn_volume2(pos[a],pos[b],pos[c],pos[ap],pos[bp],pos[cp])
 
         vols[i]=vol
 
     return vols
-    
+
+@jit(nopython=True, cache=True, inline='always')
+def handle_pressure_3D_fast(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=None):      
+            PI=const.press_alpha*(v0-cell_volumes(pos, ab_pair_face_inds))
+            apply_pressure_3D(forces, PI, pos, ab_face_inds, side_face_inds)
+
+            
+
 @jit(nopython=True, cache=True, inline='always')
 def triangular_polyhedorn_volume(a,b,c,ap,bp,cp):
 
@@ -296,7 +303,21 @@ def triangular_polyhedorn_volume(a,b,c,ap,bp,cp):
 
     return (V1+V2+V3)/6.0
 
-@jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True, inline='always')
+def triangular_polyhedorn_volume2(a,b,c,ap,bp,cp):
+
+    V1 = abs(np.dot(np.cross(cp-ap,bp-ap), a-ap))
+    d = (c+b+cp+bp)/4.0
+    da = a-d
+    V2 = abs(np.dot(np.cross(c-d,cp-d), da))
+    V3 = abs(np.dot(np.cross(c-d,b-d), da))
+    V4 = abs(np.dot(np.cross(b-d,bp-d), da))
+    V5 = abs(np.dot(np.cross(bp-d,cp-d), da))
+
+
+    return (V1+V2+V3+V4+V5)/6.0
+
+@jit(nopython=True, cache=True, inline='always')
 def apply_pressure_3D(forces, PI, pos, face_inds,  side_face_inds):
     # pressure for apical and basal faces
 
@@ -334,3 +355,21 @@ def apply_pressure_3D(forces, PI, pos, face_inds,  side_face_inds):
                 forces[inds[j-1]] += force
                 forces[inds[j]] += force
 
+@jit(nopython=True, cache=True, inline='always')
+def compute_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, v0=None):
+
+    forces = np.zeros(pos.shape ,dtype=float)
+
+    if SLS is False:
+        compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
+    else:
+        compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
+
+    if compute_pressure and fastvol:
+        handle_pressure_3D_fast(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=v0)
+
+
+    if ndim==3:
+        apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds, beta_inds)
+
+    return forces
