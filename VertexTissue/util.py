@@ -94,6 +94,16 @@ def get_cell_edges(G, basal=False, excluded_nodes=[]):
         return [(a, b) for a, b in G.edges if a<=basal_offset and b<=basal_offset and (a not in exclude) and (b not in exclude)]
     else:
         return  [(a, b) for a, b in G.edges if (a not in exclude) and (b not in exclude)]
+    
+def get_spokes(G, basal=True):
+
+    centers = [*G.graph['centers']]
+
+    if not basal and has_basal(G):
+        basal_offset=G.graph['basal_offset']
+        return [(a, b) for a, b in G.edges if a<=basal_offset and b<=basal_offset and (a in centers) or (b in centers)]
+    else:
+        return  [(a, b) for a, b in G.edges if (a in centers) or (b  in centers)]
 
 def get_myosin_free_cell_edges(G, basal=False, excluded_nodes=[]):
     edges = get_cell_edges(G, basal=basal, excluded_nodes=excluded_nodes)
@@ -166,6 +176,13 @@ def get_node_attribute_array(G, attr):
 def get_edge_attribute_array(G, attr, dtype=float):
     return np.fromiter(nx.get_edge_attributes(G, attr).values(), dtype=dtype)
 
+def set_dict_values_from_edge_attrs(G, attr, dtype=float, d=None):
+    if d is None:
+        return  set_dict_values_from_edge_attrs(G, attr, dtype=dtype, d={})
+    else:
+        arr = get_edge_attribute_array(G, attr, dtype=dtype)
+        if len(arr):
+            d[attr] = arr
 
 def set_node_attributes(G, attr, vals):
     for k, v in enumerate(vals):

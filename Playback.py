@@ -104,7 +104,7 @@ forces=np.linspace(0,600,80)
 # pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec=0.0_no_pit_T1s_SLS_1.0.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
 
 
-pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec=0.0_no_pit_T1s_SLS_0.2.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec=*_no_pit_T1s_SLS_fastvol_0.2.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None, pre_process=last_dict_value)
 
 import networkx as nx
 def splice_save_dicts(d1, d2, join=nx.disjoint_union, join_kws={}):

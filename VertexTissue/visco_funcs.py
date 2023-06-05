@@ -53,8 +53,10 @@ def fluid_element(phi0=1.0, ec=0.2, extend=False, contract=True):
     return inner
 
 def SLS_nonlin(ec=0.0, contract=True, extend=True):
+    contract=np.array(contract)
+    extend=np.array(extend)
 
-    def inner(ell, L, L0):
+    def inner(ell, L, L0, ec=ec, SLS_contract=contract, SLS_extend=extend):
             eps=np.zeros(L.shape)
             dLdt=np.zeros(L.shape)
 
@@ -63,9 +65,11 @@ def SLS_nonlin(ec=0.0, contract=True, extend=True):
             eps[inds]=(ell[inds]-L0[inds])/L0[inds]
 
             inds = np.logical_and( L<=0, ell>0)
+            # i1 = np.logical_and(SLS_contract, np.logical_or(np.logical_or(inds ,  eps<-ec),  np.logical_and(ell>L, L0>L)))
             if contract:
                     inds = np.logical_or(np.logical_or(inds ,  eps<-ec),  np.logical_and(ell>L, L0>L))
-
+            # i2 = np.logical_and(SLS_extend, np.logical_or(np.logical_or(inds ,  eps>ec),   np.logical_and(ell<L, L0<L)))
+            # inds = np.logical_or(i1,i2)
             if extend:
                     inds = np.logical_or(np.logical_or(inds ,  eps>ec),   np.logical_and(ell<L, L0<L))
 

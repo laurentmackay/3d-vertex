@@ -213,7 +213,6 @@ if __name__ == '__main__':
         # plt.savefig('VE_elements_scheme.pdf')
         # plt.savefig('VE_elements_scheme.png',dpi=200)
 
-
         depth_func = final_depth
 
         refresh=False
@@ -260,7 +259,7 @@ if __name__ == '__main__':
         for d, ax, title in zip(depths, axs,
                           ('Asymmetric VE: Contraction','Asymmetric VE: Extension', 'Symmetric VE')):
             plt.sca(ax)
-            pcolor( ecs, phi0s, d-depth_baseline[0,0], vmin=0, vmax=vmax)
+            pcolor( ecs, 1-phi0s, d-depth_baseline[0,0], vmin=0, vmax=vmax)
             ax.set_title(title)
             plt.xlabel(r'$\varepsilon_c$')
         plt.colorbar()
@@ -274,21 +273,41 @@ if __name__ == '__main__':
 
         fig=plt.figure()
         fig.set_size_inches(6.5, 3.5)
-        slice=3
-        plt.plot(phi0s, depth_baseline[:,slice]-depth_baseline[0,0], color='c', label='Asymmetric: Contraction',linewidth=2)
+        slice=6
+        plt.plot(1-phi0s, depth_baseline[:,slice]-depth_baseline[0,0], color='c', label='Asymmetric: Contraction',linewidth=2)
         # plt.plot(phi0s, depth_baseline_edge[:,slice]-depth_baseline_edge[0,0], color='c', linestyle=':', label='Asymmetric: Contraction',linewidth=2)
-        plt.plot(phi0s, depth_extend[:,slice]-depth_baseline[0,0], color='y',linewidth=2, label='Asymmetric: Extension')
+        plt.plot(1-phi0s, depth_extend[:,slice]-depth_baseline[0,0], color='y',linewidth=2, label='Asymmetric: Extension')
         # plt.plot(phi0s, depth_extend_edge[:,slice]-depth_baseline_edge[0,0], color='y',linewidth=2, linestyle=':', label='Asymmetric: Extension')
-        plt.plot(phi0s, depth_extend[:,slice]+depth_baseline[:,slice]-2*depth_baseline[0,0], color='g', linestyle='-.',linewidth=2, label='Asymmetric: Sum')
+        plt.plot(1-phi0s, depth_extend[:,slice]+depth_baseline[:,slice]-2*depth_baseline[0,0], color='g', linestyle='-.',linewidth=2, label='Asymmetric: Sum')
         # plt.plot(phi0s, depth_extend_edge[:,slice]+depth_baseline_edge[:,slice]-2*depth_baseline_edge[0,0], color='g', linestyle=':',linewidth=2, label='Asymmetric: Sum')
-        plt.plot(phi0s, depth_sym[:,slice]-depth_baseline[0,0], color='m',linewidth=2, label='Symmetric')
+        plt.plot(1-phi0s, depth_sym[:,slice]-depth_baseline[0,0], color='m',linewidth=2, label='Symmetric')
         # plt.plot(phi0s, depth_sym_edge[:,slice]-depth_baseline_edge[0,0], color='m',linewidth=2, linestyle=':', label='Symmetric')
-        plt.legend(loc='upper right')
+        plt.legend(loc='upper left')
         plt.ylabel('$\Delta\;depth\;(\mu $m)')
         plt.xlabel('$\delta$')
         plt.tight_layout()   
         # plt.savefig('asymmetric_vs_symmetric_depth_change.pdf')
         plt.savefig('asymmetric_vs_symmetric_depth_change.png', dpi=200)
+
+
+
+        depth_timeline_sym = sweep(phi0s, run, kw=kws_sym, pre_process = depth_timeline,
+        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh, dtype=float)
+        
+
+
+        depth_timeline_ext = sweep(phi0s, run, kw=kws_extend, pre_process = depth_timeline,
+        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh, dtype=float)
+
+
+        depth_timeline_con = sweep(phi0s, run, kw=kws_contract, pre_process = depth_timeline,
+        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh, dtype=float)
+
+        plt.figure()
+        for ts, phi0 in zip(depth_timeline_sym[:, slice], phi0s):
+                if ts is not None:
+                        plt.plot(ts[:,0], ts[:,1],label=f'\delta = {1-phi0}')
+
         plt.show()
 
 

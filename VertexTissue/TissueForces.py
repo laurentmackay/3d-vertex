@@ -177,6 +177,8 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
 
 
     press_alpha = const.press_alpha 
+    mu_apical = const.mu_apical
+    myo_beta = const.myo_beta
     centers = G.graph['centers']
 
 
@@ -215,10 +217,12 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
                 
                 
 
+
+
     
     def compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=None):
 
-        forces = compute_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, v0=v0)
+        forces = compute_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, mu_apical, myo_beta, press_alpha, v0=v0)
 
         if compute_pressure and not fastvol:
             handle_pressure(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=v0)
@@ -233,14 +237,14 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
         
    
     
-    ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
+    ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds = compute_network_indices(G) 
 
     # @jit(nopython=True, cache=True, inline='never')
     def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False, v0=None):
-        nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds
+        nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds
 
         if recompute_indices:
-            ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds = compute_network_indices(G) 
+            ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds = compute_network_indices(G) 
 
         return compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=v0)
 
@@ -340,20 +344,20 @@ def compute_network_indices(G):
 
     ab_face_inds=[]
     ab_pair_face_inds=[]
-    ab_pair_tri_inds=[]
+    # ab_pair_tri_inds=[]
     for center, pts in zip(centers, circum_sorted):  
         face_inds = []
         face_pair_inds = []
-        tri_pair_inds = []
+        # tri_pair_inds = []
         for i in range(len(pts)):
             a=(center, pts[i], pts[i-1])
-            i_a = np.argwhere(np.all( a == triangles_sorted, axis = 1))[0][0]
+            # i_a = np.argwhere(np.all( a == triangles_sorted, axis = 1))[0][0]
             if is_basal:
                 b=(center+basal_offset, pts[i-1]+basal_offset, pts[i]+basal_offset)
                 face_inds.extend((a,b))
                 face_pair_inds.append((*a,*(center+basal_offset, pts[i]+basal_offset, pts[i-1]+basal_offset)))
-                i_b = np.argwhere(np.all( (b[0],b[2],b[1]) == triangles_sorted, axis = 1))[0][0]
-                tri_pair_inds.append((i_a,i_b))
+                # i_b = np.argwhere(np.all( (b[0],b[2],b[1]) == triangles_sorted, axis = 1))[0][0]
+                # tri_pair_inds.append((i_a,i_b))
             else:
                 face_inds.append(a)
 
@@ -361,15 +365,15 @@ def compute_network_indices(G):
         ab_face_inds.append(np.array(face_inds))
         if is_basal:
              ab_pair_face_inds.append(np.array(face_pair_inds))
-             ab_pair_tri_inds.append(np.array(tri_pair_inds))
+            #  ab_pair_tri_inds.append(np.array(tri_pair_inds))
 
 
     ab_face_inds=List(ab_face_inds)
     ab_pair_face_inds=List(ab_pair_face_inds)
-    ab_pair_tri_inds=List(ab_pair_tri_inds)
+    # ab_pair_tri_inds=List(ab_pair_tri_inds)
 
     ab_pair_face_inds._make_immutable()
-    ab_pair_tri_inds._make_immutable()
+    # ab_pair_tri_inds._make_immutable()
 
     side_face_inds = []
     if is_basal:
@@ -382,7 +386,7 @@ def compute_network_indices(G):
 
     
 
-    return  ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds, ab_pair_tri_inds
+    return  ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds#, ab_pair_tri_inds
 
 
 

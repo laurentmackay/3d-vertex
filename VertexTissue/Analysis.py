@@ -10,7 +10,7 @@ import networkx as nx
 
 
 from .Filesystem import   get_creationtime, get_filenames, get_oldestfile
-from .Memoization import check_function_cache, signature_string
+from .Caching import  signature_string
 
 def analyze_network_evolution(path='.', start_time=0, pattern=None, func=lambda G, t: G, pool=None, processes=None, indices=None):
     try:

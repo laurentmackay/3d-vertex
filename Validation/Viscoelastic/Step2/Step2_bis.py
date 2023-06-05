@@ -20,7 +20,7 @@ from VertexTissue.funcs_orig import clinton_timestepper, convex_hull_volume_bis,
 import VertexTissue.globals as const
 from VertexTissue.globals import inter_edges_middle, inter_edges_middle_bis, inter_edges_outer, inter_edges_outer_bis, inner_arc, outer_arc, pit_strength, myo_beta, l_apical, press_alpha
 from VertexTissue.Dict import dict_product, dict_product_nd_shape, last_dict_value
-from VertexTissue.Memoization import  function_call_savepath
+from VertexTissue.Caching import  cached, cache_file, keyword_vals
 from VertexTissue.util import arc_to_edges, edge_index, find_first, get_myosin_free_cell_edges, inside_arc
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.visco_funcs import SLS_nonlin, crumple, fluid_element, edge_crumpler, extension_remodeller, shrink_edges
@@ -220,12 +220,20 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
         outer=False, double=False, viewable=viewable, stochastic=False, press_alpha=press_alpha,
         pit_strength=300, clinton_timestepping=False, dt_min=5e-2, basal=False, scale_pit=True, mu_apical=const.mu_apical, ec=0.2,
         extend=False, contract=True, T1=True, edge_ratio=0, no_pit_T1s=False, SLS=False,SLS_no_extend=False, SLS_no_contract=False,
-        constant_pressure_intercalations=False, fastvol=False):
+        constant_pressure_intercalations=False, fastvol=False, fluid_spokes=False, t_final=4e4):
     
     if (contract==False and extend==False) or (SLS_no_contract and SLS_no_extend):
         return
     
-    pattern=os.path.join(base_path, function_call_savepath()+'.pickle')
+    if t_final>4e4:
+          t0=4e4
+          v=keyword_vals()
+          rez=cached(cache_dir=base_path, t_final=4e4)
+          print(rez)
+    else:
+          t0=0
+    
+    pattern = cache_file(cache_dir=base_path)
     #
     G, G_apical = tissue_3d( hex=7,  basal=True)
     
@@ -284,10 +292,10 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
                 edge = select_outer_edge()
                 activate_edge(edge)
 
-        T_final=4e4
+        
 
-        Rxs_inner = tuple((t, inner_intercalation_rxn, f'Inner intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_final=T_final-2e4))
-        Rxs_outer = tuple((t, outer_intercalation_rxn, f'Outer intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_final=T_final-2e4))
+        Rxs_inner = tuple((t, inner_intercalation_rxn, f'Inner intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_final=t_final-2e4))
+        Rxs_outer = tuple((t, outer_intercalation_rxn, f'Outer intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_final=t_final-2e4))
 
 
 
@@ -356,7 +364,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
         print(i,j)
 
 
-    T_final=4e4
+    
     if no_pit_T1s:
            centers = G.graph['centers']
            circum_sorted=G.graph['circum_sorted']
@@ -398,9 +406,23 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
         maxwell_nonlin = SLS_nonlin(ec=ec, contract=not SLS_no_contract, extend=not SLS_no_extend)
     else:
         maxwell_nonlin=None
-    viewable=False
+
+    if (SLS and fluid_spokes):
+        centers  = [*G.graph['centers']]
+        for a,b in G.edges():
+              if (a in centers) or (b in centers):
+                    G[a][b]['ec']=0.0
+                    G[a][b]['SLS_contract']=True
+                    G[a][b]['SLS_extend']=True
+              else:
+                    G[a][b]['ec']=ec
+                    G[a][b]['SLS_contract']=not SLS_no_contract
+                    G[a][b]['SLS_extend']=not SLS_no_extend
+              
+          
+#     viewable=False
     integrate = monolayer_integrator(G, G_apical,
-                                    blacklist=blacklist, append_to_blacklist=True, RK=1,
+                                    blacklist=blacklist, append_to_blacklist=True, RK=4,
                                     intercalation_callback=label_contracted if clinton_timestepping else (contract_maxwell if SLS else None),
                                     angle_tol=.01, length_rel_tol=0.05, SLS = False if not SLS else phi0 ,
                                     maxwell_nonlin= maxwell_nonlin,
@@ -409,12 +431,14 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
     print(f'effective spring constant: {k_eff}')
 
-    integrate(5, T_final,
+
+
+    integrate(5, t_final, t=t0,
               pre_callback=squeeze,
               dt_init= 0.5 if clinton_timestepping else 1e-3,
               adaptive=True,
               timestep_func=clinton_timestep if clinton_timestepping else None,
-              dt_min=max(dt_min*k_eff, 0.2*dt_min),
+              dt_min=max(dt_min*k_eff, 0.1*dt_min),
               adaptation_rate=1 if clinton_timestepping else 0.1,
               save_rate=100, 
               view_rate=5,   
@@ -429,7 +453,8 @@ def main():
     run(750,  phi0=0.3, cable=True)
 
 phi0s = np.array(list(reversed([ 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, .95, 1.0])))
-phi0_SLS = np.array(list(reversed([0, 0.025, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, .95, 1.0])))
+phi0_SLS = np.array(list(reversed([0.0, 0.025, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, .95, 1.0])))
+phi0_SLS = np.array(list(reversed([ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, .95, 1.0])))
 # phi0s = np.array(list(reversed([ 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, .95, 1.0])))
 
 L0_T1s=np.linspace(0, l_apical, 10)
@@ -470,29 +495,29 @@ kws_SLS_baseline_thresh = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False, 
 kws_SLS_baseline_thresh_ext = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True, 'ec':ecs,'fastvol':True}
 kws_SLS_baseline_thresh_con = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True, 'ec':ecs,'fastvol':True}
 
-kws_SLS_baseline_thresh_all = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':[True, False], 'SLS_no_extend':[True, False], 'ec':ecs, 'fastvol': [True, False]}
+kws_SLS_baseline_thresh_all = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':[True, False], 'SLS_no_extend':[True, False], 'ec':ecs, 'fastvol': True}
 
 
-kws_SLS_baseline = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0}
-kws_SLS_middle = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0}
-kws_SLS_outer = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'outer':True, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0}
+kws_SLS_baseline = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0, 'fastvol': True}
+kws_SLS_middle = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0, 'fastvol': True}
+kws_SLS_outer = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'outer':True, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0, 'fastvol': True}
 
-kws_SLS_middle_all = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':[True, False], 'SLS_no_contract':[True, False], 'ec':0.0, 'fastvol': [True, False]}
-kws_SLS_outer_all = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':[True, False], 'SLS_no_contract':[True, False], 'outer':True, 'ec':0.0, 'fastvol': [True, False]}
+kws_SLS_middle_all = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':[True, False], 'SLS_no_contract':[True, False], 'ec':0.0, 'fastvol': True}
+kws_SLS_outer_all = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':[True, False], 'SLS_no_contract':[True, False], 'outer':True, 'ec':0.0, 'fastvol': True}
 
 kws_SLS_middle_sym = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0}
 kws_SLS_outer_sym = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'outer':True, 'ec':0.0}
 
 
-kws_SLS_baseline_con = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True, 'ec':0.0}
-kws_SLS_baseline_ext = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True, 'ec':0.0}
+kws_SLS_baseline_con = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True, 'ec':0.0, 'fastvol': True}
+kws_SLS_baseline_ext = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True, 'ec':0.0, 'fastvol': True}
 
 
-kws_SLS_middle_con = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True, 'ec':0.0}
-kws_SLS_middle_ext = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True, 'ec':0.0}
+kws_SLS_middle_con = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True, 'ec':0.0, 'fastvol': True}
+kws_SLS_middle_ext = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True, 'ec':0.0, 'fastvol': True}
 
-kws_SLS_outer_con = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True,  'outer':True, 'ec':0.0}
-kws_SLS_outer_ext = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True,  'outer':True, 'ec':0.0}
+kws_SLS_outer_con = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True,  'outer':True, 'ec':0.0, 'fastvol': True}
+kws_SLS_outer_ext = {'intercalations':intercalations, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True,  'outer':True, 'ec':0.0, 'fastvol': True}
 
 
 kws_baseline_thresh_extend = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False, 'ec':ecs,'extend':True, 'contract':False}
@@ -570,6 +595,6 @@ if __name__ == '__main__':
     def foo(*args):
         pass
 
-    sweep(phi0_SLS, run, kw=kws_SLS_baseline_thresh_all, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-#     run(0.3, ec=0.0, L0_T1=l_apical, intercalations=12, remodel=False,   verbose=True, viewable=True, outer=False, stochastic=False,  pit_strength=300, scale_pit=False, basal=False, dt_min=0.05, extend=True, no_pit_T1s=True, SLS=True, SLS_no_extend=True, fastvol=True)
+#     sweep(np.flip(phi0_SLS), run, kw=kws_SLS_outer_all, savepath_prefix=base_path, overwrite=False, pre_process=foo)
+    run(0.1, ec=0.1, L0_T1=l_apical, remodel=False,   viewable=True, verbose=True, dt_min=5e-3,  scale_pit=False, no_pit_T1s=True, SLS=True, SLS_no_contract=True, fastvol=True)
 

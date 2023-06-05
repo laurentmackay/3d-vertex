@@ -14,7 +14,7 @@ import VertexTissue.SG as SG
 from VertexTissue.Tissue import get_outer_belt, tissue_3d
 from VertexTissue.Geometry import euclidean_distance, unit_vector
 from VertexTissue.globals import belt_strength, outer_arc, inner_arc, pit_strength
-from VertexTissue.Memoization import function_call_savepath
+from VertexTissue.Caching import cache_file
 from VertexTissue.Dict import dict_product, first_dict_value, last_dict_value
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.visco_funcs import crumple, extension_remodeller, shrink_edges
@@ -138,7 +138,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, inner_only=False, pit_before=
         inter_edges = [outer_edge, ]
     
     
-    pattern=os.path.join(base_path, function_call_savepath()+'.pickle')
+    pattern=os.path.join(base_path, cache_file())
     #
     G, G_apical = tissue_3d( hex=7,  basal=True)
     

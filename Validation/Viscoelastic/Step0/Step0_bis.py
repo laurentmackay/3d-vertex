@@ -2,7 +2,7 @@ import os
 
 from matplotlib import colors
 import VertexTissue
-from VertexTissue.Memoization import function_call_savepath
+from VertexTissue.Caching import cache_file
 
 from VertexTissue.visco_funcs import SLS_nonlin, crumple, fluid_element
 print('this is some basic output')
@@ -19,7 +19,7 @@ import VertexTissue.SG as SG
 import VertexTissue.T1 as T1
 from VertexTissue.Sweep import sweep
 
-from VertexTissue.Analysis import parameter_sweep, parameter_sweep_analyzer
+# from VertexTissue.Analysis import parameter_sweep, parameter_sweep_analyzer
 
 from VertexTissue.globals import default_ab_linker, default_edge, belt_strength, outer_arc, inner_arc
 import VertexTissue.globals as const
@@ -56,7 +56,7 @@ taus = np.logspace(6,1,5)
 inter_edges = ((305, 248), (94,163), (69,8), (2,8))
 
 def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True, verbose=False, ec=0.2, contract=True, extend=False,
-        SLS=False,SLS_no_extend=False, SLS_no_contract=False, fastvol=False):
+        SLS=False, SLS_no_extend=False, SLS_no_contract=False, fastvol=False):
 
     if SLS is False:
         k_eff = (phi0-ec)/(1-ec)
@@ -136,19 +136,19 @@ def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True, verbose=False
     else:
         maxwell_nonlin=None
         
-    integrate = monolayer_integrator(G, G_apical, 
+    integrate = monolayer_integrator(G, G_apical, RK=4,
                                     pre_callback=squeeze, 
                                     SLS = False if not SLS else phi0,
                                     intercalation_callback=terminate, 
                                     termination_callback=wait_for_intercalation,  
-                                    blacklist=True, length_abs_tol=1e-2,
+                                    blacklist=True, length_abs_tol=1e-2,length_rel_tol=0.05, angle_tol=0.05,
                                     maxwell_nonlin=maxwell_nonlin, fastvol=fastvol,
                                     player=False, viewer={'button_callback':terminate} if viewable else False, minimal=False, **kw)
     #{'button_callback':terminate,'nodeLabels':None} if viewable else False
     #integrates
     # try:
     # print(belt)
-    pattern=os.path.join(base_path, function_call_savepath()+'.pickle')
+    pattern=cache_file(cache_dir=base_path)
 
     # pattern=None
     print(f'starting f={force}')
@@ -162,7 +162,7 @@ def run(force,  phi0=1.0, level=0, arcs=3, visco=True, cable=True, verbose=False
     integrate(5, 8000, 
             dt_init = 1e-4,
             adaptive=True,
-            dt_min=max(dt_min*k_eff,0.2*dt_min),
+            dt_min=5e-2,
             save_rate=-1,
             view_rate=20,
             verbose=verbose,
@@ -191,12 +191,12 @@ def process_results(forces, results, plot=False):
 
     for i in range(lens.shape[2]):
         for j in range(lens.shape[3]):
-            contracted_no_cable=np.argwhere(lens_no_cable[:,i,j]< (1.01)* const.l_intercalation)
+            contracted_no_cable=np.argwhere(lens_no_cable[:,i,j]< (1.2)* const.l_intercalation)
             
             if len(contracted_no_cable):
                 contraction_force_no_cable[i,j] = forces[contracted_no_cable[0,0]]
 
-            contracted_cable=np.argwhere(lens_cable[:,i,j]< (1.01)*const.l_intercalation)
+            contracted_cable=np.argwhere(lens_cable[:,i,j]< (1.2)*const.l_intercalation)
             if len(contracted_cable):
                 contraction_force_cable[i,j] = forces[contracted_cable[0,0]]
 
@@ -288,7 +288,7 @@ def plot_results_no_cable(forces,results, level=None):
     
     
 
-phi0s=list(reversed([ 0.0, 0.025, 0.05, 0.1, 0.15, 0.2, .3,  .4, .5,  .6, .7, .8, .9, 1.0]))
+phi0s=list(reversed([ 0.0,  0.1, 0.15, 0.2, .3,  .4, .5,  .6, .7, .8, .9, 1.0]))
 # phi0s=list(reversed([  .3,  .4, .5,  .6, .7, .8, .9, 1.0]))
 # colors=['k','r','g','b','y','m','c','orange']
 def main():
@@ -309,9 +309,9 @@ def main():
     kws_SLS_thresh_con={'cable':[False,True], 'level':1,  'phi0':np.flip(phi0s), 'ec':ecs,'SLS':True, 'SLS_no_extend':True}
     kws_SLS_thresh_ext={'cable':[False,True], 'level':1,  'phi0':np.flip(phi0s), 'ec':ecs, 'SLS':True, 'SLS_no_contract':True}
 
-    kws_SLS_thresh_sym={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs, 'SLS':True, 'fastvol':[False,True]}
-    kws_SLS_thresh_con={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs,'SLS':True, 'SLS_no_extend':True, 'fastvol':[False,True]}
-    kws_SLS_thresh_ext={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs, 'SLS':True, 'SLS_no_contract':True, 'fastvol':[False,True]}
+    kws_SLS_thresh_sym={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs, 'SLS':True, 'fastvol':True}
+    kws_SLS_thresh_con={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs,'SLS':True, 'SLS_no_extend':True, 'fastvol':True}
+    kws_SLS_thresh_ext={'cable':[False,True], 'level':1,  'phi0':phi0s, 'ec':ecs, 'SLS':True, 'SLS_no_contract':True, 'fastvol':True}
 
 
     kws_no_cable_0={'cable':[False], 'level':0,  'phi0':phi0s}
@@ -327,8 +327,8 @@ def main():
 
     kws=kws_3
     
-
-    viewable=False
+    # run(50, level=1 , ec=0.0, SLS=True, fastvol=True, cable=True, phi0=0.0, verbose=True)
+    # viewable=False
     if viewable:
         refresh=False
         overwrite=False
@@ -450,7 +450,7 @@ def main():
 
     else:
         results = sweep(np.flip(forces), run,
-        kw = kws_SLS_thresh_ext,
+        kw = kws_SLS_thresh_con,
         pre_process=shortest_length,
         savepath_prefix=base_path,
         overwrite=False,

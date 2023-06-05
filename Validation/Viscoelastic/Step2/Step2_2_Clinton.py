@@ -230,13 +230,20 @@ if __name__ == '__main__':
         # kws_outer = kws_SLS_outer
         phi0s=phi0_SLS
 
+
+        for i, kws in enumerate((kws_SLS_baseline_con, kws_SLS_baseline_ext, kws_SLS_baseline)):
+
+                base  = sweep(phi0s, run, kw=kws, pre_process = depth_func,
+                                        cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh, overwrite=overwrite)
+                plt.plot(phi0s, base)
+
         fig, axs = plt.subplots(3,2)
-        fig.set_size_inches(9.5, 8)
+        fig.set_size_inches(11, 8)
         axs=axs.ravel()
 
         for i, kws in enumerate(((kws_SLS_baseline_con, kws_SLS_middle_con, kws_SLS_outer_con),
                                 (kws_SLS_baseline_ext,kws_SLS_middle_ext, kws_SLS_outer_ext),
-                                (kws_SLS_baseline,kws_SLS_middle, kws_SLS_outer))):
+                                (kws_SLS_baseline, kws_SLS_middle, kws_SLS_outer))):
                 
                 kws_baseline, kws_middle, kws_outer  = kws
                 
@@ -257,14 +264,16 @@ if __name__ == '__main__':
 
 
                 plt.sca(axs[i*2])
-                plt.title('Middle Region')
+                if i==0:
+                        plt.title('Middle Region')
                 plt.plot([0,18],[0,0],linestyle='--', color='k')
                 plot(mid-base, label=False)
                 plt.ylabel('$\Delta\;depth\;(\mu $m)')
                 plt.xticks(ticks=[0,5,10,15])
 
                 plt.sca(axs[(i)*2+1])
-                plt.title('Outer Region')
+                if i==0:
+                        plt.title('Outer Region')
                 # plt.plot(intercalations, (depth_outer_step3-depth_baseline[0]).T, linestyle='--',color=[0,0,0])
                 plt.plot([0,18],[0,0],linestyle='--', color='k')
                 plot(outer-base, label=i==2)
@@ -275,8 +284,8 @@ if __name__ == '__main__':
         lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
         lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
 
-        plt.tight_layout() 
-        fig.legend(lines, labels,   loc='outside center right', bbox_to_anchor=(1.05, 0.5),
+        # plt.tight_layout() 
+        fig.legend(lines, labels,   loc='outside center right', bbox_to_anchor=(1.02, 0.5),
            bbox_transform = plt.gcf().transFigure)
           
         # plt.savefig('invagination_depth_vs_intercalations.pdf')

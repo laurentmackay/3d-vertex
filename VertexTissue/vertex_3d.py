@@ -17,7 +17,7 @@ from .Tissue import get_triangles, get_outer_belt, new_topology
 from . TissueForces import TissueForces, pressure
 from . import globals as const
 from .Geometry import *
-from .util import get_edges_array, set_edge_attributes, get_edge_attribute_array, set_node_attributes, get_node_attribute_array, get_node_attribute_dict
+from .util import get_edges_array, set_dict_values_from_edge_attrs, set_edge_attributes, get_edge_attribute_array, set_node_attributes, get_node_attribute_array, get_node_attribute_dict
 try:
     from VertexTissue.Player import pickle_player
     from VertexTissue.PyQtViz import edge_viewer
@@ -95,9 +95,14 @@ def monolayer_integrator(G, G_apical=None,
     else:
         circum_sorted = None
 
+    nonlin_kw={}
     if SLS is not False:
         L0 = get_edge_attribute_array(G, 'l_rest')
-    
+        set_dict_values_from_edge_attrs(G, 'ec', dtype=float, d=nonlin_kw)
+        set_dict_values_from_edge_attrs(G, 'SLS_contract', dtype=bool, d=nonlin_kw)
+        set_dict_values_from_edge_attrs(G, 'SLS_extend', dtype=bool, d=nonlin_kw)
+
+
     if 'centers' in G.graph.keys():
         centers = G.graph['centers']
         G_centerless = G_apical.copy()
@@ -127,6 +132,8 @@ def monolayer_integrator(G, G_apical=None,
 
     ############# CONSTANTS #############
     pi_by_4=np.pi/4
+    pi_by_2=np.pi/2
+    pi=np.pi
     two_thirds=2/3
     one_quarter=1/4
     three_quarters=3/4
@@ -197,7 +204,7 @@ def monolayer_integrator(G, G_apical=None,
                 orig_forces=False, check_forces=False, v0=v0, T1=T1,
                 **kw):
                 
-        nonlocal G, G_apical, centers,  force_dict, drx, dists, view, pos, edges
+        nonlocal G, G_apical, centers,  force_dict, drx, dists, view, pos, edges, nonlin_kw
 
         #######################################
         #           INITIALIZATION
@@ -268,15 +275,18 @@ def monolayer_integrator(G, G_apical=None,
         #           END INITIALIZATION
         #######################################
 
+        rad_tol = np.tan(pi_by_2*angle_tol)
 
-        @jit(nopython=True, cache=True)
+        @jit(nopython=True, cache=False)
         def timestep_bound(forces, drxs, dists, edges, t):
             """
             Compute an upper bound on the timestep so that our tolerances are met
             """
-            rad_tol = pi_by_4*angle_tol
+
+
             dt_next=dt
             for i in range(edges.shape[0]):
+
                 df=forces[edges[i,0]]-forces[edges[i,1]]
                 # df_tot = np.linalg.norm(df)
                 df_radial_signed = np.sum(df*drxs[i])
@@ -287,7 +297,7 @@ def monolayer_integrator(G, G_apical=None,
                 dt_radial_rel = const.eta*length_rel_tol*dists[i]/(df_radial+1e-12)
                 # dt_radial = 2*const.eta*length_prec*dists[i]/((df_radial+1e-12)*(2-length_prec))
                 # dt_angular =  2*const.eta*rad_tol*dists[i]/(abs(2*df_angular-df_radial_signed*angle_prec+1e-12))
-                dt_angular =  const.eta*rad_tol*dists[i]/(abs(df_angular+1e-12))
+                dt_angular =  const.eta*rad_tol* dists[i]/(abs(df_angular)+1e-12)
                 dt_geom = min(dt_radial_rel, dt_radial_abs, dt_angular)
 
                 # dt_geom = dt_radial
@@ -354,6 +364,8 @@ def monolayer_integrator(G, G_apical=None,
             nonlocal L0
         else:
             L0 = get_edge_attribute_array(G, 'l_rest')
+
+
             
 
         if SLS is False:
@@ -430,7 +442,7 @@ def monolayer_integrator(G, G_apical=None,
                     r = h/(tau*2)
                     L0[dynamic_L0] = ((L0*(1-r)+r*(dists+dists_prev))/(1+r))[dynamic_L0]
                 else:
-                    L0[dynamic_L0] += (h/2)*( ( maxwell_nonlin(dists, L0, L1) + maxwell_nonlin(dists_prev,L0, L1) )/tau )[dynamic_L0]
+                    L0[dynamic_L0] += (h/2)*( ( maxwell_nonlin(dists, L0, L1, **nonlin_kw) + maxwell_nonlin(dists_prev,L0, L1, **nonlin_kw) )/tau )[dynamic_L0]
 
                 if viewer:
                     set_edge_attributes(G,'l_rest', L0)
@@ -467,6 +479,10 @@ def monolayer_integrator(G, G_apical=None,
                 if not (SLS is False):
                     L1 = get_edge_attribute_array(G, 'l_rest_1')
                     l_rest = (L1, L0)
+
+                    set_dict_values_from_edge_attrs(G, 'ec', dtype=float, d=nonlin_kw)
+                    set_dict_values_from_edge_attrs(G, 'SLS_contract', dtype=bool, d=nonlin_kw)
+                    set_dict_values_from_edge_attrs(G, 'SLS_extend', dtype=bool, d=nonlin_kw)
 
                 myosin = get_edge_attribute_array(G, 'myosin')
 

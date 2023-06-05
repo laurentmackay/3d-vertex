@@ -4,7 +4,6 @@ from VertexTissue.Geometry import euclidean_distance, triangle_area_vector, tria
 import numba
 from numba import jit
 
-myo_beta = const.myo_beta 
 
 @jit(nopython=True, cache=True)
 def compute_distances(pos, edges):
@@ -34,7 +33,7 @@ def compute_distances_and_directions(pos, edges, ndim=3):
     return dists, drx
 
 @jit(nopython=True, cache=True, inline='always')
-def compute_rod_forces(forces, l_rest, dists, drx, myosin, edges,  mu_apical, ndim=3):
+def compute_rod_forces(forces, l_rest, dists, drx, myosin, edges,  mu_apical, myo_beta, ndim=3):
 
     for i, e in enumerate(edges):
         magnitude = mu_apical*(dists[i] - l_rest[i])
@@ -46,7 +45,7 @@ def compute_rod_forces(forces, l_rest, dists, drx, myosin, edges,  mu_apical, nd
         forces[e[1]]-=force
 
 @jit(nopython=True, cache=True, inline='never')
-def compute_SLS_forces(forces, l1, l2, dists, drx, myosin, edges,  mu_apical, alpha, ndim=3):
+def compute_SLS_forces(forces, l1, l2, dists, drx, myosin, edges,  mu_apical, myo_beta, alpha, ndim=3):
     beta=1-alpha
     for i, e in enumerate(edges):
         magnitude = mu_apical*(dists[i] - alpha*l1[i] - beta*l2[i])
@@ -61,14 +60,14 @@ def compute_SLS_forces(forces, l1, l2, dists, drx, myosin, edges,  mu_apical, al
 def compute_spring_forces(forces, l_rest, dists, drx, edges,  mu_apical, ndim=3):
 
     for i, e in enumerate(edges):
-        magnitude = (dists[i] - l_rest[i])
+        magnitude = mu_apical*(dists[i] - l_rest[i])
             
         force=magnitude*drx[i,:ndim]
         forces[e[0]]+=force
         forces[e[1]]-=force
 
 @jit(nopython=True, cache=True)
-def compute_myosin_forces(forces, myosin, drx, edges, ndim=3):
+def compute_myosin_forces(forces, myosin, drx, edges, myo_beta, ndim=3):
 
     for i, e in enumerate(edges):
         magnitude = myo_beta*myosin[i]
@@ -288,8 +287,8 @@ def cell_volumes(pos, ab_pair_face_inds):
     return vols
 
 @jit(nopython=True, cache=True, inline='always')
-def handle_pressure_3D_fast(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=None):      
-            PI=const.press_alpha*(v0-cell_volumes(pos, ab_pair_face_inds))
+def handle_pressure_3D_fast(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, press_alpha, v0=None):      
+            PI=press_alpha*(v0-cell_volumes(pos, ab_pair_face_inds))
             apply_pressure_3D(forces, PI, pos, ab_face_inds, side_face_inds)
 
             
@@ -356,17 +355,17 @@ def apply_pressure_3D(forces, PI, pos, face_inds,  side_face_inds):
                 forces[inds[j]] += force
 
 @jit(nopython=True, cache=True, inline='always')
-def compute_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, v0=None):
+def compute_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, mu_apical, myo_beta, press_alpha, v0=None):
 
     forces = np.zeros(pos.shape ,dtype=float)
 
     if SLS is False:
-        compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, const.mu_apical, ndim=ndim)
+        compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, mu_apical, myo_beta, ndim=ndim)
     else:
-        compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, const.mu_apical, SLS, ndim=ndim)
+        compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, mu_apical, myo_beta, SLS, ndim=ndim)
 
     if compute_pressure and fastvol:
-        handle_pressure_3D_fast(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=v0)
+        handle_pressure_3D_fast(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, press_alpha, v0=v0)
 
 
     if ndim==3:
