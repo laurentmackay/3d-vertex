@@ -8,9 +8,9 @@ This repository contains code that can be used in a 3D Vertex Model simulation o
 
 __Dependencies__
 
-Plotting the tissue geometry generally uses OpenGL and requires the freeglut package. On debian-based linux distributions, this can be installed using:
+Plotting the tissue geometry generally uses OpenGL and requires the freeglut package. On debian-based linux distributions, this can usually be installed using:
 ```
-sudo apt install freeglut
+sudo apt install freeglut*
 ```
 
 __Installation__
