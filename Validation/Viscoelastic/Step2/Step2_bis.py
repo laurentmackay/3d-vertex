@@ -219,7 +219,7 @@ def final_corner_angle(d, **kw):
 def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, intercalations=0, 
         outer=False, double=False, viewable=viewable, stochastic=False, press_alpha=press_alpha,
         pit_strength=300, clinton_timestepping=False, dt_min=5e-2, basal=False, scale_pit=True, mu_apical=const.mu_apical, ec=0.2,
-        extend=False, contract=True, T1=True, edge_ratio=0, no_pit_T1s=False, SLS=False,SLS_no_extend=False, SLS_no_contract=False,
+        extend=False, contract=True, T1=True, edge_ratio=0, no_pit_T1s=False, SLS=False, SLS_no_extend=False, SLS_no_contract=False,
         constant_pressure_intercalations=False, fastvol=False, fluid_spokes=False, t_final=4e4):
     
     if (contract==False and extend==False) or (SLS_no_contract and SLS_no_extend):

@@ -7,8 +7,8 @@ import networkx as nx
 import numpy as np
 
 from pyqtgraph.Qt.QtWidgets import QMainWindow, QDockWidget, QWidget, QHBoxLayout, QVBoxLayout, QCheckBox, QFormLayout, QLineEdit, QLabel, QPushButton
-from pyqtgraph.Qt.QtGui import QDoubleValidator
-from pyqtgraph.Qt.QtCore import QSize, Qt, QTimer
+from pyqtgraph.Qt.QtGui import QDoubleValidator, QQuaternion, QVector3D
+from pyqtgraph.Qt.QtCore import QSize, Qt, QTimer, QCoreApplication
 import pyqtgraph as pg
 from pyqtgraph.opengl import GLViewWidget
 
@@ -18,16 +18,16 @@ from .GLNetworkItem import GLNetworkItem
 
 
 
-def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_callback=None, title=None, **kw):
+def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_callback=None, title=None,  **kw):
 
-    def outer(*a,**kw):
+    def outer(*args,**kw):
         init_callback = kw['window_callback'] if 'window_callback' in kw.keys() and callable(kw['window_callback']) else lambda win: None
         win=None
-        gi=None
+        GLItem=None
         colorbar=None
         G=None
         wind=None
-        glview=None
+        layout0=None
 
         def modify_bool_kw(key):
             def inner_bool(s):
@@ -68,16 +68,16 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
 
 
         def mk_controls(win):
-            nonlocal wind, glview, colorbar
+            nonlocal wind, layout0, colorbar
             wind=win
-            _, glview = win.children()
+            _, layout0 = win.children()
 
-            docker = QDockWidget(win)
-            widget = QWidget()
+            col_docker = QDockWidget(win)
+            col_widget = QWidget()
             
             
 
-            layout = QVBoxLayout()
+            col_layout = QVBoxLayout()
 
 
             argspec=inspect.getfullargspec(edge_view)
@@ -119,8 +119,8 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
 
 
 
-            layout.addLayout(checkbox_layout)
-            layout.addLayout(form_layout)
+            col_layout.addLayout(checkbox_layout)
+            col_layout.addLayout(form_layout)
 
             if button_callback is not None:
                 button = QPushButton()
@@ -136,38 +136,79 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
 
                 button.clicked.connect(request_callback_execution)
 
-                layout.addWidget(button)
+                col_layout.addWidget(button)
 
-            widget.setLayout(layout)
+            save_button = QPushButton()
+            save_button.setCheckable(True)
 
-            docker.setWidget(widget)
-            docker.setFloating(False)
+    
+    
+    
+            save_button.setEnabled(True)
+            save_button.setText('save png')
 
-            win.addDockWidget(Qt.RightDockWidgetArea, docker)
+            def save_png():
+                gl_size=GLItem.view().rect().size()
+                GLItem.view().resize(QSize(*GLItem.render_dimensions))
+                
+                print(GLItem.view().cameraParams())
+
+                GLItem.save_png(offset=(0,0))
+                GLItem.view().resize(gl_size)
+            
+            save_button.clicked.connect(save_png)
+
+            col_layout.addWidget(save_button)
+
+            dist = QLabel()
+            elev = QLabel()
+            az = QLabel()
+            cntr = QLabel()
+
+
+
+            for l in (dist,elev, az, cntr):
+                col_layout.addWidget(l)
+
+            def disp_cameraParams():
+                params = GLItem.view().cameraParams()
+                dist.setText(f"distance: {params['distance']}")
+                elev.setText(f"elevation: {params['elevation']}")
+                az.setText(f"azimuth: {params['azimuth']}")
+                cntr.setText(f"center: {params['center']}")
+
+                    
+
+            win.children()[1].children()[1].aboutToCompose.connect(disp_cameraParams)
+            
+            col_widget.setLayout(col_layout)
+            col_docker.setWidget(col_widget)
+            col_docker.setFloating(False)
+
+            win.addDockWidget(Qt.RightDockWidgetArea, col_docker)
             init_callback(win)
 
         
         kw = {**kw, **{'window_callback':mk_controls}}
 
         if not parallel:
-            G=a[0]
-            gi = edge_view(*a, **kw)
-            # colorbar=gi.gview
-            # glview = 
+            G=args[0]
+            GLItem = edge_view(*args, **kw)
+
 
         def draw(*a, **kw2):
-            nonlocal kw, G, wind, glview
+            nonlocal kw, G, wind, layout0
             if len(a):
                 G=a[0]
 
-            if gi and G:
-                edge_view(G, gi=gi, **{**kw, **kw2})
+            if GLItem and G:
+                edge_view(G, GLItem=GLItem, **{**kw, **kw2})
 
         def start_in_parallel(b):
-            nonlocal G, gi, colorbar
+            nonlocal G, GLItem, colorbar
 
-            G=a[0]
-            gi = edge_view(*a, **kw)
+            G=args[0]
+            GLItem = edge_view(*args, **kw)
             # colorbar=gi.colorBar
             # wtv = gi.gview
             def listen():
@@ -212,8 +253,12 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
                         a.send((G,kw))
 
                         # print(msg)
-                        if len(msg)>0  and  msg=='run callback':
-                            button_callback()
+                        if len(msg)>0  and  msg:
+                            match msg:
+                                case 'run callback': 
+                                    button_callback()
+                                case 'save image':
+                                    pass
                     else:
                         print(f'not ready {timeout}')
                 except:
@@ -241,7 +286,9 @@ class myGraphicsView(pg.GraphicsView):
         pg.GraphicsView.setRange(self, self.range, padding=(self.pixelPadding[0]/self.visibleRange().width(),-self.pixelPadding[1]/self.visibleRange().height()), disableAutoPixel=False)  ## we do this because some subclasses like to redefine setRange in an incompatible way.
         self.updateMatrix()
 
-def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, basal=False, exec=False, attr=None, label_nodes=True, colormap='CET-D8', vmin=None, vmax=None, edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None, **kw):
+def edge_view(G, GLItem=None, size=(640,480), cell_edges_only=True, apical=True, basal=False, exec=False, attr=None, label_nodes=True, colormap='CET-D8', vmin=None, vmax=None,
+               edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None,
+                distance=None, elevation=None, azimuth=None, Qrotation=None, center=None, **kw):
 
     has_basal = 'basal_offset' in G.graph.keys()
     if has_basal:
@@ -249,7 +296,7 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, bas
 
     pos = np.array([*nx.get_node_attributes(G,'pos').values()])
 
-    if gi is None:
+    if GLItem is None:
         # if  QApplication.instance() is None:
         app = pg.mkQApp(title)
 
@@ -261,7 +308,13 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, bas
         gl_widget.setMinimumSize(QSize(*size))
         gl_widget.setBackgroundColor(1.0)
         gl_widget.show()
-        gl_widget.setCameraPosition(distance=3*np.sqrt(np.sum((pos*pos),axis=1)).max())
+        gl_widget.setCameraPosition(distance=3*np.sqrt(np.sum((pos*pos),axis=1)).max() if distance is None else distance,
+                                    elevation=elevation,
+                                    azimuth=azimuth,
+                                    rotation=None if Qrotation is None else QQuaternion(*Qrotation),
+                                    pos=None if center is None else QVector3D(*center) )
+        
+        
         win.setCentralWidget(layout)
         layout.addWidget(gl_widget)
         win.show()
@@ -385,12 +438,12 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, bas
 
     data =  {'edges':edges, 'edgeColor':edgeColor, 'nodePositions':visible_pos, 'edgeWidth':edgeWidth, 'nodeSize':0.0, 'nodeLabels':lbls}
 
-    if gi is None:
-        gi = GLNetworkItem(parent=gl_widget, **{ **data, **kw})
-        gl_widget.addItem(gi)       
-        gi.setParent(gl_widget)
+    if GLItem is None:
+        GLItem = GLNetworkItem(parent=gl_widget, **{ **data, **kw})
+        gl_widget.addItem(GLItem)       
+        GLItem.setParent(gl_widget)
         # if attr:
-        colorBar = pg.ColorBarItem(values=(min_val, min_val+range), width=15, cmap=cmap, interactive=False)
+        colorBar = pg.ColorBarItem(values=(min_val, min_val+range), width=15, colorMap=cmap, interactive=False)
         # colorBar.setGradient(cmap.getGradient())
         # labels = {"wtv": v for v in np.linspace(0, 1, 4)}
         # colorBar.setLabels(labels)
@@ -402,22 +455,22 @@ def edge_view(G, gi=None, size=(640,480), cell_edges_only=True, apical=True, bas
         # gview.get
         # colorBar.setParentItem(gview)
         # win.addItem(colorBar)
-        gi.colorBar=colorBar
-        gi.gview = gview
+        GLItem.colorBar=colorBar
+        GLItem.gview = gview
     else:
-        gi.setData(**{ **data, **kw})
+        GLItem.setData(**{ **data, **kw})
         if not np.isnan(min_val) and not np.isnan(range):
             if range==0.:
                 range=1.0
-            gi.colorBar.setLevels(values=(min_val, min_val+range))
+            GLItem.colorBar.setLevels(values=(min_val, min_val+range))
             # gi.colorBar.setColorMap(cmap)
 
-    gi.parent().parent().parent().setWindowTitle(title)
+    GLItem.parent().parent().parent().setWindowTitle(title)
     
     if exec:
         pg.exec()
 
-    return gi
+    return GLItem
 
 
 

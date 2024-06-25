@@ -6,6 +6,7 @@ from pyqtgraph.opengl.items.GLScatterPlotItem import GLScatterPlotItem
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.Qt.QtGui import QColor
 from pyqtgraph import functions as fn
+from PIL import Image
 
 import numpy as np
 
@@ -62,7 +63,7 @@ class GLNetworkItem(GLGraphicsItem):
     Useful for drawing networks, trees, etc.
     """
 
-    def __init__(self, draw_axes=False, msg='', **kwds):
+    def __init__(self, draw_axes=False, render_dimensions=(2160,1440), filename=None, msg='', **kw):
         GLGraphicsItem.__init__(self)
 
         self.edges = None
@@ -71,10 +72,14 @@ class GLNetworkItem(GLGraphicsItem):
 
         self.nodeLabels=None
         self.draw_axes = draw_axes
-        self.setData(**kwds)
+        self.setData(**kw)
         self.msg=msg
+        self.render_dimensions=render_dimensions
+        self.filename = 'edge_view' if filename is None else filename
 
-    def setData(self, **kwds):
+        self.view()
+
+    def setData(self, **kw):
         """
         Change the data displayed by the graph. 
 
@@ -112,13 +117,13 @@ class GLNetworkItem(GLGraphicsItem):
             When dtype of edges dtype is not unisnged or integer dtype
         """
 
-        if 'edges' in kwds:
-            self.edges = kwds.pop('edges')
+        if 'edges' in kw:
+            self.edges = kw.pop('edges')
             if self.edges.dtype.kind not in 'iu':
                 raise TypeError("edges array must have int or unsigned dtype.")
 
-        if 'edgeColor' in kwds:
-            edgeColor = kwds.pop('edgeColor')
+        if 'edgeColor' in kw:
+            edgeColor = kw.pop('edgeColor')
             if edgeColor is not None:
                 if type(edgeColor) != np.ndarray or len(edgeColor.shape)==1 or 1 in edgeColor.shape:
                     self.edgeColor = edgeColor
@@ -128,20 +133,20 @@ class GLNetworkItem(GLGraphicsItem):
             else:
                 self.edgeColor = None
 
-        if 'edgeWidth' in kwds:
-            self.edgeWidth = kwds.pop('edgeWidth')
-        if 'nodePositions' in kwds:
-            kwds['pos'] = kwds.pop('nodePositions')
-        if 'nodeColor' in kwds:
-            kwds['color'] = kwds.pop('nodeColor')
-        if 'nodeSize' in kwds:
-            kwds['size'] = kwds.pop('nodeSize')
-        if 'nodeLabels' in kwds:
-            self.nodeLabels = kwds.pop('nodeLabels')
-        if 'msg' in kwds:
-            self.msg=kwds['msg']
+        if 'edgeWidth' in kw:
+            self.edgeWidth = kw.pop('edgeWidth')
+        if 'nodePositions' in kw:
+            kw['pos'] = kw.pop('nodePositions')
+        if 'nodeColor' in kw:
+            kw['color'] = kw.pop('nodeColor')
+        if 'nodeSize' in kw:
+            kw['size'] = kw.pop('nodeSize')
+        if 'nodeLabels' in kw:
+            self.nodeLabels = kw.pop('nodeLabels')
+        if 'msg' in kw:
+            self.msg=kw['msg']
 
-        self.pos=kwds['pos']
+        self.pos=kw['pos']
 
 
 
@@ -152,6 +157,18 @@ class GLNetworkItem(GLGraphicsItem):
         
         glEnable( GL_BLEND );
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        # self.fbo = glGenFramebuffers(1)
+        # self.rbo = glGenRenderbuffers(1)
+        # # self.tbo = glGenRenderbuffers(1)
+        # 
+
+        # glBindRenderbuffer(GL_RENDERBUFFER, self.rbo )
+        # glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, *self.render_dimensions)
+        # glBindFramebuffer(GL_FRAMEBUFFER, self.fbo )
+        # glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, self.rbo)
+
+
         glutInit()
         glutInitDisplayMode(GLUT_MULTISAMPLE);
 
@@ -239,3 +256,46 @@ class GLNetworkItem(GLGraphicsItem):
         finally:
             glDisableClientState(GL_VERTEX_ARRAY)
         return None
+
+    def save_png(self,offset=(0,0)):
+        size = self.view().rect().size()
+        dimensions = (size.width(), size.height())
+
+
+        # glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self.fbo )
+        # glViewport(0,0,*self.render_dimensions)
+        # glMatrixMode(GL_PROJECTION)
+        # glLoadIdentity()
+
+        self.update()
+
+        
+        # self.update()
+
+        # glViewport(0,0,*self.render_dimensions)
+        # glMatrixMode(GL_PROJECTION)
+        # glLoadIdentity()
+        
+        # glFinish()
+
+        # glBindFramebuffer(GL_READ_FRAMEBUFFER, self.fbo )
+        # glReadBuffer(GL_COLOR_ATTACHMENT0)
+
+        import time
+
+        # time.sleep(1)
+        print(offset)
+        data = glReadPixels( *offset, *self.render_dimensions, GL_RGBA, GL_UNSIGNED_BYTE)
+
+       
+        im = Image.frombuffer("RGBA",self.render_dimensions, data, "raw", "RGBA", 0, 0)
+
+
+        
+
+        im.save(self.filename+".png")
+
+        # glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)#RETURN TO ONSCREEN RENDERING.
+
+        # glDeleteFramebuffers(1, self.fbo )
+        # glDeleteRenderbuffers(1, self.rbo )

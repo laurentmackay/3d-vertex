@@ -109,28 +109,47 @@ if __name__ == '__main__':
         L0 = np.zeros(lens.shape)+1.0
 
         # plt.ion()
-
+        import matplotlib as mpl
+        from matplotlib.transforms import ScaledTranslation
         # fig, axs = plt.subplots(1,3)
-        # fig.set_size_inches(9.5, 3.25)
-        # # plt.get_current_fig_manager().canvas.set_window_title('Middle')
+
+        # axs=[ax for ax in axs.values()]
+
+        # plt.get_current_fig_manager().canvas.set_window_title('Middle')
         # axs=axs.ravel()
 
-        # import matplotlib as mpl
-        # axs[0].set_ylabel(r'$\tau\dfrac{\dot{L}}{L}$', rotation = 0, fontsize=12)
+        
+        mpl.rcParams["text.latex.preamble"]=r'\usepackage{amsmath}'
+        mpl.rcParams["text.usetex"]=True
+        mpl.rcParams['mathtext.fontset'] = 'cm'
+        tick_style={'usetex':True,'fontsize':18}
+        label_style={'usetex':True,'fontsize':20};
+        # title_style={'usetex':True,'fontsize':16};
+        legend_style={'fontsize':12, 'loc':'upper left'};
+        
         # crumpler = lens-1
         # crumpler[lens-1>-ec]=0
         # extender = lens-1
         # extender[lens-1<ec]=0
         # sym = lens-1
         # sym[np.logical_and(lens-1>-ec,lens-1<ec)]=0
-        # for dLdt, ax, lbls, title in zip((crumpler, extender, sym), axs,
+
+        # for dLdt, lbls, title in zip((crumpler, extender, sym),
         #                              [((-ec,r'$-\varepsilon_{c}$'),),
         #                               ((ec,r'$\varepsilon_{c}$'),),
         #                               ((-ec,r'$-\varepsilon_{c}$'),(ec,r'$\varepsilon_{c}$'), )],
-        #                                ('Asymmetric VE: Contraction','Asymmetric VE: Extension', 'Symmetric VE')):
+        #                                ('asymm_contraction','asymm_extension', 'symmetric')):
+        #         fig=plt.figure()
+        #         ax=fig.gca()
+        #         if dLdt is crumpler:
+        #                ylabel_style=label_style
+        #         else:
+        #                ylabel_style={**label_style ,**{'alpha':0}}
+
+        #         ax.set_ylabel(r'$\tau \dfrac{\dot{L}}{L}$', rotation = 0, verticalalignment='center', labelpad=16, **label_style)
+        #         fig.set_size_inches(14.0*0.8/3.0, 3)
         #         # dLdt = lens-1
         #         # dLdt[lens-1>-ec]=0
-        #         plt.sca(ax)
         #         plt.axhline(y=1.0, color='k', linestyle='-', linewidth=0.5)
         #         plt.axvline(x=0, color='k', linestyle='-', linewidth=0.5)     
 
@@ -155,71 +174,76 @@ if __name__ == '__main__':
         #                 else:
         #                         xlabels[np.argwhere(xticks==x)[0,0]]=lbl
         #         ax.set_xticks(xticks)
-        #         ax.set_xticklabels(xlabels)
+        #         ax.set_xticklabels(xlabels, **tick_style)
         #         ax.set_yticks((-1,0,1))
-        #         ax.set_xlabel('Strain')
-        #         ax.set_title(title)
-        #         plt.legend(fontsize=8, loc='upper left')
-        # plt.tight_layout()
-        # # plt.show(block=True)
-        # plt.savefig('SLS_elements_scheme.pdf')
-        # plt.savefig('SLS_elements_scheme.png',dpi=200)
+        #         ax.set_yticklabels(("-1","0","1"), **tick_style)
+        #         ax.set_xlabel(r'$\varepsilon$', **label_style)
+        #         # ax.set_title(title, **title_style)
+        #         fig.set_layout_engine('constrained')
+        #         plt.legend(**legend_style)
+        #         plt.savefig(f'SLS_elements_scheme_{title}.pdf')
+        #         # plt.savefig(f'SLS_elements_scheme_{title}.png',dpi=200)
+        #         # plt.show()
+
         
-        # plt.show()
-        # fig, axs = plt.subplots(1,3)
-        # fig.set_size_inches(9.5, 3.25)
-        # # plt.get_current_fig_manager().canvas.set_window_title('Middle')
-        # axs=axs.ravel()
+        # plt.show(block=True)
 
-        # import matplotlib as mpl
-        # axs[0].set_ylabel('Equilibrium Length \n (non-dim)')
-        # for l_rest, ax, lbls, title in zip((crumpler, extender, sym), axs,
-        #                              [((-ec,r'$-\varepsilon_{c}$'),(-phi0,r'-$\phi_0$')),
-        #                               ((ec,r'$\varepsilon_{c}$'),(phi0,r'$\phi_0$')),
-        #                               ((-ec,r'$-\varepsilon_{c}$'),(ec,r'$\varepsilon_{c}$'), (-phi0,r'-$\phi_0$'), (phi0,r'$\phi_0$') )],
-        #                                ('Asymmetric VE: Contraction','Asymmetric VE: Extension', 'Symmetric VE')):
-        #         f_crumple = -(l_rest(lens,L0)-lens)
-        #         plt.sca(ax)
-        #         plt.axhline(y=1.0, color='k', linestyle='-', linewidth=0.5)
-        #         plt.axvline(x=0, color='k', linestyle='-', linewidth=0.5)     
+        
+        
+        fig, axs = plt.subplots(1,3)
+        fig.set_size_inches(9.5, 3.25)
+        # plt.get_current_fig_manager().canvas.set_window_title('Middle')
+        axs=axs.ravel()
 
-        #         plt.plot(lens-1, lens, color='k', linestyle='--', linewidth=1, label='Hookean Spring')
-        #         plt.plot(f_crumple, lens, linewidth=2, label='Nonlinear Spring')
+        import matplotlib as mpl
+        axs[0].set_ylabel('Equilibrium Length \n (non-dim)')
+        for l_rest, ax, lbls, title in zip((crumpler, extender, sym), axs,
+                                     [((-ec,r'$-\varepsilon_{c}$'),(-phi0,r'-$\phi_0$')),
+                                      ((ec,r'$\varepsilon_{c}$'),(phi0,r'$\phi_0$')),
+                                      ((-ec,r'$-\varepsilon_{c}$'),(ec,r'$\varepsilon_{c}$'), (-phi0,r'-$\phi_0$'), (phi0,r'$\phi_0$') )],
+                                       ('Asymmetric VE: Contraction','Asymmetric VE: Extension', 'Symmetric VE')):
+                f_crumple = -(l_rest(lens,L0)-lens)
+                plt.sca(ax)
+                plt.axhline(y=1.0, color='k', linestyle='-', linewidth=0.5)
+                plt.axvline(x=0, color='k', linestyle='-', linewidth=0.5)     
 
-        #         plt.xlim((-1,1))
-        #         plt.ylim((0,2))
+                plt.plot(lens-1, lens, color='k', linestyle='--', linewidth=1, label='Hookean Spring')
+                plt.plot(f_crumple, lens, linewidth=2, label='Nonlinear Spring')
 
-        #         plt.draw()
-        #         xticks=[-1.0, 0,  1.0]
-        #         xlabels = [str(x) for x in xticks]
-        #         print(xlabels[0])
-        #         for lbl in lbls:
-        #                 x=lbl[0]
-        #                 lbl=lbl[1]
-        #                 if x==-ec or x==ec:
-        #                         plt.axvline(x=x, color='k', linestyle=':', linewidth=0.2)
-        #                 if not np.any(xticks==x):
-        #                        xticks.append(x)
-        #                        xlabels.append(lbl)
-        #                 else:
-        #                         xlabels[np.argwhere(xticks==x)[0,0]]=lbl
-        #         ax.set_xticks(xticks)
-        #         ax.set_xticklabels(xlabels)
-        #         ax.set_xlabel('Applied Force \n (non-dim)')
-        #         ax.set_title(title)
-        #         plt.legend(fontsize=8, loc='upper left')
-        # plt.tight_layout()
-        # # plt.show(block=True)
-        # plt.savefig('VE_elements_scheme.pdf')
-        # plt.savefig('VE_elements_scheme.png',dpi=200)
+                plt.xlim((-1,1))
+                plt.ylim((0,2))
+
+                plt.draw()
+                xticks=[-1.0, 0,  1.0]
+                xlabels = [str(x) for x in xticks]
+                print(xlabels[0])
+                for lbl in lbls:
+                        x=lbl[0]
+                        lbl=lbl[1]
+                        if x==-ec or x==ec:
+                                plt.axvline(x=x, color='k', linestyle=':', linewidth=0.2)
+                        if not np.any(xticks==x):
+                               xticks.append(x)
+                               xlabels.append(lbl)
+                        else:
+                                xlabels[np.argwhere(xticks==x)[0,0]]=lbl
+                ax.set_xticks(xticks)
+                ax.set_xticklabels(xlabels)
+                ax.set_xlabel('Applied Force \n (non-dim)')
+                ax.set_title(title)
+                plt.legend(fontsize=8, loc='upper left')
+        plt.tight_layout()
+        # plt.show(block=True)
+        plt.savefig('VE_elements_scheme.pdf')
+        plt.savefig('VE_elements_scheme.png',dpi=200)
 
         depth_func = final_depth
 
         refresh=False
         
-        kws_contract= kws_SLS_baseline_thresh_con
-        kws_extend= kws_SLS_baseline_thresh_ext
-        kws_sym= kws_SLS_baseline_thresh
+        kws_contract = kws_SLS_baseline_thresh_con
+        kws_extend = kws_SLS_baseline_thresh_ext
+        kws_sym = kws_SLS_baseline_thresh
 
         phi0s=phi0_SLS
 
@@ -249,7 +273,7 @@ if __name__ == '__main__':
         axs=axs.ravel()
         # for i in range(mid.shape[-1]):
                 # plt.sca(axs[i])
-        plt.get_current_fig_manager().canvas.setWindowTitle('Depth (Basal)')
+        plt.get_current_fig_manager().set_window_title('Depth (Basal)')
         import matplotlib as mpl
         cmap = mpl.colors.Colormap('viridis')
         depths= (depth_baseline, depth_extend, depth_sym)
@@ -283,8 +307,8 @@ if __name__ == '__main__':
         plt.plot(1-phi0s, depth_sym[:,slice]-depth_baseline[0,0], color='m',linewidth=2, label='Symmetric')
         # plt.plot(phi0s, depth_sym_edge[:,slice]-depth_baseline_edge[0,0], color='m',linewidth=2, linestyle=':', label='Symmetric')
         plt.legend(loc='upper left')
-        plt.ylabel('$\Delta\;depth\;(\mu $m)')
-        plt.xlabel('$\delta$')
+        plt.ylabel('$\Delta\;depth\;(\mu $m)',**label_style)
+        plt.xlabel('$1-\phi_0$',**label_style)
         plt.tight_layout()   
         # plt.savefig('asymmetric_vs_symmetric_depth_change.pdf')
         plt.savefig('asymmetric_vs_symmetric_depth_change.png', dpi=200)

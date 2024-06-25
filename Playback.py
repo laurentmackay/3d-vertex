@@ -44,14 +44,8 @@ def final_network_annotated(d):
 
 def network_strain(G):
 
-    # G,_= shortest_edge_network_and_time(d)
-    # G=last_dict_value(d)
-    # centers = G.graph['centers']
-    # edges = [(a,b) for a,b in G.edges if (a not in centers ) and (b not in centers) and G[a][b]['myosin']==0 ]
-    # edges=G.edges
     for e in G.edges:
         a,b=e
-       
         G[a][b]['strain'] = euclidean_distance(G.nodes[a]['pos'],G.nodes[b]['pos'])/G[a][b]['l_rest']-1
 
     return G
@@ -101,10 +95,12 @@ forces=np.linspace(0,600,80)
 # pickle_player(path='./data/Step5/run', pattern=f'no_remodel_L0_T1=3.4_pit_strength=157.89473684210526_1.0.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
 
 
-# pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec=0.0_no_pit_T1s_SLS_1.0.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
+pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec=0.0_no_pit_T1s_SLS_1.0.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None,
+              render_dimensions=(4192,3440), distance=60, elevation=6, azimuth=0,
+              filename='no_remodel_L0_T1=3.4_no_scale_pit_ec=0.0_no_pit_T1s_SLS_1.0.pickle')
 
 
-pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec=*_no_pit_T1s_SLS_fastvol_0.2.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None, pre_process=last_dict_value)
+# pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec=*_no_pit_T1s_SLS_fastvol_0.2.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None, pre_process=last_dict_value)
 
 import networkx as nx
 def splice_save_dicts(d1, d2, join=nx.disjoint_union, join_kws={}):
@@ -152,6 +148,7 @@ d3 = load_pickle(path='./data/Step2_bis/run', file=f'no_remodel_L0_T1=3.4_no_sca
 
 
 G, G_apical = tissue_3d( hex=7,  basal=True)
+
 
 
 belt = get_outer_belt(G_apical)

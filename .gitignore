@@ -16,3 +16,4 @@
 *.pyc
 *.svg
 *.prof
+*.cache*

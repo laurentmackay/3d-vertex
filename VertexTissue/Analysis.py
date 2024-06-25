@@ -10,7 +10,8 @@ import networkx as nx
 
 
 from .Filesystem import   get_creationtime, get_filenames, get_oldestfile
-from .Caching import  signature_string
+from .Caching import  signature_string, function_savedir, cached
+from .Dict import hash384
 
 def analyze_network_evolution(path='.', start_time=0, pattern=None, func=lambda G, t: G, pool=None, processes=None, indices=None):
     try:
@@ -67,7 +68,23 @@ def analyze_networks(patterns, **kw):
     return results 
 
 
+def check_function_cache(func, load=True, kw={}, pre_hash=''):
+    cache = os.path.join('.cache', function_savedir(func))
+    result = cached(func, load=load, filename=hash384(kw, pre_hash=pre_hash), cache_dir='.cache')
+    if kw or pre_hash:
+        cache = os.path.join(cache, )
+    cache_dir = os.path.dirname(cache)
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
 
+    if os.path.exists(cache) and load:
+        with open(cache, 'rb') as file:
+            results = pickle.load(file)
+
+    else:
+        results = None
+
+    return results, cache
 
 
 def parameter_sweep(params, simulations, savepaths=None, overwrite=False, pool=None, pre_process=None, inpaint=None, cache=None):

@@ -32,7 +32,7 @@ except:
     viewable=False
     base_path = '/scratch/st-jjfeng-1/lmackay/data/SAC_127/'
 
-from VertexTissue.util import last_dict_value
+from VertexTissue.Dict import last_dict_value
 from VertexTissue.Geometry import euclidean_distance
 
 

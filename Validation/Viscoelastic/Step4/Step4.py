@@ -20,7 +20,7 @@ from VertexTissue.funcs_orig import clinton_timestepper, convex_hull_volume_bis,
 import VertexTissue.globals as const
 from VertexTissue.globals import inter_edges_middle, inter_edges_middle_bis, inter_edges_outer, inter_edges_outer_bis, inner_arc, outer_arc, pit_strength, myo_beta, l_apical, press_alpha
 from VertexTissue.Dict import dict_product, dict_product_nd_shape, last_dict_value
-from VertexTissue.Memoization import  function_call_savepath
+#from VertexTissue.Memoization import  function_call_savepath
 from VertexTissue.util import arc_to_edges, edge_index, find_first, get_myosin_free_cell_edges, inside_arc
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.visco_funcs import crumple, edge_crumpler, extension_remodeller, shrink_edges

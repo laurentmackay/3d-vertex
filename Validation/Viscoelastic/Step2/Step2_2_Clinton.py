@@ -285,7 +285,7 @@ if __name__ == '__main__':
         lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
 
         # plt.tight_layout() 
-        fig.legend(lines, labels,   loc='outside center right', bbox_to_anchor=(1.02, 0.5),
+        fig.legend(lines, labels,   loc='center right', bbox_to_anchor=(1.008, 0.5),
            bbox_transform = plt.gcf().transFigure)
           
         # plt.savefig('invagination_depth_vs_intercalations.pdf')
@@ -348,7 +348,7 @@ if __name__ == '__main__':
         
         # for i in range(mid.shape[-1]):
                 # plt.sca(axs[i])
-        plt.get_current_fig_manager().canvas.setWindowTitle('Depth (Basal)')
+        plt.get_current_fig_manager().set_window_title('Depth (Basal)')
 
         # plt.sca(axs[0])
         # N=len(intercalations) 

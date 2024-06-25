@@ -2,6 +2,7 @@ LICENSE
 README.md
 setup.py
 VertexTissue/Analysis.py
+VertexTissue/Caching.py
 VertexTissue/Dict.py
 VertexTissue/Energy.py
 VertexTissue/Events.py
@@ -9,7 +10,6 @@ VertexTissue/Filesystem.py
 VertexTissue/GLNetworkItem.py
 VertexTissue/Geometry.py
 VertexTissue/Iterable.py
-VertexTissue/Memoization.py
 VertexTissue/Multiprocessing.py
 VertexTissue/Player.py
 VertexTissue/PyQtViz.py

@@ -1,41 +1,23 @@
 # 3d-vertex
 
 ## About
-This repository contains code that can be used in a 3D Vertex Model simulation of tissue mechanics.  
-
-For plotting results, please refer to [vertex-plotting](https://github.com/clintondurney/vertex-plotting). 
-
-Functionality is provided as is and written for my own applications.  Little knowledge of Python would be needed to adapt the code to your own use case.  If you are having trouble adapting it, please contact me for help.
-
-## Author:
-* [Clinton H. Durney](https://clintondurney.github.io/) (clinton.durney@jic.ac.uk)
+This repository contains code that can be used in a 3D Vertex Model simulation of tissue mechanics. It is heavily based on code developed by:
+* [Clinton H. Durney](https://clintondurney.github.io/)
 
 ## To use:
+
+__Dependencies__
+
+Plotting the tissue geometry generally uses OpenGL and requires the freeglut package. On debian-based linux distributions, this can be installed using:
+```
+sudo apt install freeglut
+```
+
 __Installation__
-Use [Conda](https://docs.conda.io/en/latest/) to create the environment from the .yaml file:
+Clone this repo locally and run :
 ```
-conda env create -f vertex.yaml python=3.7
+pip install .
 ```
-
-__Running__
-1. Activate the conda environment
-```
-conda activate vertex
-```
-2. Run main.py 
-```
-python main.py
-```
-
-This will populate the directory with .pickle files that contain the attributes of the network state and .npy files that save the nodes of the cells circumference oriented counter clockwise. These files can be analyzed using a Jupyter Notebook or visualized using the repository referenced above.
-
-## Citation:
-If you find the code useful, please cite: 
-
-* [Durney et. al. (2021)](https://iopscience.iop.org/article/10.1088/1478-3975/abfa69/meta)
-
-
-
 
 
 

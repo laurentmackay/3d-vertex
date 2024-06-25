@@ -8,7 +8,7 @@ from Validation.Viscoelastic.Step1.Step1 import buckle_angle_finder
 from VertexTissue.Sweep import sweep
 from VertexTissue.Geometry import euclidean_distance, unit_vector
 from VertexTissue.Dict import  last_dict_key, last_dict_value, take_dicts
-from VertexTissue.Memoization import get_caller_locals
+from VertexTissue.Caching import get_caller_locals
 from VertexTissue.Tissue import tissue_3d, get_outer_belt
 
 from Step2_bis import  run, phi0s,  base_path, kws, kws_baseline, get_inter_edges, lumen_depth, width_timeline, final_width, final_depth, depth_timeline
@@ -61,8 +61,6 @@ if __name__ == '__main__':
 
 
 
-
-                        
 
 
                 return lumen_depth()
