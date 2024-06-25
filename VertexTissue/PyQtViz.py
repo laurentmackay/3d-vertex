@@ -13,7 +13,7 @@ import pyqtgraph as pg
 from pyqtgraph.opengl import GLViewWidget
 
 
-from .Multiprocessing import Process
+from ResearchTools.Multiprocessing import Process
 from .GLNetworkItem import GLNetworkItem
 
 

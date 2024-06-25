@@ -7,7 +7,7 @@ from VertexTissue.Stochastic import edge_reaction_selector, reaction_times
 
 
 
-from VertexTissue.Sweep import sweep
+from ResearchTools.Sweep import sweep
 
 
 
@@ -15,12 +15,12 @@ import VertexTissue.SG as SG
 
 
 from VertexTissue.Tissue import get_outer_belt, tissue_3d
-from VertexTissue.Geometry import euclidean_distance, unit_vector
+from ResearchTools.Geometry import euclidean_distance, unit_vector
 from VertexTissue.funcs_orig import clinton_timestepper, convex_hull_volume_bis, get_points
 import VertexTissue.globals as const
 from VertexTissue.globals import inter_edges_middle, inter_edges_middle_bis, inter_edges_outer, inter_edges_outer_bis, inner_arc, outer_arc, pit_strength, myo_beta, l_apical, press_alpha
-from VertexTissue.Dict import dict_product, dict_product_nd_shape, last_dict_value
-from VertexTissue.Caching import  cached, cache_file, keyword_vals
+from ResearchTools.Dict import dict_product, dict_product_nd_shape, last_dict_value
+from ResearchTools.Caching import  cached, cache_file, keyword_vals
 from VertexTissue.util import arc_to_edges, edge_index, find_first, get_myosin_free_cell_edges, inside_arc
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.visco_funcs import SLS_nonlin, crumple, fluid_element, edge_crumpler, extension_remodeller, shrink_edges

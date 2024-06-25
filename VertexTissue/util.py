@@ -11,11 +11,11 @@ import networkx as nx
 from collections.abc import Iterable
 
 import __main__
-from VertexTissue.Filesystem import get_filenames
+from ResearchTools.Filesystem import get_filenames
 
 
-from VertexTissue.Geometry import euclidean_distance, unit_vector
-from VertexTissue.Iterable import imin
+from ResearchTools.Geometry import euclidean_distance, unit_vector
+from ResearchTools.Iterable import imin
 
 
 

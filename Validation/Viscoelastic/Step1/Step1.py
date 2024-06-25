@@ -4,7 +4,7 @@ import numpy as np
 
 
 
-from VertexTissue.Sweep import sweep
+from ResearchTools.Sweep import sweep
 
 
 
@@ -12,10 +12,10 @@ import VertexTissue.SG as SG
 
 
 from VertexTissue.Tissue import get_outer_belt, tissue_3d
-from VertexTissue.Geometry import euclidean_distance, unit_vector
+from ResearchTools.Geometry import euclidean_distance, unit_vector
 from VertexTissue.globals import belt_strength, outer_arc, inner_arc, pit_strength
-from VertexTissue.Caching import cache_file
-from VertexTissue.Dict import dict_product, first_dict_value, last_dict_value
+from ResearchTools.Caching import cache_file
+from ResearchTools.Dict import dict_product, first_dict_value, last_dict_value
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.visco_funcs import crumple, extension_remodeller, shrink_edges
 

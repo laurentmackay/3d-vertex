@@ -25,6 +25,9 @@ dependency_links.append('git+https://github.com/uqfoundation/dill.git@master')
 install_requires.append('pathos')
 dependency_links.append('git+https://github.com/uqfoundation/pathos.git@master')
 
+install_requires.append('ResearchTools')
+dependency_links.append('git+https://github.com/laurentmackay/ResearchTools.git@master')
+
 setup(name='VertexTissue',
       version='1.0',
       packages=find_packages(),

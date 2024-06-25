@@ -3,7 +3,7 @@ from collections.abc import Iterable
 import numpy as np
 
 from VertexTissue.Tissue import get_outer_belt
-from .Events import TimeBasedEventExecutor
+from ResearchTools.Events import TimeBasedEventExecutor
 from .globals import inner_arc, outer_arc, belt_strength, pit_strength, t_1, t_2, t_belt, t_intercalate, inter_edges_middle, pit_centers, t_pit, intercalation_strength
 
 def arc_activator(G, arc, strength=belt_strength ):

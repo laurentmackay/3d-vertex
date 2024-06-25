@@ -3,7 +3,7 @@ import numpy as np
 
 
 from .util import new_graph
-from .Geometry import *
+from ResearchTools.Geometry import *
 from . import globals as const
 
 # l_apical = const.l_apical 

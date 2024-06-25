@@ -6,7 +6,7 @@ from numba import jit
 from VertexTissue.funcs_orig import convex_hull_volume_bis
 from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, cell_volumes, compute_SLS_forces, compute_distances_and_directions, compute_jitted, compute_myosin_forces, compute_rod_forces, compute_spring_forces, handle_pressure_3D_fast
 
-from .Geometry import euclidean_distance, unit_vector_and_dist, triangle_areas_and_vectors, triangle_area_vector
+from ResearchTools.Geometry import euclidean_distance, unit_vector_and_dist, triangle_areas_and_vectors, triangle_area_vector
 # from .Geometry  import convex_hull_volume as convex_hull_volume_bis
 from . import globals as const
 from .globals import press_alpha

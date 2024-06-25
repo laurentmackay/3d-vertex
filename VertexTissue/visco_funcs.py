@@ -2,7 +2,7 @@ import numpy as np
 from numba import jit
 
 from VertexTissue.globals import l_apical
-from VertexTissue.Geometry import euclidean_distance
+from ResearchTools.Geometry import euclidean_distance
 from VertexTissue.util import has_basal
 
 def edge_crumpler(G, phi0=1.0, ec=0.2):
