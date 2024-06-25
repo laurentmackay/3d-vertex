@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-from .Validation.Viscoelastic.Step1.Step1 import buckle_angle_finder
+from  VertexTissue.Validation.Viscoelastic.Step1.Step1 import buckle_angle_finder
 from VertexTissue.Energy import network_energy
 from VertexTissue.Stochastic import edge_reaction_selector, reaction_times
 
@@ -37,8 +37,8 @@ try:
     base_path = './data/'
 except:
     viewable=False
-    base_path = '/scratch/st-jjfeng-1/lmackay/data/'
-
+    base_path = './data/'
+viewable=False
 def extending_edge_length(G, edge = None):
         b=G.node[edge[0]]['pos']
         c=G.node[edge[1]]['pos']
@@ -591,10 +591,21 @@ naught_double_remodel = {'intercalations':intercalations, 'outer':True,'double':
 # kws = [*kws_middle, *kws_outer, *kws_double]
 kws = kws_double
 if __name__ == '__main__':
-    
-    def foo(*args):
-        pass
 
-#     sweep(np.flip(phi0_SLS), run, kw=kws_SLS_outer_all, savepath_prefix=base_path, overwrite=False, pre_process=foo)
-    run(0.1, ec=0.1, L0_T1=l_apical, remodel=False,   viewable=True, verbose=True, dt_min=5e-3,  scale_pit=False, no_pit_T1s=True, SLS=True, SLS_no_contract=True, fastvol=True)
+        def foo(*args):
+                pass
+
+        # sweep(np.flip(phi0_SLS), run, kw=kws_SLS_baseline_thresh, savepath_prefix=base_path, overwrite=False, pre_process=foo, dry_run=True, verbose=False, print_code=True)
+
+#     run(0.1, ec=0.1, L0_T1=l_apical, remodel=False,   viewable=True, verbose=True, dt_min=5e-3,  scale_pit=False, no_pit_T1s=True, SLS=True, SLS_no_contract=True, fastvol=True)
+#     viewable=False
+        from pathos.multiprocessing import ProcessPool
+        pool = ProcessPool(nodes=3)
+        pool.map(lambda args_and_kws: run(*args_and_kws[0], **args_and_kws[1]),(
+        ((0.1,),{'intercalations': 0, 'L0_T1': 3.4, 'remodel': False, 'scale_pit': False, 'no_pit_T1s': True, 'SLS': True, 'ec': 0.07222222222222223, 'fastvol': True}),
+        ((0.1,),{'intercalations': 0, 'L0_T1': 3.4, 'remodel': False, 'scale_pit': False, 'no_pit_T1s': True, 'SLS': True, 'ec': 0.16111111111111112, 'fastvol': True}),
+        ((0.1,),{'intercalations': 0, 'L0_T1': 3.4, 'remodel': False, 'scale_pit': False, 'no_pit_T1s': True, 'SLS': True, 'ec': 0.25, 'fastvol': True}),
+        ))
+        
+        # print(list(r))
 
