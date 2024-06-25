@@ -12,3 +12,4 @@
 /data/*
 /.cache/*
 */__pycache__/*
+*.cache*
