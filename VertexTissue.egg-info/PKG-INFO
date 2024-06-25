@@ -2,3 +2,12 @@ Metadata-Version: 2.1
 Name: VertexTissue
 Version: 1.0
 License-File: LICENSE
+Requires-Dist: networkx
+Requires-Dist: numpy>1.10
+Requires-Dist: scipy
+Requires-Dist: numba>=0.54
+Requires-Dist: pyqtgraph
+Requires-Dist: pyopengl
+Requires-Dist: matplotlib
+Requires-Dist: psutil
+Requires-Dist: ResearchTools@ git+ssh://git@github.com/laurentmackay/ResearchTools.git@master

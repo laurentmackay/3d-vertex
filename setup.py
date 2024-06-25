@@ -19,11 +19,11 @@ dependency_links =[]
 #       dependency_links.append('git+https://github.com/enthought/mayavi.git@master')
 
 #if IS_WINDOWS:
-install_requires.append('dill')
-dependency_links.append('git+https://github.com/uqfoundation/dill.git@master')
+#install_requires.append('dill')
+#dependency_links.append('git+https://github.com/uqfoundation/dill.git@master')
 
-install_requires.append('pathos')
-dependency_links.append('git+https://github.com/uqfoundation/pathos.git@master')
+#install_requires.append('pathos')
+#dependency_links.append('git+https://github.com/uqfoundation/pathos.git@master')
 
 install_requires.append('ResearchTools')
 dependency_links.append('git+https://github.com/laurentmackay/ResearchTools.git@master')
