@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-from VertexTissue.Validation.Viscoelastic.Step1.Step1 import buckle_angle_finder
+from .Validation.Viscoelastic.Step1.Step1 import buckle_angle_finder
 from VertexTissue.Energy import network_energy
 from VertexTissue.Stochastic import edge_reaction_selector, reaction_times
 
