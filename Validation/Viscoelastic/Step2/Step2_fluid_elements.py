@@ -5,9 +5,9 @@ from scipy.spatial import ConvexHull
 
 
 
-from VertexTissue.Sweep import sweep
+from ResearchTools.Sweep import sweep
 
-from VertexTissue.Dict import  dict_product, last_dict_key, last_dict_value, take_dicts, dict_mask
+from ResearchTools.Dict import  dict_product, last_dict_key, last_dict_value, take_dicts, dict_mask
 
 from Step2_bis import angle_timeseries, depth_timeline, extension_timeseries, final_arc_ratio, final_cone_slope, final_depth, final_inter_arc_distance, final_width, inter_arc_distance_timeline, intercalations, run, phi0s, phi0_SLS,  base_path, kws_baseline,   final_angle, L0_T1s, final_inter_arc_depth, final_lumen_depth
 from Step2_bis import naught_middle_remodel, naught_outer_remodel, naught_double_remodel, extension_timeline
@@ -15,7 +15,7 @@ from Step2_bis import naught_middle_remodel, naught_outer_remodel, naught_double
 from Step2_bis import kws_strong_pit_middle, kws_strong_pit_double, kws_strong_pit_outer, kws_strong_pit_baseline, kws_middle, kws_double, kws_outer, kws_middle_basal, kws_middle_basal_hi, kws_middle_fine, kws_middle_no_scale, kws_baseline_no_scale, kws_outer_no_scale, kws_middle_smolpit, kws_outer_smolpit, kws_baseline_smolpit
 from Step2_bis import clinton_baseline, clinton_double, clinton_outer, clinton_middle, kws_baseline_thresh, kws_baseline_thresh_extend, kws_baseline_thresh_sym, ecs, kws_baseline_thresh_no_scale, kws_baseline_thresh_no_scale_extend, kws_baseline_thresh_no_scale_sym
 from Step2_bis import kws_baseline_thresh_no_scale_no_T1, kws_baseline_thresh_no_scale_no_T1_extend, kws_baseline_thresh_no_scale_no_T1_sym, kws_baseline_thresh_no_scale_no_T1_edge, kws_baseline_thresh_no_scale_no_T1_extend_edge, kws_baseline_thresh_no_scale_no_T1_sym_edge, kws_SLS_baseline_thresh,  kws_SLS_baseline_thresh_ext,  kws_SLS_baseline_thresh_con
-from VertexTissue.util import pcolor
+from VertexTissue.Plotting import pcolor
 from VertexTissue.visco_funcs import fluid_element
 fontsize=14
 

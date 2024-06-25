@@ -4,8 +4,8 @@ from VertexTissue.TissueForces import compute_network_indices
 from VertexTissue.util import get_node_attribute_array, get_edge_attribute_array, get_edges_array, get_points, has_basal
 from VertexTissue.TissueForcesJitted import compute_distances
 from VertexTissue.funcs_orig import convex_hull_volume_bis
-from .Geometry  import convex_hull_volume 
-from VertexTissue.Geometry import triangle_areas_and_vectors
+from ResearchTools.Geometry  import convex_hull_volume, triangle_areas_and_vectors
+
 
 import VertexTissue.globals as const
 

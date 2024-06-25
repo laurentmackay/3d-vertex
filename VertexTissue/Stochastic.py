@@ -1,5 +1,5 @@
 import numpy as np
-from VertexTissue.Geometry import unit_vector
+from ResearchTools.Geometry import unit_vector
 
 from VertexTissue.util import get_myosin_free_cell_edges
 

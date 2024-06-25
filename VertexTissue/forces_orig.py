@@ -2,7 +2,7 @@ import networkx as nx
 import numpy as np
 import itertools
 from scipy.spatial import distance
-from VertexTissue.Geometry import euclidean_distance
+from ResearchTools.Geometry import euclidean_distance
 
 
 

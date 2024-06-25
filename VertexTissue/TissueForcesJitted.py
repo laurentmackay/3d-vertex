@@ -1,6 +1,6 @@
 import numpy as np
 import VertexTissue.globals as const
-from VertexTissue.Geometry import euclidean_distance, triangle_area_vector, triangle_areas_and_vectors, unit_vector_and_dist
+from ResearchTools.Geometry import euclidean_distance, triangle_area_vector, triangle_areas_and_vectors, unit_vector_and_dist
 import numba
 from numba import jit
 

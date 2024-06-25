@@ -20,9 +20,9 @@ from VertexTissue.util import finder
 
 
 from .PyQtViz import edge_viewer
-from .Multiprocessing import Process
-from .Iterable import first_item
-from .Filesystem import get_creationtime, get_filenames
+from ResearchTools.Multiprocessing import Process
+from ResearchTools.Iterable import first_item
+from ResearchTools.Filesystem import get_creationtime, get_filenames
 from .globals import save_pattern
 
 # class ClickSlider(QSlider):

@@ -16,7 +16,7 @@ from VertexTissue.forces_orig import compute_forces_orig
 from .Tissue import get_triangles, get_outer_belt, new_topology
 from . TissueForces import TissueForces, pressure
 from . import globals as const
-from .Geometry import *
+from ResearchTools.Geometry import *
 from .util import get_edges_array, set_dict_values_from_edge_attrs, set_edge_attributes, get_edge_attribute_array, set_node_attributes, get_node_attribute_array, get_node_attribute_dict
 try:
     from VertexTissue.Player import pickle_player
