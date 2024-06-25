@@ -9,17 +9,14 @@
 # Last Edit: 11/8/19
 ##########
 
+from math import isclose
 import networkx as nx
 from scipy.spatial import distance
 from scipy.spatial import ConvexHull
 from scipy.spatial import Delaunay
 import numpy as np
-import globals as const
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-import pdb
-import sys
+import  VertexTissue.globals as const
+from VertexTissue.util import edge_index, get_edges_array
 
 ###############
 def tissue_3d():
@@ -379,7 +376,7 @@ def d_pos(position,force,dt):
     return [x_new,y_new,z_new]
 ###############
 
-def elastic_force(l,l0,muu):
+def elastic_force(l,l0, muu):
     # Calculate the magnitude of the force obeying Hooke's Law
 
     frce = muu*(l-l0) 
@@ -426,7 +423,7 @@ def convex_hull_volume(pts):
 
     return np.sum(tetrahedron_volume(tets[:, 0], tets[:, 1], tets[:, 2], tets[:, 3]))
 
-def convex_hull_volume_bis(pts):
+def convex_hull_volume_bis(pts) -> float:
 
     ch = ConvexHull(pts)
     simplices = np.column_stack((np.repeat(ch.vertices[0], ch.nsimplex), ch.simplices))
@@ -455,9 +452,9 @@ def get_points(G, q, pos):
     #           q: number of center node (apical only)
     #           pos: position of nodes 
     # returns:  pts: list of positions that are associated with that center 
-
+    basal_offset = G.graph['basal_offset']
     api_nodes = [q] + list(G.neighbors(q))
-    basal_nodes = [q+1000] + list(G.neighbors(q+1000)) 
+    basal_nodes = [q+basal_offset] + list(G.neighbors(q+basal_offset)) 
 #    basal_nodes = [api_nodes[n] + 1000 for n in range(1,7)]
     pts = api_nodes + basal_nodes
     pts = [pos[n] for n in pts]
@@ -620,3 +617,35 @@ def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_n
 
 
 
+
+
+def clinton_timestepper(G, inter_edges0):   
+
+    inter_edges = edge_index(G, inter_edges0)
+    edges = get_edges_array(G)
+    var_dt=True
+    uncontracted = [True for e in inter_edges]
+
+    def timestep_bound(forces, drxs, dists, edges, t):
+        nonlocal var_dt
+
+        if var_dt == True:
+            if any(uncontracted) == True:
+                # if any edges are still contracting, check for threshold length 
+                for uc, i in zip(uncontracted, inter_edges):
+                    if uc and dists[i]<0.2:
+                        return 0.1
+                        # break
+                return 0.5
+            else: 
+                if isclose(abs(1-((t-0.5) % 1 + 0.5)), 0, abs_tol=1e-5) == False and len(uncontracted):       
+                    return 0.1 
+                else:
+                    var_dt = False 
+                    return 0.5
+                    
+        else:
+            return 0.5
+
+
+    return timestep_bound, uncontracted

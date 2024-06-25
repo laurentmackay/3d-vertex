@@ -1,7 +1,7 @@
 import numpy as np
 
-from VertexTissue.funcs import unit_vector_2D
-from VertexTissue.vertex_3d import vertex_integrator
+from VertexTissue.Geometry import unit_vector_2D
+from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.Tissue import square_grid_2d
 
 forces = (1, 2.5, -1, -2.5)
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
 
         #create integrator
-        integrate = vertex_integrator(G, G, pre_callback=forcing, ndim=2, save_rate=1, maxwell=True)
+        integrate = monolayer_integrator(G, G, pre_callback=forcing, ndim=2, save_rate=1, maxwell=True)
         #integrate
         integrate(0.1, t_final, save_pattern='data/viscoelastic/'+f'force_{f}_*.pickle')
 

@@ -4,6 +4,7 @@ networkx
 numba>=0.54
 numpy>1.10
 pathos
+psutil
 pyopengl
 pyqtgraph
 scipy
