@@ -1,10 +1,9 @@
-dill
-matplotlib
 networkx
-numba>=0.54
 numpy>1.10
-pathos
-psutil
-pyopengl
-pyqtgraph
 scipy
+numba>=0.54
+pyqtgraph
+pyopengl
+matplotlib
+psutil
+ResearchTools@ git+ssh://git@github.com/laurentmackay/ResearchTools.git@master
