@@ -51,9 +51,9 @@ def get_inter_edges(intercalations=0, outer=False, double=False):
 
 
 def run(phi0, remodel=True, intercalations=0, outer=False, double=False, viewable=viewable,
-        pit_strength=300, clinton_timestepping=False, dt_min=5e-2, basal=False, scale_pit=True, ec=0.2,
+        pit_strength=300, dt_min=5e-2, basal=False, scale_pit=True, ec=0.2,
         extend=False, contract=True, T1=True, no_pit_T1s=False, SLS=False, SLS_no_extend=False, SLS_no_contract=False,
-        fastvol=False, t_final=4e4):
+        fastvol=True, t_final=4e4):
     
     if (contract==False and extend==False) or (SLS_no_contract and SLS_no_extend):
         return

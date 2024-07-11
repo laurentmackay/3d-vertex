@@ -79,7 +79,7 @@ Tissue geometries are evolved in time using a `VertexTissue.vertex_3d.monolayer_
 * `dt` a (maximum) timestep,
 * `t_final` a final integration time.
 
- Most keywords can be specified either during integrator construction or at the actual integration call.
+ Most integration keywords can be specified either during integrator construction or at the actual integration call. Exceptions to this rule are any keywords that control tissue mechanics, such as `ndim`, `minimal`, `SLS`, `maxwell`, `maxwell_nonlin`, and `fastvol`.
 
 __Adaptive timestepping__ may decrease the timestep in order to simultaneously satisfy three tolerance criteria:
 * `length_rel_tol` a tolerance for the change in length relative to the current length,
@@ -108,7 +108,7 @@ By default all cell-edges are treated as elastic rods, this can be modified by u
 * The viscoelastic relaxation timescale of each edge is then controlled by the `tau` parameter of each edge (default value is set at launch by the `VertextTissue.globals.tau` parameter). 
 * If `SLS` is non-`False` its value should be between `0.0` and `1.0` to specify the stiffness of the element's Maxwell branch (as a complement, the Hookean branch has stiffness `1.0-SLS`).
 * For both types of viscoelastic elements, non-linear rest-length adaptation can be specified by passing a function to the `maxwell_nonlin` keyword. 
-	* This function should return the quantity $`\tau \frac{{\rm d}L}{{\rm d}t}`$ for all the rest-lengths `L` in the graph as a single `numpy.array`.
+	* This function should return the quantity $`\tau \frac{{\rm d}L}{{\rm d}t}`$ for all the rest-lengths $`L`$ in the graph as a single `numpy.array`.
 
 ### Visualization
 
