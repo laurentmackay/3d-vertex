@@ -55,12 +55,73 @@ kc=const.kc
 def monolayer_integrator(G, G_apical=None,
                      pre_callback=None, post_callback=None, intercalation_callback=None, termination_callback=None,
                      ndim=3, player=False, viewer=False,  save_pattern = const.save_pattern, save_rate=1.0, view_rate=0.0,
-                     adaptive=False, adaptation_rate=0.1, length_rel_tol=0.01, angle_tol=0.01, length_abs_tol=5e-2, 
+                     adaptive=False, adaptation_rate=0.1, length_rel_tol=0.01, angle_tol=0.01, length_abs_tol=0.05, 
                      maxwell=False, SLS=False,
                      minimal=False, blacklist=False, append_to_blacklist=True,
                      maxwell_nonlin=None, rest_length_func=None, RK=1, AB=1,
                      v0=const.v_0, constant_pressure_intercalations=False, T1=True,
                      fastvol=False):
+    '''
+    Integrator which evolves the geometry of a cell-vertex representation of monolayer tissue based on forces acting on it.
+
+    Tissue are represented as `networkx` graphs where each vertex has a `pos` and `myosin` attribute. Vertex positions are updated
+    according to contractile forces stemming from myosin activity, elastic/viscoelastic forces from edges, pressure forces from 
+    compression/extension of cells, and surface-bending forces.
+
+    Args:
+        G: `networkx` graph. Use `Tissue.tissue_3d` to generate appropriate graphs.
+        G_apical: The corresponding graph of the apical surface of the tissue.
+        pre_callback: a callback function that is called before force computation, it is passed two arguments the current time and a `dict()` of 
+                            the forces acting on each vertex. Default is `None`.
+        post_callback: a callback function that is called after force computation, same call signaute as `pre_callback`. Default is `None`.
+        intercalation_callback: a callback that is called after each intercalation event, it is passed the two vertices that underwent the 
+                                    the intercalation and a dict of local variables. Default is `None`.
+        termination_callback: a callback that is called at each iteration to determine if the simulation should be terminated. 
+                                This callback is passed the current time and returns a `bool`. Default is `None`.
+        ndim: Integer specifying the number of dimensions the simulation runs in, either `2` or `3`.
+                In 2D simulations, any z-component of position is frozen. Default is 3.
+        player: If `True`, a `pickle_player` is spawned to visualize the entire simulation history in real-time.
+        viewer: If `True`, a `edge_viewer` is spawned to visualize the current geometry in real-time. Default is `False`.
+        save_pattern: String specifying the path for saving snapshots of the graph as the simulation runs. If it contains a
+                         \* symbol then each snapshot is saved as an individual pickle file with the \*  replaced by the
+                           current time, otherwise a single dict() containing all snapshots is saved to the path.
+        save_rate: Non-negative number which governs the approximate rate at which snapshots are taken. Default is `1.0`.
+        view_rate: Update rate used if `viewer=True`. Default is `1.0`.
+        adaptive: Boolean which controls if adaptive timestepping is used, controlled by tolerances described below. Default is `False`.
+        adaptation_rate: Rate at which the timestep iteratively relaxes back to its maximum value (between `0.0` and `1.0`). Default is `1.0`.
+        length_rel_tol: Tolerance for the change in edge length relative to the current length during a single timestep. Default is `0.01`.
+        angle_tol: Tolerance for the change in edge angles during a single timestep (180 degrees is normalized to 1). Default is `0.01`.
+        length_abs_tol: Tolerance for the change in absolute edge length during a single timestep. Default is `0.05`.
+        maxwell: Boolean which controls whether edges are modelled as Maxwell elements. Default is `False`.
+        SLS: Controls whether edges are modelled as Standard Linear Solid elements. If non-`False` its value should be between
+                 `0.0` and `1.0` to specify the stiffness of the element's Maxwell branch. Thee Hookean branch of the element has stiffness `1.0-SLS`
+                 Default is `False`.
+        minimal: Boolean specifying whether to use "minimal" forces, which only computes the forces coming from edges.
+        blacklist: `List`|`False` containing edges that should not undergo intercalations even if their length falls below the threshold
+                    set in `globals.l_intercalation`. Default is `False`.
+        append_to_blacklist: Boolean controlling whether edges that undergo intercalations are subsequently added to the `blacklist`.  Default is `True`.
+        maxwell_nonlin: Callable that specifies tha rest-length adapation of Maxwell elements (used if `maxwell` or `SLS` is non-`False`).
+                        This function takes three `numpy.array` parameters: `ell` the current edge lengths, `L` the current rest-length,
+                         and `L0` a reference rest-length. The function returns a `numpy.array` of rest-length derivatives multiplied
+                         the relaxation timescale `tau` for each edge. Default is `None`.
+        rest_length_func: Alternative to a proper viscoelastic formulation (possibly deprecated).
+        RK: Order of the Runge-Kutta integration scheme to use (integer in range 1-4). Default is 1 (euler).
+        AB: Order of the Adams-Bashforth integration scheme to use (integer in range 1-4). Default is 1 (euler).
+        v0: Reference volume for cells. Scalar or array of same length as `G.graph['centers']`. Default is `globals.v0`.
+        constant_pressure_intercalations: Experimental method for suppressing pressure jumps during intercalations by adapating
+                                         `v0` for cells that undergo topological changes. Default is `False`.
+        T1: Boolean that controls whether to check for intercalations. Default is `True`.
+        fastvol: Boolean that controls the method to use for computing cell-volume. If `True`, a novel exact formula is used based on
+                    decomposition of cells into tetrahedra. If `False`, the convex hull algorithm from `scipy` (i.e., quickhull) is used,
+                    which becomes inacurrate if cells ever adopt a non-convex shape. Default is `False`.
+
+
+    Returns:
+        integrate: Function that can be used for time-integration of the network geometry.
+
+
+
+    '''
 
     if G_apical==None:
         G_apical=G
@@ -203,6 +264,18 @@ def monolayer_integrator(G, G_apical=None,
                 save_pattern = save_pattern, save_rate=save_rate, view_rate=view_rate, resume=False, save_on_interrupt=False,
                 orig_forces=False, check_forces=False, v0=v0, T1=T1,
                 **kw):
+        
+        '''
+        Integrate the monolayer tissue geometry.
+
+        Args:
+            dt: maximum timestep, if `adaptive` is `True` timestep may be reduced to a lower bound `dt_min` in order to satisify error tolerances.
+            t_final: final integration time
+            dt_init: size of the timestep to used at the first iteration. Defaults to `dt`.
+            dt_min: Lower bound for the adaptive timestepping protocol. Defaults to `0`.
+            t: Initial integration time. Default is `0`.
+
+        '''
                 
         nonlocal G, G_apical, centers,  force_dict, drx, dists, view, pos, edges, nonlin_kw
 

@@ -163,7 +163,7 @@ def run(phi0, remodel=True, intercalations=0, outer=False, double=False, viewabl
 
               
           
-#     viewable=False
+    viewable=False
     integrate = monolayer_integrator(G, G_apical,
                                     blacklist=blacklist, append_to_blacklist=True, RK=4,
                                     intercalation_callback=contract_maxwell_branch if SLS else None,
