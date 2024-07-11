@@ -112,7 +112,7 @@ def run(phi0, remodel=True, period=50, L0_T1=0.0, verbose=False, belt=True, inte
 
     arcs = (inner_arc, outer_arc) if not discont else (inner_arc_discont, outer_arc_discont)
 
-    squeeze = SG.arc_pit_and_intercalation(G, belt, t_1=t_start, arcs=arcs, inter_edges= [], t_intercalate=t_start, pit_strength=sigma)
+    squeeze = SG.arcs_pit_and_intercalation(G, belt, t_1=t_start, arcs=arcs, inter_edges= [], t_intercalate=t_start, pit_strength=sigma)
     squeeze = SG.just_pit(G)
 
     CreatePeriodicEvent(arc_activator(G, (inner_arc, outer_arc)), period, Executor=squeeze, t=t_start)

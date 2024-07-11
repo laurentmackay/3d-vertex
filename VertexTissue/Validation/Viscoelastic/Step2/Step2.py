@@ -69,7 +69,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
     sigma = (alpha*ec*l_apical*(-1+phi0)+(ec-phi0)*pit_strength*myo_beta)/((-1+ec)*myo_beta)
     # sigma=pit_strength
     t_start = 1 
-    squeeze = SG.arc_pit_and_intercalation(G, belt, t_1=t_start,
+    squeeze = SG.arcs_pit_and_intercalation(G, belt, t_1=t_start,
                                          inter_edges=inter_edges, t_intercalate=t_start, pit_strength=sigma)
 
 

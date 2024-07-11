@@ -109,7 +109,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
     arcs = (inner_arc, outer_arc) if not discont else (inner_arc_discont, outer_arc_discont)
 
-    squeeze = SG.arc_pit_and_intercalation(G, belt, t_1=t_start, arcs=arcs, inter_edges= [], t_intercalate=t_start, pit_strength=sigma)
+    squeeze = SG.arcs_pit_and_intercalation(G, belt, t_1=t_start, arcs=arcs, inter_edges= [], t_intercalate=t_start, pit_strength=sigma)
 
     # if stochastic:
     if outer:

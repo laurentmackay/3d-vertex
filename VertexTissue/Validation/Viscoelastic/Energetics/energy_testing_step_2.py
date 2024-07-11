@@ -79,7 +79,7 @@ def run(force, visco=False,  phi0=1.0, level=0, arcs=2, cable=True, continuous_p
     elif arcs==3:
         arc_list=(outer_arc, inner_arc, belt)
 
-    squeeze = SG.arc_pit_and_intercalation(G, arc_list, t_belt=3500, inter_edges=inter_edges,  t_intercalate=375, t_1=375, intercalation_strength=force,
+    squeeze = SG.arcs_pit_and_intercalation(G, arc_list, t_belt=3500, inter_edges=inter_edges,  t_intercalate=375, t_1=375, intercalation_strength=force,
                                         arc_strength = belt_strength if cable else 0.0, pit_strength=pit_strength)
 
 

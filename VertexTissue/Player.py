@@ -12,8 +12,8 @@ import pickle
 import numpy as np
 
 import pyqtgraph as pg
-from pyqtgraph.Qt.QtWidgets import  QLabel, QSlider, QStyleOptionSlider, QPushButton, QApplication,  QStyle,  QDockWidget, QWidget, QHBoxLayout, QVBoxLayout
-from pyqtgraph.Qt.QtCore import Qt, QTimer
+from pyqtgraph.Qt.QtWidgets import  QLabel, QSlider, QStyleOptionSlider, QPushButton, QApplication,  QStyle,  QDockWidget, QWidget, QHBoxLayout, QVBoxLayout, QMainWindow
+from pyqtgraph.Qt.QtCore import Qt, QTimer, QCoreApplication
 
 from VertexTissue.util import finder
 
@@ -22,6 +22,7 @@ from VertexTissue.util import finder
 from .PyQtViz import edge_viewer
 from ResearchTools.Multiprocessing import Process
 from ResearchTools.Iterable import first_item
+from ResearchTools.Dict import last_dict_key
 from ResearchTools.Filesystem import get_creationtime, get_filenames
 from .globals import save_pattern
 
@@ -68,7 +69,8 @@ class ClickSlider(QSlider):
 
 
 
-def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_time=None, speedup=5.0, refresh_rate=60.0, parallel=False, save_dict=None, pre_process=None, check_timestamp=True, **kw):
+def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_time=None, speedup=5.0, refresh_rate=60.0,
+                   parallel=False, save_dict=None, pre_process=None, check_timestamp=True,  save_and_quit=False, **kw):
 
     if file_list is None:
 
@@ -174,6 +176,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
         nonlocal positionSlider, positionLabel, playButton, window
 
         window = win
+
         positionSlider = ClickSlider(Qt.Horizontal)
         playButton = QPushButton()
         playButton.setCheckable(True)
@@ -396,10 +399,13 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
 
             if start_time is None:
                 start_time = first_item(save_dict)
-                prev_disp_time = start_time
-                next_disp_time = start_time
-                curr_time = start_time
-                time_bounds = [start_time, float('-inf')]
+            elif start_time==-1:
+                start_time = last_dict_key(save_dict)
+
+            prev_disp_time = start_time
+            next_disp_time = start_time
+            curr_time = start_time
+            time_bounds = [start_time, float('-inf')]
 
             keys = np.array(list(save_dict.keys()))
             start_ind = np.argmin(np.abs(keys-start_time))
@@ -409,7 +415,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
 
         if pre_process is not None:
             G=pre_process(G)
-        view = edge_viewer(G, window_callback=setup_player, refresh_rate=refresh_rate, parallel=False, **kw)
+        view = edge_viewer(G, window_callback=setup_player, refresh_rate=refresh_rate, parallel=False, save_and_quit=save_and_quit, **kw)
 
 
 
@@ -419,6 +425,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
 
 
         def exit():
+            print("player exit func hase been called")
             for f in futures:
                 f.cancel()
             executor.shutdown(wait=False)
@@ -438,8 +445,10 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
 
         tmr.setInterval(int(500/refresh_rate))
         tmr.start()
-
+        
         pg.exec()
+        
+            
 
     if parallel:
         proc=Process(start, daemon=True)

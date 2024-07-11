@@ -83,7 +83,7 @@ def run(force,  phi0=1.0, level=0, arcs=2, visco=True, cable=True, verbose=False
     # if clinton_timestepping:
     clinton_timestep, uncontracted = clinton_timestepper(G, inter_edges)
         
-    squeeze = SG.arc_pit_and_intercalation(G, arc_list, t_belt=0 if pit_strength==0 else 375, inter_edges=inter_edges,  t_intercalate=0 if pit_strength==0 else 375, intercalation_strength=force,
+    squeeze = SG.arcs_pit_and_intercalation(G, arc_list, t_belt=0 if pit_strength==0 else 375, inter_edges=inter_edges,  t_intercalate=0 if pit_strength==0 else 375, intercalation_strength=force,
                                         arc_strength = belt_strength if cable else 0.0, pit_strength=pit_strength)
 
 

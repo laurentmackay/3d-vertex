@@ -1,12 +1,14 @@
+'''Events/EventListeners for the Drosophila Salivary Gland (SG) model. To be used with the `ResearchTools.Events` module.'''
+
 from collections.abc import Iterable
 
 import numpy as np
 
-from VertexTissue.Tissue import get_outer_belt
 from ResearchTools.Events import TimeBasedEventExecutor
-from .globals import inner_arc, outer_arc, belt_strength, pit_strength, t_1, t_2, t_belt, t_intercalate, inter_edges_middle, pit_centers, t_pit, intercalation_strength
+from VertexTissue.globals import inner_arc, outer_arc, belt_strength, pit_strength, t_1, t_2, t_belt, t_intercalate, inter_edges_middle, pit_centers, t_pit, intercalation_strength
 
 def arc_activator(G, arc, strength=belt_strength ):
+    '''Returns myosin activation function which for the whole `arc` of edges in the network `G`.'''
     def activate_arc(arc):
         if len(arc)<2:
             return
@@ -30,6 +32,11 @@ def arc_activator(G, arc, strength=belt_strength ):
     return f
 
 def pit_activator(G, centers, strength=pit_strength, edge_ratio=0):
+    '''Returns a spoke myosin activation function which acts on cells with centers `centers` in the network `G`,
+    this function takes a single argument which is a 2-tuple specifying the edge to activate.
+    
+    If `edge_ratio` is non-zero, then edges have myosin strength given by `strength*edge_ratio`.
+    '''
     zippable=isinstance(strength,Iterable) and len(strength)==len(centers)
 
     def f(*args):
@@ -66,11 +73,12 @@ def pit_activator(G, centers, strength=pit_strength, edge_ratio=0):
     
     if zippable:
         return fzip
-
-    return f
+    else:
+        return f
 
 def edge_activator(G, strength=intercalation_strength, basal=False):
-
+    '''Returns a base myosin activation function which acts on the network `G`,
+    this function takes a single argument which is a 2-tuple specifying the edge to activate.'''
     if basal:
         basal_offset=G.graph['basal_offset']
 
@@ -87,7 +95,7 @@ def edge_activator(G, strength=intercalation_strength, basal=False):
     return activate
 
 def intercalation_activator(G, edges, strength=intercalation_strength, basal=False):
-
+    '''Returns an event function for the activation of intercalation events for all `edges` in the network `G`.'''
     activate = edge_activator(G, strength=strength, basal=basal)
 
     if edges and np.isscalar(edges[0]):
@@ -101,14 +109,16 @@ def intercalation_activator(G, edges, strength=intercalation_strength, basal=Fal
     return f
 
 def arcs_and_pit(G,arcs=(inner_arc,outer_arc), t_arcs=t_1, t_pit=t_pit, arc_strength=belt_strength):
+    '''Returns a `ResearchTools.TimeBasedEventExecutor` loaded with event functions for arc and pit contraction.'''
     events = [*[(t_arcs, arc_activator(G, arc, strength=arc_strength),f'Arc #{i+1} established') for i, arc in enumerate(arcs)],
             (t_pit,  pit_activator(G, pit_centers),"Pit activated")
             ]
 
     return TimeBasedEventExecutor(events)
 
-def arc_pit_and_intercalation (G, belt, arcs=(inner_arc,outer_arc), inter_edges=inter_edges_middle, basal_intercalation=False, intercalation_strength=1000, arc_strength=belt_strength, belt_strength=belt_strength, pit_strength=pit_strength, t_belt=t_belt, t_intercalate=t_intercalate,t_1=t_1, pit_centers=pit_centers, edge_ratio=0):
-
+def arcs_pit_and_intercalation (G, belt, arcs=(inner_arc,outer_arc), inter_edges=inter_edges_middle, basal_intercalation=False, intercalation_strength=1000, arc_strength=belt_strength, belt_strength=belt_strength, pit_strength=pit_strength, t_belt=t_belt, t_intercalate=t_intercalate,t_1=t_1, pit_centers=pit_centers, edge_ratio=0):
+    '''Returns a `ResearchTools.TimeBasedEventExecutor` loaded with event functions for arc and pit contraction as well as any intercalations.'''
+    
     events = [*[(t_1, arc_activator(G, arc, strength=arc_strength),f'Arc #{i+1} established') for i,arc in enumerate(arcs)],
             (t_intercalate,    intercalation_activator(G, inter_edges, basal=basal_intercalation, strength=intercalation_strength),"Intercalations triggered"),
             (t_belt, arc_activator(G, belt, strength=belt_strength),"Belt established"),
@@ -197,23 +207,6 @@ def arcs_with_intercalation(G, belt, basal=False):
 
     return f
 
-
-# def just_intercalation(G, belt, basal=False):
-#     inter=False
-    
-#     def f(t, force_dict):
-#         nonlocal inter
-
-#         if t >= t_intercalate and not inter:
-#             inter=True
-#             for e in inter_edges:
-#                 G[e[0]][e[1]]['myosin'] =  3*belt_strength
-#                 if basal:
-#                     G[e[0]+basal_offset][e[1]+basal_offset]['myosin'] =  3*belt_strength
-
-
-
-#     return f
 
 
 def convergent_extension_test(G):

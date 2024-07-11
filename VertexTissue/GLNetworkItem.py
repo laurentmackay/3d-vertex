@@ -5,6 +5,8 @@ from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
 from pyqtgraph.opengl.items.GLScatterPlotItem import GLScatterPlotItem
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.Qt.QtGui import QColor
+from pyqtgraph.Qt.QtCore import QSize
+
 from pyqtgraph import functions as fn
 from PIL import Image
 
@@ -63,7 +65,7 @@ class GLNetworkItem(GLGraphicsItem):
     Useful for drawing networks, trees, etc.
     """
 
-    def __init__(self, draw_axes=False, render_dimensions=(2160,1440), filename=None, msg='', **kw):
+    def __init__(self, draw_axes=False, render_dimensions=(2160,1440), scale_factor=1.0, filename=None, msg='', **kw):
         GLGraphicsItem.__init__(self)
 
         self.edges = None
@@ -76,6 +78,8 @@ class GLNetworkItem(GLGraphicsItem):
         self.msg=msg
         self.render_dimensions=render_dimensions
         self.filename = 'edge_view' if filename is None else filename
+        self.scale_factor=scale_factor
+        self.rendering=False
 
         self.view()
 
@@ -181,7 +185,16 @@ class GLNetworkItem(GLGraphicsItem):
         verts = self.pos
         edges = self.edges
         lbls = self.nodeLabels
-        
+
+        if self.rendering:
+            pm=self.view().projectionMatrix()
+
+
+            mat = np.array([[pm.row(i).x(), pm.row(i).y(), pm.row(i).z(), pm.row(i).w()] for i in range(4)]).T
+            mat[0:2,0:2]=mat[0:2,0:2]*self.scale_factor
+            glMatrixMode(GL_PROJECTION)
+            glLoadMatrixf(mat)   
+
         try:
             if self.draw_axes:
                 glColor4f(0.5,0.5,0.5,1.0)
@@ -258,42 +271,40 @@ class GLNetworkItem(GLGraphicsItem):
         return None
 
     def save_png(self,offset=(0,0)):
-        size = self.view().rect().size()
-        dimensions = (size.width(), size.height())
+        view=self.view()
+        # size = self.view().rect().size()
+
+        
+        orig_size=view.rect().size()
+        view.resize(QSize(*self.render_dimensions))
+        
 
 
+     
         # glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self.fbo )
         # glViewport(0,0,*self.render_dimensions)
         # glMatrixMode(GL_PROJECTION)
         # glLoadIdentity()
 
-        self.update()
+        self.rendering = True
 
-        
         # self.update()
+        bgcolor = fn.mkColor('w').getRgbF()
+        glClearColor(*bgcolor)
+        glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT )
+        self.paint()
 
-        # glViewport(0,0,*self.render_dimensions)
-        # glMatrixMode(GL_PROJECTION)
-        # glLoadIdentity()
-        
-        # glFinish()
-
-        # glBindFramebuffer(GL_READ_FRAMEBUFFER, self.fbo )
-        # glReadBuffer(GL_COLOR_ATTACHMENT0)
-
-        import time
-
-        # time.sleep(1)
-        print(offset)
         data = glReadPixels( *offset, *self.render_dimensions, GL_RGBA, GL_UNSIGNED_BYTE)
 
        
         im = Image.frombuffer("RGBA",self.render_dimensions, data, "raw", "RGBA", 0, 0)
 
 
-        
+        self.rendering = False
 
         im.save(self.filename+".png")
+
+        view.resize(orig_size)
 
         # glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)#RETURN TO ONSCREEN RENDERING.
 

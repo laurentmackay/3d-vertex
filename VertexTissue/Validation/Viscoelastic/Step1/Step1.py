@@ -154,12 +154,12 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, inner_only=False, pit_before=
         arcs=(outer_arc, inner_arc)
 
     t_start = 375.0 if pit_before else 0.0
-    squeeze0 = SG.arc_pit_and_intercalation(G, belt, arcs=arcs,
+    squeeze0 = SG.arcs_pit_and_intercalation(G, belt, arcs=arcs,
                                          arc_strength=belt_strength if cable else 0.0, belt_strength=belt_strength if len(belt)>0 else 0, t_1=t_start,
                                          inter_edges=inter_edges, t_intercalate=t_start,  intercalation_strength=750,
                                           pit_strength=pit_strength if pit_before else 0)
 
-    squeeze1 = SG.arc_pit_and_intercalation(G, belt, arcs=arcs,
+    squeeze1 = SG.arcs_pit_and_intercalation(G, belt, arcs=arcs,
                                          arc_strength=belt_strength if cable else 0.0, belt_strength=belt_strength if len(belt)>0 else 0, t_1=0,
                                           inter_edges=inter_edges, t_intercalate=0,  intercalation_strength=0,
                                           pit_strength=pit_strength if pit_after else 0)

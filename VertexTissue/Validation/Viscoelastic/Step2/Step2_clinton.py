@@ -217,7 +217,7 @@ def run(phi0, remodel=True, press_alpha=const.press_alpha, L0_T1=0.0, verbose=Fa
 
 
 
-    squeeze = SG.arc_pit_and_intercalation(G, belt, t_1=t_start, inter_edges=inter_edges, t_intercalate=t_start, pit_strength=sigma)
+    squeeze = SG.arcs_pit_and_intercalation(G, belt, t_1=t_start, inter_edges=inter_edges, t_intercalate=t_start, pit_strength=sigma)
 
     
     kw={'rest_length_func': crumple(phi0=phi0)}

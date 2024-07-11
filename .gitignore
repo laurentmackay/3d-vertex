@@ -16,3 +16,4 @@
 *.svg
 *.prof
 *.cache*
+/README.md.backup

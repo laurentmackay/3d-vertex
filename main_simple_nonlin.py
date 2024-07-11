@@ -104,7 +104,7 @@ def main(dt):
         #initialize some things for the callback
         basal=False
         # invagination = SG.arcs_with_intercalation(G,belt, basal=basal)
-        invagination = SG.arc_pit_and_intercalation(G, belt, basal_intercalation=basal, intercalation_strength=1500 if visco else 1000)
+        invagination = SG.arcs_pit_and_intercalation(G, belt, basal_intercalation=basal, intercalation_strength=1500 if visco else 1000)
         # invagination = SG.just_intercalation(G,belt)
 
 

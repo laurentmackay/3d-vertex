@@ -133,7 +133,6 @@ def join_graphs(G1, G2, displacement=None):
 
 
 def belt_z(G, belt):
-
         return np.mean([ G.node[n]['pos'][-1] for n in belt])
 
 def load_pickle(path=os.getcwd(), file=''):

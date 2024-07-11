@@ -6,9 +6,9 @@ import time
 import networkx as nx
 import numpy as np
 
-from pyqtgraph.Qt.QtWidgets import QMainWindow, QDockWidget, QWidget, QHBoxLayout, QVBoxLayout, QCheckBox, QFormLayout, QLineEdit, QLabel, QPushButton
-from pyqtgraph.Qt.QtGui import QDoubleValidator, QQuaternion, QVector3D
-from pyqtgraph.Qt.QtCore import QSize, Qt, QTimer, QCoreApplication
+from pyqtgraph.Qt.QtWidgets import QMainWindow, QDockWidget, QWidget, QHBoxLayout, QVBoxLayout, QCheckBox, QFormLayout, QLineEdit, QLabel, QPushButton, QApplication
+from pyqtgraph.Qt.QtGui import QDoubleValidator, QQuaternion, QVector3D, QImage
+from pyqtgraph.Qt.QtCore import QSize, Qt, QTimer
 import pyqtgraph as pg
 from pyqtgraph.opengl import GLViewWidget
 
@@ -148,14 +148,9 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
             save_button.setText('save png')
 
             def save_png():
-                gl_size=GLItem.view().rect().size()
-                GLItem.view().resize(QSize(*GLItem.render_dimensions))
-                
-                print(GLItem.view().cameraParams())
+                GLItem.save_png()
 
-                GLItem.save_png(offset=(0,0))
-                GLItem.view().resize(gl_size)
-            
+
             save_button.clicked.connect(save_png)
 
             col_layout.addWidget(save_button)
@@ -288,7 +283,7 @@ class myGraphicsView(pg.GraphicsView):
 
 def edge_view(G, GLItem=None, size=(640,480), cell_edges_only=True, apical=True, basal=False, exec=False, attr=None, label_nodes=True, colormap='CET-D8', vmin=None, vmax=None,
                edgeWidth=1.25, edgeWidthMultiplier=3, spokeAlpha=.15, edgeColor=0.0, title="Edge View", window_callback=None,
-                distance=None, elevation=None, azimuth=None, Qrotation=None, center=None, **kw):
+                distance=None, elevation=None, azimuth=None, Qrotation=None, center=None, insta_save=False, **kw):
 
     has_basal = 'basal_offset' in G.graph.keys()
     if has_basal:
@@ -410,6 +405,11 @@ def edge_view(G, GLItem=None, size=(640,480), cell_edges_only=True, apical=True,
 
         range   = np.nanmax(vals)
 
+        if vmax is None:
+            max_val=min_val+range
+        else:
+            max_val=vmax
+
     else:
         vals = np.zeros((edges.shape[0],))
         min_val=0.0
@@ -443,26 +443,34 @@ def edge_view(G, GLItem=None, size=(640,480), cell_edges_only=True, apical=True,
         gl_widget.addItem(GLItem)       
         GLItem.setParent(gl_widget)
         # if attr:
-        colorBar = pg.ColorBarItem(values=(min_val, min_val+range), width=15, colorMap=cmap, interactive=False)
+        colorBar = pg.ColorBarItem(values=(min_val, max_val), width=15, colorMap=cmap, interactive=False)
+
         # colorBar.setGradient(cmap.getGradient())
         # labels = {"wtv": v for v in np.linspace(0, 1, 4)}
         # colorBar.setLabels(labels)
-        gview = myGraphicsView(background='w')
-        gview.setMinimumSize(QSize(80,size[1]))
-        gview.setMaximumSize(QSize(80,10000))
-        layout.addWidget(gview)
-        gview.setCentralItem(colorBar)
-        # gview.get
-        # colorBar.setParentItem(gview)
-        # win.addItem(colorBar)
+        colorBarView = myGraphicsView(background='w')
+        colorBarView.setMinimumSize(QSize(80,size[1]))
+        colorBarView.setMaximumSize(QSize(80,10000))
+        layout.addWidget(colorBarView)
+        colorBarView.setCentralItem(colorBar)
+
+        # imageVar = QImage(colorBarView.size(), QImage.Format.Format_ARGB32)
+        # imageVar = colorBarView.grab(colorBarView.rect())
+        # imageVar.save('colorbar.png')
+
+
         GLItem.colorBar=colorBar
-        GLItem.gview = gview
+        GLItem.colorBarView = colorBarView
+        if insta_save:
+           GLItem.save_png()
+
+           
     else:
         GLItem.setData(**{ **data, **kw})
         if not np.isnan(min_val) and not np.isnan(range):
             if range==0.:
                 range=1.0
-            GLItem.colorBar.setLevels(values=(min_val, min_val+range))
+            GLItem.colorBar.setLevels(values=(min_val, max_val))
             # gi.colorBar.setColorMap(cmap)
 
     GLItem.parent().parent().parent().setWindowTitle(title)

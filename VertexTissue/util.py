@@ -11,9 +11,8 @@ import networkx as nx
 from collections.abc import Iterable
 
 import __main__
+
 from ResearchTools.Filesystem import get_filenames
-
-
 from ResearchTools.Geometry import euclidean_distance, unit_vector
 from ResearchTools.Iterable import imin
 
@@ -44,6 +43,9 @@ def get_points(G, q, pos):
     pts = [pos[n] for n in pts]
 
     return pts 
+
+def find(x):
+    return np.argwhere(x)[0]
 
 def find_first(x):
     return np.argwhere(x)[0,0]

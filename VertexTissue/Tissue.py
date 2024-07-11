@@ -2,9 +2,9 @@ import networkx as nx
 import numpy as np
 
 
-from .util import new_graph
+from VertexTissue.util import new_graph
 from ResearchTools.Geometry import *
-from . import globals as const
+from VertexTissue import globals as const
 
 # l_apical = const.l_apical 
 # l_depth = const.l_depth 
@@ -217,8 +217,10 @@ def hex_hex_grid(hex=7, r = const.l_apical ):
     centers=[origin, ]
 
     for index in range(1,int((num_cells - 1)/2.)+1):
-        centers.extend([[0, np.sqrt(3)*r*index,z], # # Step Up
-                [0, -np.sqrt(3)*r*index, z]]) # # Step down
+        centers.extend([
+            [0, np.sqrt(3)*r*index, z],  # # Step Up
+            [0, -np.sqrt(3)*r*index, z] # # Step down
+            ]) 
 
     for index in range(1,hex):  
         if (num_cells - index) % 2 == 0:
@@ -275,7 +277,9 @@ def T1_shell2( r = const.l_apical):
                      [-x, -2*y, 0],[-x, 2*y, 0],
                      ])      
 
-def tissue_3d( gen_centers=hex_hex_grid, node_generator=hex_nodes, basal=True, spoke_attr = const.default_edge, cell_edge_attr = const.default_edge, linker_attr = const.default_ab_linker, **kw):
+def tissue_3d( gen_centers=hex_hex_grid, node_generator=hex_nodes, basal=True, 
+              spoke_attr = const.default_edge, cell_edge_attr = const.default_edge, 
+              linker_attr = const.default_ab_linker, **kw):
 
     next_node=0
 
@@ -412,6 +416,22 @@ def get_outer_belt(G):
     
     return belt
 
+def sort_corners(corners, center_pos, pos_nodes):
+
+    corn_sort = [(corners[0],0)]
+    u = unit_vector_2D(center_pos, pos_nodes[corners[0]])
+
+    for i in range(1,len(corners)):
+        v = unit_vector_2D(center_pos, pos_nodes[corners[i]])
+        dot = np.dot(u,v)
+        det = np.linalg.det([u,v])
+        angle = np.arctan2(det,dot)
+        corn_sort.append((corners[i],angle))
+        corn_sort = sorted(corn_sort, key=lambda x: x[1])
+        corn2 = [pos_nodes[entry[0]] for entry in corn_sort]
+    
+    return corn2, corn_sort
+
 def get_triangles(G, pos, centers, belt):
     if belt is None:
         belt=get_outer_belt(G)
@@ -459,8 +479,8 @@ def get_circum_sorted(G, pos, centers):
 
 
 
-def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes, linker_attr=None, edge_attr=None, adjust_network_positions=False):
-    # obtain new network topology - i.e. triangles, and circum_sorted 
+def new_topology(K, inter, cents, temp1, temp2, ii, jj, belt, centers, num_api_nodes, adjust_network_positions=False):
+    # compute new network topology - i.e. triangles, and circum_sorted 
     # inputs:   K: networkx graph (apical nodes only)
     #           inter: a python list of the nodes that have been intercalated  
     #           cents:

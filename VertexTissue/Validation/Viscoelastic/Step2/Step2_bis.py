@@ -6,21 +6,21 @@ from VertexTissue.Energy import network_energy
 from VertexTissue.Stochastic import edge_reaction_selector, reaction_times
 
 
-
-from ResearchTools.Sweep import sweep
-
+from ResearchTools.Dict import dict_product, dict_product_nd_shape, last_dict_value
+from ResearchTools.Caching import  cached, cache_file, keyword_vals
+from ResearchTools.Geometry import euclidean_distance, unit_vector, distance_from_faceplane_along_direction
+from ResearchTools.Iterable import imin, imax
+from ResearchTools.Util import find
 
 
 import VertexTissue.SG as SG
 
 
 from VertexTissue.Tissue import get_outer_belt, tissue_3d
-from ResearchTools.Geometry import euclidean_distance, unit_vector
+
 from VertexTissue.funcs_orig import clinton_timestepper, convex_hull_volume_bis, get_points
 import VertexTissue.globals as const
 from VertexTissue.globals import inter_edges_middle, inter_edges_middle_bis, inter_edges_outer, inter_edges_outer_bis, inner_arc, outer_arc, pit_strength, myo_beta, l_apical, press_alpha
-from ResearchTools.Dict import dict_product, dict_product_nd_shape, last_dict_value
-from ResearchTools.Caching import  cached, cache_file, keyword_vals
 from VertexTissue.util import arc_to_edges, edge_index, find_first, get_myosin_free_cell_edges, inside_arc
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.visco_funcs import SLS_nonlin, crumple, fluid_element, edge_crumpler, extension_remodeller, shrink_edges
@@ -38,7 +38,7 @@ try:
 except:
     viewable=False
     base_path = './data/'
-viewable=False
+# viewable=False
 def extending_edge_length(G, edge = None):
         b=G.node[edge[0]]['pos']
         c=G.node[edge[1]]['pos']
@@ -50,8 +50,6 @@ belt = get_outer_belt(G_apical)
 half_belt = belt[:int(len(belt)/2+1)]
 
 def lumen_depth(G):
-
-
         z0 = np.mean([G.node[n]['pos'][-1]  for n in G.neighbors(0)])
 
         return np.mean([ G.node[n]['pos'][-1]-z0 for n in belt])
@@ -216,6 +214,139 @@ def final_corner_angle(d, **kw):
     kw['intercalations']=min(kw['intercalations'],6)
     return angle(last_dict_value(d), **kw)  
 
+def is_on_inner_arc(c):
+    return any([n in inner_arc for n in G_apical[c].keys()])
+
+def is_on_outer_arc(c):
+    return any([n in outer_arc for n in G_apical[c].keys()])
+
+def get_centers_between_arcs():
+    return np.array([c for c in G_apical.graph['centers'] if is_on_inner_arc(c) or is_on_outer_arc(c)])
+
+
+def get_radial_vertices(G,c, thresh=0.01):
+    origin = G.node[0]['pos']
+    dists=np.array([euclidean_distance(G.node[n]['pos'], origin) for n in G[c].keys()])
+    most_proximal_vertex=imax(dists)
+    proximal_vertices=find(dists[most_proximal_vertex]-dists<thresh)
+    most_distal_vertex=imin(dists)
+    distal_vertices=find(dists-dists[most_distal_vertex]<thresh)
+
+    return {'distal':distal_vertices, 'proximal': proximal_vertices}
+    
+
+def get_radial_length(G,c):
+    PD_vertices=get_radial_vertices(G,c)
+    origin = G.node[0]['pos']
+    PD_center_vector = unit_vector(G.node[c]['pos'], origin )
+
+    corners = list(G[c].keys())
+    def PD_unit_vec(p,d):
+        return unit_vector(G.nodes[corners[p]]['pos'],G.nodes[corners[d]]['pos'])
+
+    def PD_dist(p,d):
+        return euclidean_distance(G.nodes[corners[p]]['pos'],G.nodes[corners[d]]['pos'])
+    
+
+    
+    PD_unit_vecs=[[ PD_unit_vec(p,d) for d in PD_vertices['distal']] for p in PD_vertices['proximal']]
+
+    #for each proximal vertex, find the corresponding distal vertex whose rel. displacment is closest to being along the PD axis.
+    PD_pairs=np.argmax([[ np.dot(dir, PD_center_vector) for dir in rel_directions] for rel_directions in PD_unit_vecs], axis=1)
+    return np.max([PD_dist(p,d) for p,d in zip(PD_vertices['proximal'], PD_vertices['distal'][PD_pairs])])
+
+def get_directional_length(G,c, direction):
+    
+    corners = list(G[c].keys())
+    origin = G.node[0]['pos']
+    PD_center_vec = unit_vector(G.node[c]['pos'], origin )
+    up = np.array([0.0,0.0,1.0])
+    LR=np.cross(PD_center_vec,up)
+    LR=LR/np.linalg.norm(LR)
+
+    def unit_vec(i,j):
+        return unit_vector(G.nodes[i]['pos'],G.nodes[j]['pos'])
+    
+    def dist(i,j):
+        return euclidean_distance(G.nodes[i]['pos'],G.nodes[j]['pos'])
+    
+    inds = list(range(len(corners)))
+    pairings = []
+    for i in inds[:-1]:
+        pairings.append([])
+        ii = corners[i]
+        for j in inds:
+                jj=corners[j]
+                if j!=i and (j>i or ii not in pairings[j]):
+                        pairings[i].append(jj)
+
+    unit_vecs=[[ unit_vec(i,j) for j in js] for i, js in zip(corners[:-1], pairings)]
+    dists = [[ dist(i,j) for j in js] for i, js in zip(corners, pairings)]
+
+    if direction=='circumferential':
+        ref_dir=LR
+    elif direction=='radial':
+        ref_dir=PD_center_vec
+
+    dot_products = [[ np.abs(np.dot(dir, ref_dir)) for dir in rel_directions] for rel_directions in unit_vecs]
+    directional_partner = [js[np.argmax(np.array(dots)*np.array(d))] if np.max(dots)>0.5 else None for dots,d, js in zip(dot_products, dists, pairings) ]
+
+    if all([ p is None for p in directional_partner]):
+          print('wildass')
+          return np.nan
+
+#     return np.max([dist(i,j) for i,j in zip(corners, circumferential_partner) if j is not None])
+    return np.max([dist(i,j)*np.abs(np.dot(unit_vec(i,j),ref_dir)) for i,j in zip(corners, directional_partner) if j is not None])
+
+
+def get_faceplane_distances_along_direction(G,c, direction):
+    center_ind=find_first(G.graph['centers']==c)
+    circum_sorted=G.graph['circum_sorted'][center_ind]
+    face_inds = [*circum_sorted,circum_sorted[0]]
+    corners = list(G[c].keys())
+    origin = G.node[0]['pos']
+
+          
+    PD_center_vec = unit_vector(G.node[c]['pos'], origin )
+    up = np.array([0.0,0.0,1.0])
+    LR=np.cross(PD_center_vec,up)
+    LR=LR/np.linalg.norm(LR)
+
+    if direction=='circumferential':
+        ref_dir=LR
+    elif direction=='radial':
+        ref_dir=PD_center_vec
+
+    def prepare_args(i,j):
+          y=G.node[corners[i]]['pos']
+          x1=G.node[face_inds[j]]['pos']
+          x2=G.node[face_inds[j+1]]['pos']
+          return y, x1, x2
+
+    dists=[
+        [distance_from_faceplane_along_direction(*prepare_args(i,j), up, ref_dir) for j in range(len(face_inds)-1)] 
+        for i,n in enumerate(corners)]
+    
+    return np.nanmax(dists)
+
+      
+
+def average_elongation_ratio(G):
+    centers = get_centers_between_arcs()
+    ratios = [get_directional_length(G,c,'radial')/get_directional_length(G,c,'circumferential') for c in centers]
+    return np.nanmean(ratios)
+
+def average_apparent_elongation_ratio(G):
+    centers = get_centers_between_arcs()
+    ratios = [get_faceplane_distances_along_direction(G,c,'radial')/get_faceplane_distances_along_direction(G,c,'circumferential') for c in centers]
+    return np.nanmean(ratios)
+
+def final_elongation_ratio(d):
+      return average_elongation_ratio(last_dict_value(d))
+
+def final_apparent_elongation_ratio(d):
+      return average_apparent_elongation_ratio(last_dict_value(d))
+
 def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, intercalations=0, 
         outer=False, double=False, viewable=viewable, stochastic=False, press_alpha=press_alpha,
         pit_strength=300, clinton_timestepping=False, dt_min=5e-2, basal=False, scale_pit=True, mu_apical=const.mu_apical, ec=0.2,
@@ -300,7 +431,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
 
 
 
-    squeeze = SG.arc_pit_and_intercalation(G, belt, 
+    squeeze = SG.arcs_pit_and_intercalation(G, belt, 
                                            t_1=t_start, 
                                            inter_edges=inter_edges if not stochastic else [], 
                                            t_intercalate=t_start, 
