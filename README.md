@@ -105,7 +105,7 @@ If the `T1` keyword is set to `True`, then at each timestep we check all edge le
 ### Cell-Edge Mechanics
 
 By default all cell-edges are treated as elastic rods, this can be modified by using either the `maxwell` or `SLS` keywords to use either Maxwell or Standard Linear Solid elements instead (both are `False` by default).
-* The viscoelastic relaxation timescale of each edge is then controlled by the `tau` parameter of each edge (default value is set at launch by the `VertextTissue.globals.tau` parameter). 
+* The viscoelastic relaxation timescale of each edge is then controlled by the `tau` parameter of each edge (default value is set at launch by the `VertextTissue.globals.tau` parameter). The rest-legnth of any edge can frozen dynamically by setting `tau=inf`.
 * If `SLS` is non-`False` its value should be between `0.0` and `1.0` to specify the stiffness of the element's Maxwell branch (as a complement, the Hookean branch has stiffness `1.0-SLS`).
 * For both types of viscoelastic elements, non-linear rest-length adaptation can be specified by passing a function to the `maxwell_nonlin` keyword. 
 	* This function  must take three `numpy.array`parameters `ell`, `L`, `L0` which specify the current length of each edge, its current rest-legnth, and a reference rest-length, respectively.

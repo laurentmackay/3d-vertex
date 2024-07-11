@@ -485,6 +485,7 @@ def monolayer_integrator(G, G_apical=None,
                     set_dict_values_from_edge_attrs(G, 'SLS_extend', dtype=bool, d=nonlin_kw)
 
                 myosin = get_edge_attribute_array(G, 'myosin')
+                tau = get_edge_attribute_array(G, 'tau')
 
             if SLS is False:
                 l_rest = get_rest_lengths(dists, L0)
