@@ -1,7 +1,7 @@
 # 3d-vertex
 
 ## About
-This repository contains code that can be used in a 3D Vertex Model simulation of tissue mechanics (see an example [here](#pickle-player-demo)). It is heavily based on code developed by:
+This repository contains code that can be used in a 3D Vertex Model simulation of tissue mechanics (see an example [here](#pickle)). It is fork of the code developed by:
 * [Clinton H. Durney](https://clintondurney.github.io/)
 
 The python package `VertexTissue` extends and improves that code in the following ways:
@@ -121,10 +121,11 @@ If the `viewer` keyword of a `monolayer_itegrator` is not `False`, an `edge_view
 
 __Simulation Playback__
 
-A series of snapshot can be viewed as "movie" by using the `VertexTissue.Player.pickle_player` function. You may specify a filepath for pickle files with the `pattern` keyword, which uses the same syntax as the `monolayer_integrator` keyword `save_pattern` (i.e., individual pickle files for each graph or one large pickle file containing a `dict()` of graphs). Alternatively, you may directly pass a `dict()` returned as the result of `monolayer_integrator` by using the `save_dict` keyword.
+A series of snapshot can be viewed as "movie" by using the `VertexTissue.Player.pickle_player` function. You may specify a filepath for pickle files with the `pattern` keyword, which uses the same syntax as the `monolayer_integrator` keyword `save_pattern` (i.e., individual pickle files for each snapshot or one large pickle file containing a `dict()` of snapshots). Alternatively, you may directly pass a `dict()` returned as the result of `monolayer_integrator` by using the `save_dict` keyword.
 
 If the `player` keyword of a `monolayer_itegrator` is not `False`, a `pickle_player` will be spawned to visualize the snapshots as they are produced in real-time with the ability to "re-watch" the entire simulation history. 
-#####Pickle Player Demo
+
+# Pickle
 
 ![pickle_player preview][player_preview]
 
