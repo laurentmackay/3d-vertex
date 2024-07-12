@@ -18,7 +18,7 @@ from .GLNetworkItem import GLNetworkItem
 
 
 
-def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_callback=None, title=None,  **kw):
+def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_callback=None, title=None, show_camera_params=False,  **kw):
 
     def outer(*args,**kw):
         init_callback = kw['window_callback'] if 'window_callback' in kw.keys() and callable(kw['window_callback']) else lambda win: None
@@ -155,26 +155,27 @@ def edge_viewer(*args, refresh_rate=10, parallel=True, drop_frames=True, button_
 
             col_layout.addWidget(save_button)
 
-            dist = QLabel()
-            elev = QLabel()
-            az = QLabel()
-            cntr = QLabel()
+            if show_camera_params:
+                dist = QLabel()
+                elev = QLabel()
+                az = QLabel()
+                cntr = QLabel()
 
 
 
-            for l in (dist,elev, az, cntr):
-                col_layout.addWidget(l)
+                for l in (dist,elev, az, cntr):
+                    col_layout.addWidget(l)
 
-            def disp_cameraParams():
-                params = GLItem.view().cameraParams()
-                dist.setText(f"distance: {params['distance']}")
-                elev.setText(f"elevation: {params['elevation']}")
-                az.setText(f"azimuth: {params['azimuth']}")
-                cntr.setText(f"center: {params['center']}")
+                def disp_cameraParams():
+                    params = GLItem.view().cameraParams()
+                    dist.setText(f"distance: {params['distance']}")
+                    elev.setText(f"elevation: {params['elevation']}")
+                    az.setText(f"azimuth: {params['azimuth']}")
+                    cntr.setText(f"center: {params['center']}")
 
-                    
+                        
 
-            win.children()[1].children()[1].aboutToCompose.connect(disp_cameraParams)
+                win.children()[1].children()[1].aboutToCompose.connect(disp_cameraParams)
             
             col_widget.setLayout(col_layout)
             col_docker.setWidget(col_widget)

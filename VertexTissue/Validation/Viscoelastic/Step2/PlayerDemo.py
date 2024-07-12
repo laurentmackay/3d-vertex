@@ -55,41 +55,41 @@ def belt_z(G, belt):
 
 
 ec=0.09444444444444444   
-d0 = load_pickle(path='./data/Step2_bis/run', file=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_no_T1_1.0.pickle')
-d1 = load_pickle(path='./data/Step2_bis/run', file=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_no_T1_0.3.pickle')
-d2 = load_pickle(path='./data/Step2_bis/run', file=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_extend_no_contract_no_T1_0.3.pickle')
-d3 = load_pickle(path='./data/Step2_bis/run', file=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_extend_no_T1_0.3.pickle')
+# d0 = load_pickle(path='./data/Step2_bis/run', file=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_no_T1_1.0.pickle')
+# d1 = load_pickle(path='./data/Step2_bis/run', file=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_no_T1_0.3.pickle')
+# d2 = load_pickle(path='./data/Step2_bis/run', file=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_extend_no_contract_no_T1_0.3.pickle')
+# d3 = load_pickle(path='./data/Step2_bis/run', file=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_extend_no_T1_0.3.pickle')
 
-G0=last_dict_value(d0)
+# G0=last_dict_value(d0)
 
-delta_strain = delta_network_strain(G0)
+# delta_strain = delta_network_strain(G0)
 insta_save = True
 
 G, G_apical = tissue_3d( hex=7,  basal=True)
 belt = get_outer_belt(G_apical)
 
-z1=belt_z(last_dict_value(d1), belt)
-z2=belt_z(last_dict_value(d2), belt)
-z3=belt_z(last_dict_value(d3), belt)
-z0=belt_z(last_dict_value(d0), belt)
+# z1=belt_z(last_dict_value(d1), belt)
+# z2=belt_z(last_dict_value(d2), belt)
+# z3=belt_z(last_dict_value(d3), belt)
+# z0=belt_z(last_dict_value(d0), belt)
 
-style={'attr':'delta_strain','check_timestamp':False, 'nodeLabels':None, 'vmin':-0.55, 'vmax':0.55, 
-       'start_time':0, 'insta_save':insta_save, 'edgeWidth':80, 'pre_process':delta_strain}
+style={'attr':'myosin','check_timestamp':False, 'nodeLabels':None, 'vmin':-0.55, 'vmax':0.55, 
+       'start_time':0, 'insta_save':insta_save}
 
 pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_no_T1_0.3.pickle',
               distance=150, elevation=4, azimuth=0,
               center=(0,0,-8.7), render_dimensions=(1350,1440), scale_factor=5,
               filename='contraction_apical_strain', apical_only=True, **style)
 
-pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_extend_no_contract_no_T1_0.3.pickle',
-              distance=150, elevation=4, azimuth=0, 
-              center=(0, 0, -7.2),  render_dimensions=(1350,1440), scale_factor=5,
-              filename='extension_apical_strain', apical_only=True, **style)
+# pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_extend_no_contract_no_T1_0.3.pickle',
+#               distance=150, elevation=4, azimuth=0, 
+#               center=(0, 0, -7.2),  render_dimensions=(1350,1440), scale_factor=5,
+#               filename='extension_apical_strain', apical_only=True, **style)
 
-pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_extend_no_T1_0.3.pickle',
-              distance=150, elevation=3, azimuth=0, 
-              center=(0,0,-6.2), render_dimensions=(1350,1440), scale_factor=5,
-              filename='symmetric_apical_strain', apical_only=True, **style)
+# pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_extend_no_T1_0.3.pickle',
+#               distance=150, elevation=3, azimuth=0, 
+#               center=(0,0,-6.2), render_dimensions=(1350,1440), scale_factor=5,
+#               filename='symmetric_apical_strain', apical_only=True, **style)
 
 
 # style['edgewidth']=80

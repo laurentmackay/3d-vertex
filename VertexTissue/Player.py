@@ -286,10 +286,10 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
 
     def loader():
         nonlocal  i_load, i_loaded, G, t_G, new, next_disp_time  , keys, save_dict, file_list
-
+        multi_file = not  (single_pickle or save_dict)
         while True:
 
-            if not  (single_pickle or save_dict):
+            if multi_file :
                 for i_load, e in enumerate(file_list):
                     if e[1]>=next_disp_time:
                         break
@@ -302,7 +302,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
             #     times = [e[1] for _, e in enumerate(file_list)]
 
                 try:
-                    if not (single_pickle or save_dict):
+                    if multi_file:
                         file, t = file_list[i_load]
                         with open(os.path.join(path,file), 'rb') as input:
                             try:

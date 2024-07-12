@@ -275,6 +275,10 @@ def monolayer_integrator(G, G_apical=None,
             dt_min: Lower bound for the adaptive timestepping protocol. Defaults to `0`.
             t: Initial integration time. Default is `0`.
 
+            Many other keyword args are inherited from the enclosing `monolayer_integrator` and can be overridden
+        
+        Returns:
+            save_dict: a `dict()` of  snapshots of the tissue geometry with `float` keys corresponding to the times of the snapshots.
         '''
                 
         nonlocal G, G_apical, centers,  force_dict, drx, dists, view, pos, edges, nonlin_kw

@@ -1,7 +1,7 @@
 # 3d-vertex
 
 ## About
-This repository contains code that can be used in a 3D Vertex Model simulation of tissue mechanics. It is heavily based on code developed by:
+This repository contains code that can be used in a 3D Vertex Model simulation of tissue mechanics (see an example [here](#pickle-player-demo)). It is heavily based on code developed by:
 * [Clinton H. Durney](https://clintondurney.github.io/)
 
 The python package `VertexTissue` extends and improves that code in the following ways:
@@ -113,13 +113,21 @@ By default all cell-edges are treated as elastic rods, this can be modified by u
 
 ### Visualization
 
+__Core Interactive Visualization Functions__
 
-Interactive visualization of network geometry is done using the `VertextTissue.PyQTViz.edge_view` and `VertextTissue.PyQTViz.edge_viewer` functions which perform subtly different roles. The `edge_view` function requires a graph `G`, and will display its geometry using a customized `pyqtgraph.opengl.GLGraphicsItem` widget as well as provide controls to modify which edges are displayed and their appearance. The `edge_viewer` does the same, but additionally returns function that can be passed more graphs objects to dynamically update the visualization. 
+Interactive visualization of network geometry is done using the `VertextTissue.PyQTViz.edge_view` and `VertextTissue.PyQTViz.edge_viewer` functions which perform subtly different roles. The `edge_view` function requires a graph `G`, and display the using a customized `pyqtgraph.opengl.GLGraphicsItem` widget providing control of camera perspective/panning/zooming as well controls to modify which edges are displayed and their appearance. The `edge_viewer` function does the same, but additionally returns function that can be passed more graphs objects to dynamically update the visualization. 
 
 If the `viewer` keyword of a `monolayer_itegrator` is not `False`, an `edge_viewer` will be spawned to visualize the evolution of the tissue geometry in real-time. A `dict()` of keywords values can also be passed to `viewer` to customize the default appearance of the spawned `edge_viewer`.
+
+__Simulation Playback__
 
 A series of snapshot can be viewed as "movie" by using the `VertexTissue.Player.pickle_player` function. You may specify a filepath for pickle files with the `pattern` keyword, which uses the same syntax as the `monolayer_integrator` keyword `save_pattern` (i.e., individual pickle files for each graph or one large pickle file containing a `dict()` of graphs). Alternatively, you may directly pass a `dict()` returned as the result of `monolayer_integrator` by using the `save_dict` keyword.
 
 If the `player` keyword of a `monolayer_itegrator` is not `False`, a `pickle_player` will be spawned to visualize the snapshots as they are produced in real-time with the ability to "re-watch" the entire simulation history. 
+#####Pickle Player Demo
 
+![pickle_player preview][player_preview]
 
+__Fig 1.__ The pickle player playing back a simulation from a locally stored pickle file.
+
+[player_preview]: ./SG_simulation_optimized.gif "Invagination of a Model Salivary Gland"
