@@ -1,7 +1,7 @@
 # 3d-vertex
 
 ## About
-This repository contains code that can be used in a 3D Vertex Model simulation of tissue mechanics (see an example [here](#pickle)). It is fork of the code developed by:
+This repository contains code that can be used in a 3D Vertex Model simulation of tissue mechanics (see an example [here](#pickle-player-demo)). It is fork of the code developed by:
 * [Clinton H. Durney](https://clintondurney.github.io/)
 
 The python package `VertexTissue` extends and improves that code in the following ways:
@@ -125,10 +125,10 @@ A series of snapshot can be viewed as "movie" by using the `VertexTissue.Player.
 
 If the `player` keyword of a `monolayer_itegrator` is not `False`, a `pickle_player` will be spawned to visualize the snapshots as they are produced in real-time with the ability to "re-watch" the entire simulation history. 
 
-# Pickle
+##### Pickle Player Demo
 
 ![pickle_player preview][player_preview]
 
-__Fig 1.__ The pickle player playing back a simulation from a locally stored pickle file.
+__Fig 1.__ Playback of a simulation from a locally stored pickle file.
 
 [player_preview]: ./SG_simulation_optimized.gif "Invagination of a Model Salivary Gland"
