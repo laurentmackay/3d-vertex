@@ -4,7 +4,7 @@ import concurrent
 import os
 
 from time import perf_counter, sleep
-
+from multiprocessing import Pipe
 
 import pickle
 
@@ -92,7 +92,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
         else:
             file_list=[]
             
-    if save_dict is not None:
+    if save_dict is not None and save_dict.keys():
         start_time = save_dict.keys().__iter__().__next__()
 
     # start_file = os.path.join(path, start_file)
@@ -123,7 +123,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
     G=None
     keys = None
     def setPosition(a):
-        nonlocal curr_time, next_disp_time, positionLabel 
+        nonlocal curr_time, next_disp_time, positionLabel
         curr_time = time_bounds[0] + a/slider_ticks*(time_bounds[1]-time_bounds[0])
         positionLabel.setText(f"{curr_time:4.2f}/{time_bounds[1]:4.2f}")
         next_disp_time = curr_time + refresh_interval * speedup
@@ -134,6 +134,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
     def sliderGrabbed():
         nonlocal playButton
         if playButton.isChecked():
+            print('freezing')
             freeze()
 
     def sliderReleased():
@@ -191,6 +192,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
             playButton.setEnabled(True)
             playButton.setIcon(win.style().standardIcon(QStyle.SP_MediaPlay))
             playButton.clicked.connect(pushPlay)
+            playButton.setChecked(True)
         else:
             playButton.setEnabled(False)
             playButton.setIcon(win.style().standardIcon(QStyle.SP_MediaPause))
@@ -221,61 +223,45 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
 
 
 
-    def check_files():
-        nonlocal time_bounds, save_dict, keys, file_list
+    def check_timebounds_changed():
+        nonlocal time_bounds, save_dict, keys, file_list, curr_time, next_disp_time
 
         if len(file_list)==0:
             file_list = [(pattern.replace('*',str(start_time)), start_time)]
 
+        multi_file=not (single_pickle or save_dict)
 
-        if not (single_pickle or save_dict):
-
-            get_filenames(path=path, pattern=pattern, min_timestamp=start_timestamp if check_timestamp else 0, extend=file_list)
-            latest_timestamp = get_creationtime(os.path.join(path,file_list[-1][0]))
-            time_bounds[1]=file_list[-1][1]
-
-            while True:     
-                sleep(0.05)
-                
-
+        while True:     
+            sleep(0.05)
+            
+            if multi_file:
                 get_filenames(path=path, pattern=pattern, min_timestamp=latest_timestamp if check_timestamp else 0, extend=file_list)
                 latest_timestamp = get_creationtime(os.path.join(path,file_list[-1][0]))
+                new_min, new_min = file_list[0][1], file_list[-1][1]
+            else:
+                keys = np.array(list(save_dict.keys()))             
+                new_min, new_max = min(keys), max(keys)
 
-                changed = False
-                if time_bounds[0]>file_list[0][1]:
-                    time_bounds[0]=file_list[0][1]
-                    changed = True
+            changed = False
+            if time_bounds[1]<new_max:
 
-                if time_bounds[1]<file_list[-1][1]:
-                    time_bounds[1]=file_list[-1][1]
-                    changed = True
+                if curr_time==time_bounds[1]:
+                    curr_time=new_max
+                    next_disp_time = curr_time + refresh_interval * speedup
+
+                time_bounds[1]=new_max
+                changed=True
 
 
-                if changed:
-                    syncSlider()
+            if time_bounds[0]>new_min:
 
-        else:
+                time_bounds[0]=new_min
+                changed=True
 
-                # while True:     
-                #     sleep(0.5)
-                    
-                keys = np.array(list(save_dict.keys()))
-
+            if changed:
                 
+                syncSlider()
 
-                curr_min = min(keys)
-                curr_max = max(keys)
-                if time_bounds[1]<curr_max:
-                    time_bounds[1]=curr_max
-                    changed=True
-
-
-                if time_bounds[0]>curr_min:
-                    time_bounds[0]=curr_min
-                    changed=True
-
-                if changed:
-                    syncSlider()
 
 
 
@@ -384,75 +370,102 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
                 sleep(refresh_interval/2)
 
     def start():
-        nonlocal view, counter, prev_counter, save_dict, keys, start_time, prev_disp_time, next_disp_time, curr_time, time_bounds
-        if not single_pickle:
-            with open(os.path.join(path, start_file), 'rb') as input:
-                G=pickle.load(input)
-                t_G = start_time
-            # if not save_dict:
-            #     save_dict=G
-
-        else:
-            if not save_dict:
+        def start_base():
+            nonlocal view, counter, prev_counter, save_dict, keys, start_time, prev_disp_time, next_disp_time, curr_time, time_bounds
+            if not single_pickle:
                 with open(os.path.join(path, start_file), 'rb') as input:
-                    save_dict=pickle.load(input)
+                    G=pickle.load(input)
+                    t_G = start_time
+                # if not save_dict:
+                #     save_dict=G
 
-            if start_time is None:
-                start_time = first_item(save_dict)
-            elif start_time==-1:
-                start_time = last_dict_key(save_dict)
+            else:
+                if save_dict is None:
+                    with open(os.path.join(path, start_file), 'rb') as input:
+                        save_dict=pickle.load(input)
 
-            prev_disp_time = start_time
-            next_disp_time = start_time
-            curr_time = start_time
-            time_bounds = [start_time, float('-inf')]
+                if start_time is None:
+                    start_time = first_item(save_dict)
+                elif start_time==-1:
+                    start_time = last_dict_key(save_dict)
 
-            keys = np.array(list(save_dict.keys()))
-            start_ind = np.argmin(np.abs(keys-start_time))
-            t_G=keys[start_ind]
-            G=save_dict[t_G]
+                prev_disp_time = start_time
+                next_disp_time = start_time
+                curr_time = start_time
+                time_bounds = [start_time, float('-inf')]
+
+                keys = np.array(list(save_dict.keys()))
+                start_ind = np.argmin(np.abs(keys-start_time))
+                t_G=keys[start_ind]
+                G=save_dict[t_G]
+                
+
+            if pre_process is not None:
+                G=pre_process(G)
+            view = edge_viewer(G, window_callback=setup_player, refresh_rate=refresh_rate, parallel=False, save_and_quit=save_and_quit, **kw)
+
+
+
+            loop = asyncio.get_event_loop()
+            executor = concurrent.futures.ThreadPoolExecutor()
+
+
+
+            def exit():
+                print("player exit func hase been called")
+                for f in futures:
+                    f.cancel()
+                executor.shutdown(wait=False)
+                concurrent.futures.thread._threads_queues.clear()
+                loop.stop()
+
+            counter=perf_counter()
+            prev_counter=counter
+
+            futures=[ loop.run_in_executor(executor,check_timebounds_changed), loop.run_in_executor(executor, loader)] 
             
 
-        if pre_process is not None:
-            G=pre_process(G)
-        view = edge_viewer(G, window_callback=setup_player, refresh_rate=refresh_rate, parallel=False, save_and_quit=save_and_quit, **kw)
+            app = QApplication.instance()
+            app.aboutToQuit.connect(exit) 
 
+            refresher = QTimer()
+            refresher.timeout.connect(refresh)
 
+            refresher.setInterval(int(500/refresh_rate))
+            refresher.start()
+            return refresher
 
-        loop = asyncio.get_event_loop()
-        executor = concurrent.futures.ThreadPoolExecutor()
+        if parallel:
+            def start_in_parallel(b):
+                foo=start_base()
+                def listen():
+                    nonlocal save_dict
 
+                    if b.poll():
+                        while b.poll(): #empty the pipe if there has been some accumulation
+                            (t_new, G_new)=b.recv()
+                            save_dict[t_new]=G_new
 
+                listener = QTimer()
+                listener.timeout.connect(listen)
+                
+                listener.setInterval(int(500))
+                listener.start()
 
-        def exit():
-            print("player exit func hase been called")
-            for f in futures:
-                f.cancel()
-            executor.shutdown(wait=False)
-            concurrent.futures.thread._threads_queues.clear()
-            loop.stop()
+                pg.exec()
 
-        counter=perf_counter()
-        prev_counter=counter
-
-        futures=[ loop.run_in_executor(executor,f) for f in (check_files, loader) ] #we probably dont want to this with a dict or whatever
-        
-        app = QApplication.instance()
-        app.aboutToQuit.connect(exit) 
-
-        tmr = QTimer()
-        tmr.timeout.connect(refresh)
-
-        tmr.setInterval(int(500/refresh_rate))
-        tmr.start()
-        
-        pg.exec()
+            return start_in_parallel
+        else:
+            foo=start_base()
+            pg.exec()
         
             
 
     if parallel:
-        proc=Process(start, daemon=True)
+        a,b = Pipe()
+        proc=Process(start(), args=(b,), daemon=True)
         proc.start()
+        return a
     else:
         start()
 

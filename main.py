@@ -167,9 +167,12 @@ def run(phi0, remodel=True, intercalations=0, outer=False, double=False, viewabl
     integrate = monolayer_integrator(G, G_apical,
                                     blacklist=blacklist, append_to_blacklist=True, RK=4,
                                     intercalation_callback=contract_maxwell_branch if SLS else None,
-                                    angle_tol=.01, length_rel_tol=0.05, SLS = False if not SLS else phi0 ,
+                                    angle_tol=.01, length_rel_tol=0.05,
+                                    SLS = False if not SLS else phi0 ,
                                     maxwell_nonlin= maxwell_nonlin,
-                                    player=False, viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, T1=T1, fastvol=fastvol, **kw)
+                                    player=True, 
+                                    viewer={'button_callback':terminate, 'nodeLabels':None } if viewable else False, minimal=False, 
+                                    T1=T1, fastvol=fastvol, **kw)
 
 
     print(f'effective spring constant: {k_eff}')
@@ -184,7 +187,7 @@ def run(phi0, remodel=True, intercalations=0, outer=False, double=False, viewabl
               adaptation_rate=0.1,
               save_rate=100, 
               view_rate=5,   
-              verbose=True,
+              verbose=False,
               save_pattern=pattern,
               resume=True,
               save_on_interrupt=False)

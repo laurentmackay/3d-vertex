@@ -293,7 +293,7 @@ def monolayer_integrator(G, G_apical=None,
             save_dict = False
 
         if save_dict:
-            save_dict={}
+            save_dict={t:copy.deepcopy(G)}
 
         def handle_exit(*args):
             nonlocal save_dict
@@ -339,6 +339,8 @@ def monolayer_integrator(G, G_apical=None,
                 for k,v in data.items():
                     G_copy.graph[k]=v
                 save_dict[t]=G_copy
+                if player:
+                    player_pipe.send((t,G_copy))
 
         if dt_init is None:
             h=dt
@@ -411,7 +413,9 @@ def monolayer_integrator(G, G_apical=None,
 
 
         if player:
-            pickle_player(path=save_path, pattern=pattern, start_time=t, attr='myosin', cell_edges_only=True, apical_only=True, parallel=False, save_dict=save_dict)
+            player_pipe = pickle_player(path=save_path, pattern=pattern, start_time=t, attr='myosin', speedup=save_rate,
+                                        cell_edges_only=True, apical_only=True, parallel=True, save_dict=save_dict,
+                                        label_nodes=False)
 
         if viewer:
             kwv = {'attr':'myosin', 'cell_edges_only':True, 'apical_only':True}
