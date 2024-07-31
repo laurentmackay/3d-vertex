@@ -6,6 +6,4 @@ build-backend = "setuptools.build_meta"
 [project]
 name='VertexTissue'
 version='1.0'
-dependencies = ['networkx','numpy>1.10','scipy','numba>=0.54','pyqtgraph','pyopengl', 'matplotlib','psutil', 'pytest', 'pytest-print',
-'ResearchTools @ git+ssh://git@github.com/laurentmackay/ResearchTools.git@master'
-]
+dependencies = ['networkx','numpy>1.10','scipy','numba>=0.54','pyqtgraph','pyopengl', 'matplotlib','psutil', 'ResearchTools']
