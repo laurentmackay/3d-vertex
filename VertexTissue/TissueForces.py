@@ -3,8 +3,9 @@ from numba.typed import List
 import numba
 from numba import jit
 
+from VertexTissue.TissueForcesJitted import elastic_forces_jitted, viscoelastic_forces_jitted
 from VertexTissue.funcs_orig import convex_hull_volume_bis
-from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, cell_volumes, compute_SLS_forces, compute_distances_and_directions, compute_jitted, compute_myosin_forces, compute_rod_forces, compute_spring_forces, handle_pressure_3D_fast
+from .TissueForcesJitted import apply_bending_forces, apply_pressure_3D, cell_volumes, compute_distances_and_directions, compute_myosin_forces, compute_rod_forces, compute_spring_forces, handle_pressure_3D_fast
 
 from ResearchTools.Geometry import euclidean_distance, unit_vector_and_dist, triangle_areas_and_vectors, triangle_area_vector
 # from .Geometry  import convex_hull_volume as convex_hull_volume_bis
@@ -142,7 +143,7 @@ def pressure_forces(G, faces=None, ndim=3, v0=None):
 
 #@profile
 # @jit(nopython=True, cache=True, inline='never')
-def apply_pressure_forces_3D(forces ,G, pos, ab_face_inds, side_face_inds, centers, v0=None, fastvol=False, ab_pair_face_inds=None):
+def apply_pressure_forces_3D(forces ,G, pos, ab_face_inds, side_face_inds, centers, v0=const.v_0, fastvol=False, ab_pair_face_inds=None):
     PI=pressure(G, pos, centers, v0=v0, fastvol=fastvol, ab_pair_face_inds=ab_pair_face_inds)
     #PI = np.zeros(centers.shape)
 
@@ -210,7 +211,7 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
                     forces[pt] += force
     #@profile
     
-    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=None):      
+    def handle_pressure_3D(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=const.v_0):      
             apply_pressure_forces_3D(forces, G, pos, ab_face_inds, side_face_inds,  centers, v0=v0, ab_pair_face_inds=ab_pair_face_inds, fastvol=fastvol)
 
 
@@ -220,10 +221,13 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
 
 
     
-    def compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=None):
+    def compute(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, v0=const.v_0):
+        if SLS is False:
+            forces = elastic_forces_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, mu_apical, myo_beta, press_alpha, v0=v0)
+        else:
+            forces = viscoelastic_forces_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, mu_apical, myo_beta, press_alpha, v0=v0)
 
-        forces = compute_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, mu_apical, myo_beta, press_alpha, v0=v0)
-
+             
         if compute_pressure and not fastvol:
             handle_pressure(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, v0=v0)
 
@@ -240,7 +244,7 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
     ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds = compute_network_indices(G) 
 
     # @jit(nopython=True, cache=True, inline='never')
-    def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False, v0=None):
+    def compute_tissue_forces(l_rest, dists, drx, myosin, edges, pos, recompute_indices=False, v0=const.v_0):
         nonlocal ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds
 
         if recompute_indices:
@@ -277,7 +281,7 @@ def TissueForces(G=None, ndim=3, minimal=False, compute_pressure=True, SLS=False
             handle_pressure = handle_pressure_2D
 
 
-    return compute_forces, compute_distances_and_directions
+    return compute_forces
 
 def compute_network_indices(G):
     is_basal = has_basal(G)

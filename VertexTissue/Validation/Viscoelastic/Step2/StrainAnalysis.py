@@ -74,7 +74,7 @@ z3=belt_z(last_dict_value(d3), belt)
 z0=belt_z(last_dict_value(d0), belt)
 
 style={'attr':'delta_strain','check_timestamp':False, 'nodeLabels':None, 'vmin':-0.55, 'vmax':0.55, 
-       'start_time':0, 'insta_save':insta_save, 'edgeWidth':80, 'pre_process':delta_strain}
+       'start_time':-1, 'insta_save':insta_save, 'edgeWidth':80, 'pre_process':delta_strain}
 
 pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec={ec}_no_T1_0.3.pickle',
               distance=150, elevation=4, azimuth=0,

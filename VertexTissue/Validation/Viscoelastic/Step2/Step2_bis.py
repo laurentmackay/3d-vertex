@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from VertexTissue.TissueForces import compute_network_indices
 from  VertexTissue.Validation.Viscoelastic.Step1.Step1 import buckle_angle_finder
 from VertexTissue.Energy import network_energy
 from VertexTissue.Stochastic import edge_reaction_selector, reaction_times
@@ -8,7 +9,7 @@ from VertexTissue.Stochastic import edge_reaction_selector, reaction_times
 
 from ResearchTools.Dict import dict_product, dict_product_nd_shape, last_dict_value
 from ResearchTools.Caching import  cached, cache_file, keyword_vals
-from ResearchTools.Geometry import euclidean_distance, unit_vector, distance_from_faceplane_along_direction
+from ResearchTools.Geometry import euclidean_distance, unit_vector, distance_from_faceplane_along_direction, triangle_area_vector
 from ResearchTools.Iterable import imin, imax
 from ResearchTools.Util import find
 
@@ -306,16 +307,24 @@ def get_faceplane_distances_along_direction(G,c, direction):
     corners = list(G[c].keys())
     origin = G.node[0]['pos']
 
-          
+    area_vecs=np.array(G.graph['apical_areas'][center_ind])
+    areas = np.array([np.linalg.norm(v) for v in area_vecs]).reshape((-1,1))
+    area_dot_products = np.dot(area_vecs,area_vecs.T)
+    for i in range(len(area_vecs)):
+          area_dot_products[i,i]=0
+    weights=np.sum(area_dot_products, axis=1).reshape((-1,1))/np.sum(area_dot_products)
+    weights=weights**2
+    normal_vec = np.sum(weights*area_vecs/areas, axis=0)/np.sum(weights)
+
     PD_center_vec = unit_vector(G.node[c]['pos'], origin )
     up = np.array([0.0,0.0,1.0])
-    LR=np.cross(PD_center_vec,up)
+    LR=np.cross(up,normal_vec)
     LR=LR/np.linalg.norm(LR)
 
     if direction=='circumferential':
         ref_dir=LR
     elif direction=='radial':
-        ref_dir=PD_center_vec
+        ref_dir=np.cross(LR, normal_vec)
 
     def prepare_args(i,j):
           y=G.node[corners[i]]['pos']
@@ -324,7 +333,7 @@ def get_faceplane_distances_along_direction(G,c, direction):
           return y, x1, x2
 
     dists=[
-        [distance_from_faceplane_along_direction(*prepare_args(i,j), up, ref_dir) for j in range(len(face_inds)-1)] 
+        [distance_from_faceplane_along_direction(*prepare_args(i,j), normal_vec, ref_dir) for j in range(len(face_inds)-1)] 
         for i,n in enumerate(corners)]
     
     return np.nanmax(dists)
@@ -338,6 +347,13 @@ def average_elongation_ratio(G):
 
 def average_apparent_elongation_ratio(G):
     centers = get_centers_between_arcs()
+    ab_face_inds, side_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, circum_sorted, ab_pair_face_inds = compute_network_indices(G) 
+    apical_area_vecs = [ [
+          triangle_area_vector(np.array([G.nodes[i]['pos'] for i in face[:3]])) 
+                        for face in cell]
+                        for cell in ab_pair_face_inds]
+    
+    G.graph['apical_areas'] = apical_area_vecs
     ratios = [get_faceplane_distances_along_direction(G,c,'radial')/get_faceplane_distances_along_direction(G,c,'circumferential') for c in centers]
     return np.nanmean(ratios)
 

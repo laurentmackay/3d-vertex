@@ -95,7 +95,8 @@ forces=np.linspace(0,600,80)
 # pickle_player(path='./data/Step5/run', pattern=f'no_remodel_L0_T1=3.4_pit_strength=157.89473684210526_1.0.pickle', attr='myosin', speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None)
 
 
-pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec=0.09444444444444444_no_pit_T1s_SLS_fastvol_0.3.pickle', attr='myosin', speedup=200, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None,
+pickle_player(path='./data/Step2_bis/run', pattern=f'no_remodel_L0_T1=3.4_no_scale_pit_ec=0.0_no_pit_T1s_SLS_SLS_no_contract_fastvol_*.pickle', attr='myosin', 
+              speedup=0, cell_edges_only=True, apical_only=True, check_timestamp=False, nodeLabels=None, pre_process=last_dict_value,
               render_dimensions=(4192,3440), distance=60, elevation=6, azimuth=0)
 
 

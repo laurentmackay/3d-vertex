@@ -27,6 +27,62 @@ rc('text', usetex=True)
 legend_style={'fontsize':12, 'loc':'upper left'};
 
 
+def panelled_row( data, plot_func=plt.plot, 
+                 panel_dims=(3,3.5), window_title=None, panel_titles=None, ylabel=None, xlabel=None,
+                 colorbar=False, colorbar_side='right', colorbar_label=None, ax_callback=None, 
+                 data_transform=None, colorbar_tick_transform=None):
+    N=len(data)
+    fig, axs = plt.subplots(1,N)
+    fig.set_size_inches((panel_dims[0]+0.25)*N, panel_dims[1])
+   
+    axs=axs.ravel()
+    plt.get_current_fig_manager().set_window_title(window_title)
+
+
+
+    plt.sca(axs[0])
+    plt.ylabel(ylabel)
+
+    if panel_titles is None:
+        panel_titles=[None,]*N
+
+    if data_transform is None:
+        data_transform = lambda d: d
+
+    for d, ax, title in zip(data, axs, panel_titles):
+        plt.sca(ax)
+        plot_func(data_transform(d))
+        ax.set_title(title, usetex=True, fontsize=16) 
+        plt.xlabel(xlabel)
+
+    plt.tight_layout()
+    
+    if ax_callback:
+        assert callable(ax_callback)
+        for d, ax in zip(data, axs):
+            ax_callback(ax, d)
+        
+    if colorbar:
+        cb_ax=add_colorbar_to_side( axs[-1], side=colorbar_side, label=colorbar_label)
+        cb_ax.yaxis.label.set_size(tick_size)
+
+        if colorbar_tick_transform:
+            assert callable(colorbar_tick_transform)
+            if colorbar_side=='right':
+                ticks = cb_ax.get_yticks()
+                lbls = [ plt.Text(1,t,f'$\\mathdefault{{{colorbar_tick_transform(t)}}}$') for t in ticks]
+            else:
+                ticks = cb_ax.get_yticks()
+                lbls = [ plt.Text(t,0,f'$\\mathdefault{{{colorbar_tick_transform(t)}}}$') for t in ticks]
+            
+            cb_ax.set_yticks(ticks, labels=lbls)
+
+        return cb_ax
+        
+            
+    
+
+
 def pcolor(X, Y, C, shading='nearest', cmap=None, tight=True, upscale=1, sampling='nearest', **kw):
     if upscale>1:
         XY, C = upsample(X, Y, C, fold=upscale, midpoint=True, sampling=sampling)

@@ -355,20 +355,35 @@ def apply_pressure_3D(forces, PI, pos, face_inds,  side_face_inds):
                 forces[inds[j]] += force
 
 @jit(nopython=True, cache=True, inline='always')
-def compute_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, mu_apical, myo_beta, press_alpha, v0=None):
+def viscoelastic_forces_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, mu_apical, myo_beta, press_alpha, v0=None):
 
     forces = np.zeros(pos.shape ,dtype=float)
 
-    if SLS is False:
-        compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, mu_apical, myo_beta, ndim=ndim)
-    else:
-        compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, mu_apical, myo_beta, SLS, ndim=ndim)
+    compute_SLS_forces(forces, l_rest[0], l_rest[1], dists, drx, myosin, edges, mu_apical, myo_beta, SLS, ndim=ndim)
 
+    apply_non_edge_forces(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, press_alpha, triangles_sorted, shared_inds, alpha_inds, beta_inds, compute_pressure, fastvol, ndim, v0=v0)
+
+
+    return forces
+
+@jit(nopython=True, cache=True, inline='always')
+def elastic_forces_jitted(pos, l_rest, dists, drx, myosin, edges,  side_face_inds, ab_face_inds, shared_inds, alpha_inds, beta_inds, triangles_sorted, ab_pair_face_inds, SLS, ndim, compute_pressure, fastvol, mu_apical, myo_beta, press_alpha, v0=None):
+
+    forces = np.zeros(pos.shape ,dtype=float)
+
+
+    compute_rod_forces(forces, l_rest, dists, drx, myosin, edges, mu_apical, myo_beta, ndim=ndim)
+
+    apply_non_edge_forces(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, press_alpha, triangles_sorted, shared_inds, alpha_inds, beta_inds, compute_pressure, fastvol, ndim, v0=v0)
+
+
+    return forces
+
+@jit(nopython=True, cache=True, inline='always')
+def apply_non_edge_forces(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, press_alpha, triangles_sorted, shared_inds, alpha_inds, beta_inds, compute_pressure, fastvol, ndim, v0=None):
     if compute_pressure and fastvol:
         handle_pressure_3D_fast(forces, pos, ab_face_inds, side_face_inds, ab_pair_face_inds, press_alpha, v0=v0)
 
 
     if ndim==3:
         apply_bending_forces(forces, triangles_sorted, pos, shared_inds, alpha_inds, beta_inds)
-
-    return forces

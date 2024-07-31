@@ -237,7 +237,7 @@ def pickle_player(path=os.getcwd(), pattern=save_pattern, file_list=None, start_
             if multi_file:
                 get_filenames(path=path, pattern=pattern, min_timestamp=latest_timestamp if check_timestamp else 0, extend=file_list)
                 latest_timestamp = get_creationtime(os.path.join(path,file_list[-1][0]))
-                new_min, new_min = file_list[0][1], file_list[-1][1]
+                new_min, new_max = file_list[0][1], file_list[-1][1]
             else:
                 keys = np.array(list(save_dict.keys()))             
                 new_min, new_max = min(keys), max(keys)

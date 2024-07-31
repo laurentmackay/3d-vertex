@@ -301,12 +301,12 @@ def tissue_3d( gen_centers=hex_hex_grid, node_generator=hex_nodes, basal=True,
 
 
 
-    kws = {'node_generator': node_generator,'cell_edge_attr':cell_edge_attr, 'spoke_attr':spoke_attr, 'centers':center_nodes}
+    primitive_kws = {'node_generator': node_generator,'cell_edge_attr':cell_edge_attr, 'spoke_attr':spoke_attr, 'centers':center_nodes}
 
     apical_centers = gen_centers(**kw)
 
     for origin in gen_centers(**kw):
-        add_2D_primitive_to_graph(G, origin=origin, **kws)
+        add_2D_primitive_to_graph(G, origin=origin, **primitive_kws)
 
 
 
@@ -345,12 +345,12 @@ def tissue_3d( gen_centers=hex_hex_grid, node_generator=hex_nodes, basal=True,
         # const.basal_offset=np.maximum(const.basal_offset, len(G))
 
         basal_centers = apical_centers + np.array((0,0,-const.l_depth))
-        kws = {'node_generator': node_generator,'cell_edge_attr':cell_edge_attr, 'spoke_attr':spoke_attr}
+        primitive_kws = {'node_generator': node_generator,'cell_edge_attr':cell_edge_attr, 'spoke_attr':spoke_attr}
 
-        add_2D_primitive_to_graph(G, origin=basal_centers[0], index=i, **kws)
+        add_2D_primitive_to_graph(G, origin=basal_centers[0], index=i, **primitive_kws)
 
         for origin in basal_centers[1:]:
-            add_2D_primitive_to_graph(G, origin=origin, **kws)
+            add_2D_primitive_to_graph(G, origin=origin, **primitive_kws)
 
         print("Basal Nodes Added")
 

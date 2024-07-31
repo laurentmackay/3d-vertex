@@ -29,14 +29,16 @@ phi0s=phi0_SLS
 G, G_apical = tissue_3d( hex=7,  basal=True)
 
 refresh=False
+ppkw={'vertical_projection':True}
 
-elongation_ratio_baseline  = sweep(phi0s, run, kw=kws_contract, pre_process = final_apparent_elongation_ratio,
+
+elongation_ratio_baseline  = sweep(phi0s, run, kw=kws_contract, pre_process = final_apparent_elongation_ratio, pre_process_kw=ppkw,
 cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh, dtype=float)
 
-elongation_ratio_extend  = sweep(phi0s, run, kw=kws_extend, pre_process = final_apparent_elongation_ratio,
+elongation_ratio_extend  = sweep(phi0s, run, kw=kws_extend, pre_process = final_apparent_elongation_ratio, pre_process_kw=ppkw,
 cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh, dtype=float)
 
-elongation_ratio_sym  = sweep(phi0s, run, kw=kws_sym, pre_process = final_apparent_elongation_ratio,
+elongation_ratio_sym  = sweep(phi0s, run, kw=kws_sym, pre_process = final_apparent_elongation_ratio, pre_process_kw=ppkw,
 cache=True, savepath_prefix=base_path, inpaint=np.nan, refresh=refresh, dtype=float)
 
 

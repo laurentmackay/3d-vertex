@@ -10,6 +10,7 @@ from typing import Iterable
 import networkx as nx
 import numpy as np
 
+from VertexTissue.TissueForcesJitted import compute_distances_and_directions
 from VertexTissue.forces_orig import compute_forces_orig
 
 
@@ -181,7 +182,7 @@ def monolayer_integrator(G, G_apical=None,
     
     # @jit(nopython=True, cache=True)
 
-    compute_forces, compute_distances_and_directions = TissueForces(G, ndim=ndim, minimal=minimal, SLS=SLS, fastvol=fastvol)
+    compute_forces = TissueForces(G, ndim=ndim, minimal=minimal, SLS=SLS, fastvol=fastvol)
         
 
     if rest_length_func is not None:
