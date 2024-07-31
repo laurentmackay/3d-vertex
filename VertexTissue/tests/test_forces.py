@@ -134,7 +134,7 @@ def test_new_force_implementation(G3D):
 
         assert np.all(np.abs(forces-forces_orig)<TOL)
 
-def test_speedup(G3D, printer):
+def test_speedup(G3D):
 
     
         G=copy.deepcopy(G3D)
