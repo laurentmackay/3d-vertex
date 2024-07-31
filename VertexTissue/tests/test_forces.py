@@ -2,7 +2,7 @@ import copy
 import time
 import numpy as np
 import pytest
-import pytest_print
+
 
 from scipy.spatial import ConvexHull
 
@@ -34,7 +34,7 @@ def fastvol_relative_diff_to_convexhull(G,  center_offset=0.0, randomize_offset=
     
     convex_vols = np.array([convex_hull_volume_bis(get_points(G, c, pos) ) for c in centers])
 
-    if center_offset<0.0:
+    if center_offset<0.0: #compensate for a non-convex shape
         circum_sorted = G.graph['circum_sorted']
         convex_vols -= np.array(
             [ 
