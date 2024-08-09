@@ -12,6 +12,7 @@ from ResearchTools.Caching import  cached, cache_file, keyword_vals
 from ResearchTools.Geometry import euclidean_distance, unit_vector, distance_from_faceplane_along_direction, triangle_area_vector
 from ResearchTools.Iterable import imin, imax
 from ResearchTools.Util import find
+from ResearchTools.Sweep import sweep
 
 
 import VertexTissue.SG as SG
@@ -21,7 +22,8 @@ from VertexTissue.Tissue import get_outer_belt, tissue_3d
 
 from VertexTissue.funcs_orig import clinton_timestepper, convex_hull_volume_bis, get_points
 import VertexTissue.globals as const
-from VertexTissue.globals import inter_edges_middle, inter_edges_middle_bis, inter_edges_outer, inter_edges_outer_bis, inner_arc, outer_arc, pit_strength, myo_beta, l_apical, press_alpha
+from VertexTissue.globals import inter_edges_middle, inter_edges_middle_bis, inter_edges_outer, inter_edges_outer_bis,  pit_strength, myo_beta, l_apical, press_alpha
+from VertexTissue.globals import inner_arc, outer_arc, inner_arc_discont, outer_arc_discont, outer_arc_discont2, arc1, arc2, arc3, arc4, arc5, arc6
 from VertexTissue.util import arc_to_edges, edge_index, find_first, get_myosin_free_cell_edges, inside_arc
 from VertexTissue.vertex_3d import monolayer_integrator
 from VertexTissue.visco_funcs import SLS_nonlin, crumple, fluid_element, edge_crumpler, extension_remodeller, shrink_edges
@@ -367,7 +369,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
         outer=False, double=False, viewable=viewable, stochastic=False, press_alpha=press_alpha,
         pit_strength=300, clinton_timestepping=False, dt_min=5e-2, basal=False, scale_pit=True, mu_apical=const.mu_apical, ec=0.2,
         extend=False, contract=True, T1=True, edge_ratio=0, no_pit_T1s=False, SLS=False, SLS_no_extend=False, SLS_no_contract=False,
-        constant_pressure_intercalations=False, fastvol=False, fluid_spokes=False, t_final=4e4):
+        discont=False, discont_type=1, fastvol=False, fluid_spokes=False, t_final=4e4):
     
     if (contract==False and extend==False) or (SLS_no_contract and SLS_no_extend):
         return
@@ -445,10 +447,21 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
         Rxs_outer = tuple((t, outer_intercalation_rxn, f'Outer intercalation triggered at t={t}')for t in reaction_times(n=intercalations, T_final=t_final-2e4))
 
 
-
+    if not discont:
+          arcs=(inner_arc,outer_arc)
+    else:
+        match discont_type:
+              case 1:
+                    arcs = (inner_arc_discont,outer_arc_discont)
+              case 2:
+                    arcs = (inner_arc,[arc1, arc2, arc3, arc4, arc5, arc6])
+              case 3:
+                    arcs = (inner_arc_discont,outer_arc_discont2)
+                          
 
     squeeze = SG.arcs_pit_and_intercalation(G, belt, 
-                                           t_1=t_start, 
+                                           t_1=t_start,
+                                           arcs=arcs,
                                            inter_edges=inter_edges if not stochastic else [], 
                                            t_intercalate=t_start, 
                                            pit_strength=sigma, 
@@ -530,7 +543,7 @@ def run(phi0, remodel=True, cable=True, L0_T1=0.0, verbose=False, belt=True, int
     else:
            extra_arcs=[]
            
-    blacklist=arc_to_edges(belt, inner_arc, outer_arc, *extra_arcs)
+    blacklist=arc_to_edges(belt, *arcs, *extra_arcs)
     
     # b
     #create integrator
@@ -642,7 +655,14 @@ kws_SLS_baseline_thresh = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False, 
 kws_SLS_baseline_thresh_ext = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True, 'ec':ecs,'fastvol':True}
 kws_SLS_baseline_thresh_con = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True, 'ec':ecs,'fastvol':True}
 
+kws_SLS_discont_thresh = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':ecs,'fastvol':True, 'discont':True}
+kws_SLS_discont_thresh_ext = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':True, 'ec':ecs,'fastvol':True, 'discont':True}
+kws_SLS_discont_thresh_con = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_extend':True, 'ec':ecs,'fastvol':True, 'discont':True}
+
+
+
 kws_SLS_baseline_thresh_all = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':[True, False], 'SLS_no_extend':[True, False], 'ec':ecs, 'fastvol': True}
+kws_SLS_discont_thresh_all = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'SLS_no_contract':[True, False], 'SLS_no_extend':[True, False], 'ec':ecs, 'fastvol': True, 'discont':True, 'discont_type':[1,2,3]}
 
 
 kws_SLS_baseline = {'intercalations':0, 'L0_T1':L0_T1s, 'remodel':False,  'scale_pit':False, 'no_pit_T1s':True, 'SLS':True, 'ec':0.0, 'fastvol': True}
@@ -742,17 +762,17 @@ if __name__ == '__main__':
         def foo(*args):
                 pass
 
-        # sweep(np.flip(phi0_SLS), run, kw=kws_SLS_baseline_thresh, savepath_prefix=base_path, overwrite=False, pre_process=foo, dry_run=True, verbose=False, print_code=True)
+        sweep(np.flip(phi0_SLS), run, kw=kws_SLS_discont_thresh_all,  savepath_prefix=base_path, overwrite=False, pre_process=foo, dry_run=False, verbose=False, print_code=False)
 
 #     run(0.1, ec=0.1, L0_T1=l_apical, remodel=False,   viewable=True, verbose=True, dt_min=5e-3,  scale_pit=False, no_pit_T1s=True, SLS=True, SLS_no_contract=True, fastvol=True)
 #     viewable=False
-        from pathos.multiprocessing import ProcessPool
-        pool = ProcessPool(nodes=3)
-        pool.map(lambda args_and_kws: run(*args_and_kws[0], **args_and_kws[1]),(
-        ((0.1,),{'intercalations': 0, 'L0_T1': 3.4, 'remodel': False, 'scale_pit': False, 'no_pit_T1s': True, 'SLS': True, 'ec': 0.07222222222222223, 'fastvol': True}),
-        ((0.1,),{'intercalations': 0, 'L0_T1': 3.4, 'remodel': False, 'scale_pit': False, 'no_pit_T1s': True, 'SLS': True, 'ec': 0.16111111111111112, 'fastvol': True}),
-        ((0.1,),{'intercalations': 0, 'L0_T1': 3.4, 'remodel': False, 'scale_pit': False, 'no_pit_T1s': True, 'SLS': True, 'ec': 0.25, 'fastvol': True}),
-        ))
+        # from pathos.multiprocessing import ProcessPool
+        # pool = ProcessPool(nodes=3)
+        # pool.map(lambda args_and_kws: run(*args_and_kws[0], **args_and_kws[1]),(
+        # ((0.1,),{'intercalations': 0, 'L0_T1': 3.4, 'remodel': False, 'scale_pit': False, 'no_pit_T1s': True, 'SLS': True, 'ec': 0.07222222222222223, 'fastvol': True}),
+        # ((0.1,),{'intercalations': 0, 'L0_T1': 3.4, 'remodel': False, 'scale_pit': False, 'no_pit_T1s': True, 'SLS': True, 'ec': 0.16111111111111112, 'fastvol': True}),
+        # ((0.1,),{'intercalations': 0, 'L0_T1': 3.4, 'remodel': False, 'scale_pit': False, 'no_pit_T1s': True, 'SLS': True, 'ec': 0.25, 'fastvol': True}),
+        # ))
         
         # print(list(r))
 
