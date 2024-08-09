@@ -41,7 +41,7 @@ try:
 except:
     viewable=False
     base_path = './data/'
-# viewable=False
+viewable=False
 def extending_edge_length(G, edge = None):
         b=G.node[edge[0]]['pos']
         c=G.node[edge[1]]['pos']
