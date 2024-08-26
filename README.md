@@ -5,11 +5,11 @@ This repository contains code that can be used in a 3D Vertex Model simulation o
 * [Clinton H. Durney](https://clintondurney.github.io/)
 
 The python package `VertexTissue` extends and improves that code in the following ways:
-+ It allows for viscoelastic disipation in the cell-edges:
++ It allows for viscoelastic dissipation in the cell-edges:
 	* using either Maxwell Model or Standard Linear Solid Model elements
 + Significant improvements to performance (~100-fold faster):
 	* Jit-compilation of core numerical routines (using `numba`)
-	* Simplification of some core loops and optimzation of datatypes
+	* Simplification of some core loops and optimization of datatypes
 + Cell-volumes are computed using an exact formula rather than the quickhull algorithm (requires the use of the `fastvol=True` during integration).
 + Adaptive timestepping that detects large force differences and keeps deformations below user-specified thresholds. 
 
@@ -20,19 +20,19 @@ The code contained herein was written for the simulations in the following publi
 
 ## Dependencies
 
-Plotting the tissue geometry uses OpenGL and requires the `OpenGL Utility Toolkit`. This can be obtain from the `freeglut` package,  on debian-based linux distributions this can usually be installed using:
+Plotting the tissue geometry uses OpenGL and requires the `OpenGL Utility Toolkit`. This can be obtained from the `freeglut` package,  on debian-based Linux distributions this can usually be installed using:
 ```
 sudo apt install freeglut*
 ```
 
 ## Installation ### 
 
-Clone this repo locally and run :
+Clone this repo locally, create/activate any relevant virtual environments, and then run :
 ```
 pip install .
 ```
 
-You may also add the `-e` flag to install as an editable project  or alternatively use any other installation tool that is compatible with a `pyproject.toml` specification file.
+You may also add the `-e` flag to install as an editable project or alternatively use any other installation tool that is compatible with a `pyproject.toml` specification file.
 
 ## Example
 
