@@ -1,7 +1,10 @@
-# 3d-vertex
+## VertexTissue
+Vertex-based Tissue modelling in 2D/3D.
+
+!["Invagination of a Model Salivary Gland"](./SG_simulation_optimized.gif )
 
 ## About
-This repository contains code that can be used in a 3D Vertex Model simulation of tissue mechanics (see an example [here](#pickle-player-demo)). It is fork of the code developed by:
+This repository contains code that can be used in Vertex Model simulations of tissue mechanics (see example above). It is fork of the code developed by:
 * [Clinton H. Durney](https://clintondurney.github.io/)
 
 The python package `VertexTissue` extends and improves that code in the following ways:
@@ -45,3 +48,13 @@ pip main.py
 ## Package Overview
 
 A more in-depth description of the package and its features/options can be found [here](OVERVIEW.md).
+
+## Unit-Tests
+
+A number of unit-test have been implemented (using the [pytest](https://pytest.org/) framework) to verify the correctness of of the implementation of certain forces. To run these test, simply run 
+``` 
+pytest
+```
+in from the root directory of this repository.
+
+These test should be re-run after any modification to force-related code.
