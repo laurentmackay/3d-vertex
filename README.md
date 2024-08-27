@@ -42,7 +42,7 @@ You may also add the `-e` flag to install as an editable project or alternativel
 Run `main.py` in the root folder of this repository.
 
 ```
-pip main.py
+python main.py
 ```
 
 ## Package Overview
@@ -55,6 +55,6 @@ A number of unit-test have been implemented (using the [pytest](https://pytest.o
 ``` 
 pytest
 ```
-in from the root directory of this repository.
+in the root directory of this repository.
 
-These test should be re-run after any modification to force-related code.
+This test suite should be re-run after any modification to force-related code.
