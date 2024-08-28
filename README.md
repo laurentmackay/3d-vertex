@@ -58,3 +58,5 @@ pytest
 in the root directory of this repository.
 
 This test suite should be re-run after any modification to force-related code.
+
+[![Python package](https://github.com/laurentmackay/3d-vertex/actions/workflows/test-python-package.yml/badge.svg)](https://github.com/laurentmackay/3d-vertex/actions/workflows/test-python-package.yml)
