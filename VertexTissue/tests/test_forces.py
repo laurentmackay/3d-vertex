@@ -28,11 +28,11 @@ def G3D():
     
     logger.info('Running initial force computation')
     logger.info('This may take some time due to JIT-compilation...')
-		
+	
     compute_forces = TissueForces(G, fastvol=True)
 
     #dummy code to force JIT-compilation
-
+    t0=time.perf_counter()
 
     pos=get_node_attribute_array(G,'pos')
     edges = get_edges_array(G)
@@ -42,7 +42,7 @@ def G3D():
     l_rest = get_edge_attribute_array(G, 'l_rest')
     myosin = get_edge_attribute_array(G, 'myosin')
     forces = compute_forces(l_rest, dists, drx, myosin, edges, pos)
-    logger.info('done.')
+    logger.info(f'done ({time.perf_counter()-t0} seconds elapsed).')
 
     return G
     
@@ -103,6 +103,7 @@ def test_relaxed_reference_state(G3D, caplog):
     
     assert np.all(np.abs(forces)<TOL)
     logger.info(f"Largest force component (elastic): {np.max(np.abs(forces))}")
+
     assert np.all(np.abs(viscoelastic_forces)<TOL)
     logger.info(f"Largest force component (viscoelastic): {np.max(np.abs(viscoelastic_forces))}")
 
@@ -137,7 +138,9 @@ def test_new_force_implementation(G3D, caplog):
         # viscoelastic_forces = compute_viscoelastic_forces(l_rest, dists, drx, myosin, edges, pos)
 
         max_err=max(max_err, np.max(np.abs(forces-forces_orig)))
-        assert np.all(max_err<TOL)
+        
+        assert max_err<TOL
+
     logger.info(f"Largest component-wise difference: {max_err}")
 
 
